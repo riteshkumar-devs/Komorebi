@@ -82,7 +82,11 @@ import {
   LogIn,
   Sun,
   Moon,
-  Monitor
+  Monitor,
+  Camera,
+  Upload,
+  Image as ImageIcon,
+  Scan
 } from 'lucide-react';
 import { GoogleGenAI, Modality } from "@google/genai";
 import ReactMarkdown from 'react-markdown';
@@ -1392,18 +1396,16 @@ const Translator = () => {
   const [text, setText] = useState('');
   const [result, setResult] = useState('');
   const [loading, setLoading] = useState(false);
+  const [mode, setMode] = useState<'text' | 'photo'>('text');
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const [isScanning, setIsScanning] = useState(false);
   const { play, loading: ttsLoading } = useTTSContext();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
 
   const handleTranslate = async () => {
-    if (!text) return;
+    if (!text.trim()) return;
     
-    const cacheKey = `translate_${text.trim().toLowerCase()}`;
-    const cached = localStorage.getItem(cacheKey);
-    if (cached) {
-      setResult(cached);
-      return;
-    }
-
     setLoading(true);
     try {
       const ai = getAI(profile);
@@ -1412,18 +1414,15 @@ const Translator = () => {
         return;
       }
 
-      const isJapanese = /[\u3000-\u303f\u3040-\u309f\u30a0-\u30ff\uff00-\uff9f\u4e00-\u9faf\u3400-\u4dbf]/.test(text);
-      
       const response = await ai.models.generateContent({
         model: "gemini-3-flash-preview",
-        contents: `Translate the following ${isJapanese ? "Japanese" : "English"} text to ${isJapanese ? "English" : "Japanese"}: "${text}". 
-        Provide ONLY the translation. If it's a single word, provide the most common translation. 
-        If it's Japanese, also include the Romaji in parentheses.`,
+        contents: `Translate the following text. If it is in Japanese, translate it to English. If it is in English, translate it to Japanese.
+        Text: "${text}"
+        Provide ONLY the translation. If it's Japanese, also include the Romaji in parentheses.`,
       });
 
       const translation = response.text?.trim() || "Translation failed";
       setResult(translation);
-      localStorage.setItem(cacheKey, translation);
     } catch (error: any) {
       console.error("Translation Error:", error);
       setResult(`Error: ${error.message || "Something went wrong. Please try again."}`);
@@ -1432,88 +1431,281 @@ const Translator = () => {
     }
   };
 
+  const handlePhotoTranslate = async (base64Image: string) => {
+    setLoading(true);
+    setIsScanning(true);
+    setResult('');
+    try {
+      const ai = getAI(profile);
+      if (!ai) {
+        setResult("API key required.");
+        return;
+      }
+
+      const response = await ai.models.generateContent({
+        model: "gemini-3-flash-preview",
+        contents: [
+          {
+            inlineData: {
+              mimeType: "image/jpeg",
+              data: base64Image.split(',')[1],
+            },
+          },
+          {
+            text: "Detect the Japanese or English text in this image and translate it to the other language (Japanese to English or English to Japanese). Provide ONLY the translation. If it's Japanese, include Romaji in parentheses.",
+          },
+        ],
+      });
+
+      const translation = response.text?.trim() || "Translation failed";
+      setResult(translation);
+    } catch (error: any) {
+      console.error("Photo Translation Error:", error);
+      setResult(`Error: ${error.message}`);
+    } finally {
+      setLoading(false);
+      setIsScanning(false);
+    }
+  };
+
+  const onFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const base64 = reader.result as string;
+        setSelectedImage(base64);
+        handlePhotoTranslate(base64);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   const handlePlay = (val: string) => {
-    // Only speak the Japanese part if it contains parentheses (Romaji)
     const japanesePart = val.split('(')[0].trim();
     play(japanesePart);
   };
 
   return (
-    <div className="max-w-3xl mx-auto">
-      <motion.div 
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="mb-10"
-      >
-        <h2 className="text-4xl font-editorial italic text-stone-900 mb-2">Word Translator</h2>
-        <p className="text-stone-500 font-serif italic">Fast, reliable word translations powered by Gemini AI.</p>
-      </motion.div>
+    <div className="max-w-4xl mx-auto px-4">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-10">
+        <div>
+          <h2 className="text-5xl font-editorial italic text-stone-900 dark:text-stone-100 mb-2">AI Translator</h2>
+          <p className="text-stone-500 dark:text-stone-400 font-serif italic">Translate words, sentences, or photos using AI.</p>
+        </div>
+        
+        <div className="flex bg-white dark:bg-stone-900 p-1.5 rounded-2xl shadow-sm border border-stone-100 dark:border-stone-800 self-start md:self-center">
+          <button 
+            onClick={() => { setMode('text'); setResult(''); }}
+            className={cn(
+              "px-6 py-2.5 rounded-xl text-sm font-medium transition-all flex items-center gap-2",
+              mode === 'text' 
+                ? "bg-stone-900 dark:bg-stone-100 text-white dark:text-stone-900 shadow-md" 
+                : "text-stone-500 dark:text-stone-400 hover:bg-stone-50 dark:hover:bg-stone-800"
+            )}
+          >
+            <Languages className="w-4 h-4" />
+            Text
+          </button>
+          <button 
+            onClick={() => { setMode('photo'); setResult(''); }}
+            className={cn(
+              "px-6 py-2.5 rounded-xl text-sm font-medium transition-all flex items-center gap-2",
+              mode === 'photo' 
+                ? "bg-stone-900 dark:bg-stone-100 text-white dark:text-stone-900 shadow-md" 
+                : "text-stone-500 dark:text-stone-400 hover:bg-stone-50 dark:hover:bg-stone-800"
+            )}
+          >
+            <Scan className="w-4 h-4" />
+            Photo
+          </button>
+        </div>
+      </div>
 
       {!getApiKey() && <div className="mb-8"><MissingApiKeyWarning /></div>}
 
-      <div className="space-y-6">
-        <motion.div 
-          initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}
-          className="bg-white p-8 rounded-[3rem] shadow-sm border border-stone-50"
-        >
-          <div className="relative">
-            <input 
-              type="text"
-              value={text}
-              onChange={(e) => setText(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleTranslate()}
-              placeholder="Type a word in English or Japanese..."
-              className="w-full p-6 bg-stone-50 border-none rounded-2xl focus:ring-2 focus:ring-stone-100 transition-all text-xl outline-none font-serif italic"
-            />
-            {text && (
-              <button 
-                onClick={() => setText('')}
-                className="absolute right-4 top-1/2 -translate-y-1/2 p-2 text-stone-300 hover:text-stone-500 transition-all hover:scale-110"
-              >
-                <XCircle className="w-5 h-5" />
-              </button>
-            )}
-          </div>
-          <div className="mt-6 flex justify-end">
-            <button 
-              onClick={handleTranslate}
-              disabled={loading || !text}
-              className="px-10 py-4 bg-stone-900 text-white rounded-full font-bold hover:bg-stone-800 transition-all shadow-xl shadow-stone-100 disabled:opacity-50 flex items-center gap-2 hover:scale-105 active:scale-95"
-            >
-              {loading ? (
-                <>
-                  <RotateCcw className="w-4 h-4 animate-spin" />
-                  Translating...
-                </>
+      <div className="grid grid-cols-1 gap-8">
+        {mode === 'text' ? (
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="bg-white dark:bg-stone-900 p-8 rounded-[3rem] shadow-xl border border-stone-100 dark:border-stone-800"
+          >
+            <div className="space-y-6">
+              <div className="relative group">
+                <textarea 
+                  value={text}
+                  onChange={(e) => setText(e.target.value)}
+                  placeholder="Type a word or sentence in English or Japanese..."
+                  className="w-full p-8 bg-stone-50 dark:bg-stone-800 border-none rounded-3xl focus:ring-2 focus:ring-stone-200 dark:focus:ring-stone-700 transition-all text-2xl outline-none font-serif italic min-h-[200px] resize-none text-stone-900 dark:text-stone-100 placeholder:text-stone-400 dark:placeholder:text-stone-500"
+                />
+                {text && (
+                  <button 
+                    onClick={() => setText('')}
+                    className="absolute right-8 top-8 p-2 text-stone-300 hover:text-stone-500 transition-all hover:scale-110"
+                  >
+                    <XCircle className="w-6 h-6" />
+                  </button>
+                )}
+              </div>
+              
+              <div className="flex justify-end">
+                <button 
+                  onClick={handleTranslate}
+                  disabled={loading || !text.trim()}
+                  className="px-10 py-5 bg-stone-900 dark:bg-stone-100 text-white dark:text-stone-900 rounded-2xl font-bold hover:scale-105 active:scale-95 transition-all disabled:opacity-50 flex items-center gap-3 shadow-xl shadow-stone-200 dark:shadow-none"
+                >
+                  {loading ? (
+                    <>
+                      <div className="w-5 h-5 border-2 border-white/30 dark:border-stone-900/30 border-t-white dark:border-t-stone-900 rounded-full animate-spin" />
+                      Translating...
+                    </>
+                  ) : (
+                    <>
+                      Translate
+                      <ArrowRight className="w-5 h-5" />
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        ) : (
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="bg-white dark:bg-stone-900 p-8 rounded-[3rem] shadow-xl border border-stone-100 dark:border-stone-800"
+          >
+            <div className="flex flex-col items-center justify-center min-h-[400px] border-2 border-dashed border-stone-200 dark:border-stone-800 rounded-[2.5rem] bg-stone-50/50 dark:bg-stone-800/30 overflow-hidden relative group">
+              {selectedImage ? (
+                <div className="relative w-full h-full flex items-center justify-center">
+                  <img 
+                    src={selectedImage} 
+                    alt="Selected" 
+                    className="max-w-full max-h-[500px] object-contain rounded-2xl"
+                  />
+                  {isScanning && (
+                    <motion.div 
+                      initial={{ top: 0 }}
+                      animate={{ top: '100%' }}
+                      transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+                      className="absolute left-0 right-0 h-1 bg-amber-400 shadow-[0_0_15px_rgba(251,191,36,0.8)] z-10"
+                    />
+                  )}
+                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all flex items-center justify-center opacity-0 group-hover:opacity-100">
+                    <button 
+                      onClick={() => setSelectedImage(null)}
+                      className="px-6 py-3 bg-white text-stone-900 rounded-full font-bold shadow-lg hover:scale-105 transition-all"
+                    >
+                      Clear Image
+                    </button>
+                  </div>
+                  
+                  {/* Google Lens-like corners */}
+                  <div className="absolute top-8 left-8 w-12 h-12 border-t-4 border-l-4 border-white rounded-tl-xl" />
+                  <div className="absolute top-8 right-8 w-12 h-12 border-t-4 border-r-4 border-white rounded-tr-xl" />
+                  <div className="absolute bottom-8 left-8 w-12 h-12 border-b-4 border-l-4 border-white rounded-bl-xl" />
+                  <div className="absolute bottom-8 right-8 w-12 h-12 border-b-4 border-r-4 border-white rounded-br-xl" />
+                </div>
               ) : (
-                <>
-                  <Languages className="w-4 h-4" />
-                  Translate
-                </>
+                <div className="text-center p-12">
+                  <div className="w-24 h-24 bg-stone-100 dark:bg-stone-700 rounded-full flex items-center justify-center mx-auto mb-6 group-hover:scale-110 transition-transform">
+                    <Scan className="w-10 h-10 text-stone-400 dark:text-stone-500" />
+                  </div>
+                  <h3 className="text-2xl font-editorial italic text-stone-900 dark:text-stone-100 mb-2">Visual Translation</h3>
+                  <p className="text-stone-500 dark:text-stone-400 font-serif italic mb-8 max-w-xs mx-auto">Capture or upload a photo to translate text instantly like Google Lens.</p>
+                  
+                  <div className="flex flex-wrap justify-center gap-4">
+                    <button 
+                      onClick={() => {
+                        if (fileInputRef.current) {
+                          fileInputRef.current.setAttribute('capture', 'environment');
+                          fileInputRef.current.click();
+                        }
+                      }}
+                      className="px-8 py-4 bg-stone-900 dark:bg-stone-100 text-white dark:text-stone-900 rounded-2xl font-bold hover:scale-105 active:scale-95 transition-all flex items-center gap-3 shadow-lg"
+                    >
+                      <Camera className="w-5 h-5" />
+                      Take Photo
+                    </button>
+                    <button 
+                      onClick={() => {
+                        if (fileInputRef.current) {
+                          fileInputRef.current.removeAttribute('capture');
+                          fileInputRef.current.click();
+                        }
+                      }}
+                      className="px-8 py-4 bg-stone-100 dark:bg-stone-800 text-stone-900 dark:text-stone-100 rounded-2xl font-bold hover:bg-stone-200 dark:hover:bg-stone-700 transition-all flex items-center gap-3 shadow-sm"
+                    >
+                      <Upload className="w-5 h-5" />
+                      Upload
+                    </button>
+                  </div>
+                </div>
               )}
-            </button>
-          </div>
-        </motion.div>
+              
+              <input 
+                type="file" 
+                ref={fileInputRef} 
+                className="hidden" 
+                accept="image/*"
+                onChange={onFileChange}
+              />
+            </div>
+          </motion.div>
+        )}
 
         <AnimatePresence mode="wait">
-          {result && (
+          {(result || loading) && (
             <motion.div 
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              className="bg-white p-10 rounded-[3rem] shadow-sm border border-stone-50 relative"
+              exit={{ opacity: 0, y: -20 }}
+              className="bg-stone-900 dark:bg-stone-100 p-12 rounded-[3rem] shadow-2xl relative overflow-hidden"
             >
-              <div className="absolute top-8 right-8">
-                <button 
-                  onClick={() => handlePlay(result)}
-                  disabled={ttsLoading}
-                  className="p-3 bg-stone-50 rounded-full text-stone-400 hover:text-stone-900 transition-all"
-                >
-                  <Volume2 className={cn("w-5 h-5", ttsLoading && "animate-pulse")} />
-                </button>
-              </div>
-              <div className="text-3xl font-medium text-stone-900 leading-relaxed">
-                {result}
+              {/* Decorative background element */}
+              <div className="absolute top-0 right-0 w-64 h-64 bg-amber-400/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
+              
+              <div className="relative z-10 flex flex-col items-center text-center">
+                {loading ? (
+                  <div className="flex flex-col items-center gap-4 py-8">
+                    <div className="w-12 h-12 border-4 border-white/20 dark:border-stone-900/20 border-t-amber-400 rounded-full animate-spin" />
+                    <p className="text-stone-400 dark:text-stone-500 font-serif italic text-lg">AI is translating...</p>
+                  </div>
+                ) : (
+                  <>
+                    <div className="w-12 h-12 bg-white/10 dark:bg-stone-900/10 rounded-full flex items-center justify-center mb-6">
+                      <Languages className="w-6 h-6 text-amber-400" />
+                    </div>
+                    <h3 className="text-stone-400 dark:text-stone-500 text-sm font-medium uppercase tracking-widest mb-4">Translation Result</h3>
+                    <p className="text-white dark:text-stone-900 text-4xl font-editorial italic leading-tight mb-8 max-w-2xl">
+                      {result}
+                    </p>
+                    
+                    <div className="flex items-center gap-4">
+                      <button 
+                        onClick={() => handlePlay(result)}
+                        disabled={ttsLoading}
+                        className="p-5 bg-white/10 dark:bg-stone-900/10 text-white dark:text-stone-900 rounded-full hover:bg-white/20 dark:hover:bg-stone-900/20 transition-all group active:scale-90"
+                        title="Listen to translation"
+                      >
+                        {ttsLoading ? (
+                          <div className="w-6 h-6 border-2 border-white/30 dark:border-stone-900/30 border-t-white dark:border-t-stone-900 rounded-full animate-spin" />
+                        ) : (
+                          <Volume2 className="w-6 h-6 group-hover:scale-110 transition-transform" />
+                        )}
+                      </button>
+                      <button 
+                        onClick={() => {
+                          navigator.clipboard.writeText(result);
+                        }}
+                        className="px-6 py-3 bg-white/10 dark:bg-stone-900/10 text-white dark:text-stone-900 rounded-full text-sm font-medium hover:bg-white/20 dark:hover:bg-stone-900/20 transition-all"
+                      >
+                        Copy Text
+                      </button>
+                    </div>
+                  </>
+                )}
               </div>
             </motion.div>
           )}
