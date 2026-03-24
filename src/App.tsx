@@ -300,13 +300,8 @@ const getAI = (profile?: UserProfile | null, purpose: AIPurpose = 'general') => 
             'Accept': 'application/json'
           },
           body: JSON.stringify({
-            provider: keyInfo.provider,
-            key: keyInfo.key,
-            baseUrl: (keyInfo as any).baseUrl,
-            model: params.model,
             prompt: params.contents,
-            systemInstruction: params.config?.systemInstruction,
-            responseMimeType: params.config?.responseMimeType
+            key: keyInfo.key
           })
         });
 
@@ -352,13 +347,8 @@ const getAI = (profile?: UserProfile | null, purpose: AIPurpose = 'general') => 
                 'Accept': 'application/json'
               },
               body: JSON.stringify({
-                provider: keyInfo.provider,
-                key: keyInfo.key,
-                baseUrl: (keyInfo as any).baseUrl,
-                model: params.model,
                 prompt: msgParams.message,
-                systemInstruction: params.config?.systemInstruction,
-                responseMimeType: params.config?.responseMimeType
+                key: keyInfo.key
               })
             });
 
@@ -3602,12 +3592,8 @@ const Settings = ({ vocab }: { vocab: Vocabulary[] }) => {
           'Accept': 'application/json'
         },
         body: JSON.stringify({
-          provider: keyInfo.provider,
-          key: keyInfo.key,
-          baseUrl: keyInfo.baseUrl,
-          model: keyInfo.provider === 'openrouter' ? 'google/gemini-2.0-flash-001' : 'gemini-3-flash-preview',
-          contents: "Respond with exactly the word 'OK'.",
-          systemInstruction: "You are a helpful assistant testing a connection."
+          prompt: "Respond with exactly the word 'OK'.",
+          key: keyInfo.key
         })
       });
 
