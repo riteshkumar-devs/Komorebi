@@ -4,8 +4,8 @@ import axios from 'axios';
 /**
  * Vercel Serverless Function: AI Proxy for Google Gemini API
  * 
- * This function ensures all requests to the Gemini API are correctly formatted
- * to avoid "INVALID_ARGUMENT" errors related to the 'contents' field.
+ * This function strictly enforces the Gemini API request format.
+ * It ignores the 'contents' field from the frontend and only uses 'prompt'.
  */
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   // 1. Security: Only allow POST requests
@@ -17,8 +17,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    // 2. Extract Input
-    const { prompt, contents, key: bodyKey } = req.body;
+    // 2. Extract Input (Strictly use prompt, ignore contents)
+    const { prompt, key: bodyKey } = req.body;
     
     // 3. API Key Management
     const apiKey = process.env.GEMINI_API_KEY || bodyKey;
@@ -30,33 +30,29 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       });
     }
 
-    // 4. Normalize Input to String (Requirement: No plain objects/arrays in 'text')
-    let rawInput = "";
-    
-    // Check 'contents' first, then 'prompt'
-    const inputSource = contents !== undefined ? contents : prompt;
-
-    if (inputSource === undefined || inputSource === null) {
+    // 4. Normalize Input to String
+    let userText = "";
+    if (prompt === undefined || prompt === null) {
       return res.status(400).json({ 
         error: "Invalid Input", 
-        message: "Please provide either a 'prompt' or 'contents' in the request body." 
+        message: "Please provide a 'prompt' in the request body." 
       });
     }
 
-    if (typeof inputSource === 'string') {
-      rawInput = inputSource;
+    if (typeof prompt === 'string') {
+      userText = prompt;
     } else {
-      // If it's an object or array, convert to string as per requirements
-      rawInput = JSON.stringify(inputSource);
+      // Safely convert any object/array to string
+      userText = JSON.stringify(prompt);
     }
 
-    // 5. Construct STRICT Gemini Payload
+    // 5. Construct EXACT Gemini Payload
     // Requirement: contents must be an array of objects with parts array
     const geminiPayload = {
       contents: [
         {
           parts: [
-            { text: rawInput }
+            { text: userText }
           ]
         }
       ]

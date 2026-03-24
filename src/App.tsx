@@ -304,7 +304,7 @@ const getAI = (profile?: UserProfile | null, purpose: AIPurpose = 'general') => 
             key: keyInfo.key,
             baseUrl: (keyInfo as any).baseUrl,
             model: params.model,
-            contents: params.contents,
+            prompt: params.contents,
             systemInstruction: params.config?.systemInstruction,
             responseMimeType: params.config?.responseMimeType
           })
@@ -356,7 +356,7 @@ const getAI = (profile?: UserProfile | null, purpose: AIPurpose = 'general') => 
                 key: keyInfo.key,
                 baseUrl: (keyInfo as any).baseUrl,
                 model: params.model,
-                contents: msgParams.message,
+                prompt: msgParams.message,
                 systemInstruction: params.config?.systemInstruction,
                 responseMimeType: params.config?.responseMimeType
               })
@@ -3288,6 +3288,22 @@ const Settings = ({ vocab }: { vocab: Vocabulary[] }) => {
   const [notificationsEnabled, setNotificationsEnabled] = useState(profile?.notificationsEnabled ?? true);
   const [theme, setTheme] = useState<'light' | 'dark' | 'system'>(profile?.theme || 'system');
   const [saving, setSaving] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleAvatarUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 1024 * 1024) { // 1MB limit
+        alert("Image too large. Please choose an image under 1MB.");
+        return;
+      }
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setAvatar(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
 
   useEffect(() => {
     if (profile?.theme) {
@@ -4002,8 +4018,12 @@ const Settings = ({ vocab }: { vocab: Vocabulary[] }) => {
           
           <div className="space-y-6">
             <div className="flex items-center gap-6 p-4 bg-stone-50 dark:bg-stone-800/50 rounded-3xl border border-stone-100 dark:border-stone-800">
-              <div className="w-20 h-20 bg-white dark:bg-stone-900 rounded-2xl flex items-center justify-center text-4xl shadow-sm border border-stone-100 dark:border-stone-800">
-                {avatar}
+              <div className="w-20 h-20 bg-white dark:bg-stone-900 rounded-2xl flex items-center justify-center text-4xl shadow-sm border border-stone-100 dark:border-stone-800 overflow-hidden">
+                {avatar.startsWith('data:image') ? (
+                  <img src={avatar} alt="Avatar" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                ) : (
+                  avatar
+                )}
               </div>
               <div className="flex-1 space-y-1">
                 <div className="text-[10px] font-bold text-stone-400 dark:text-stone-500 uppercase tracking-widest">Current Identity</div>
@@ -4031,6 +4051,22 @@ const Settings = ({ vocab }: { vocab: Vocabulary[] }) => {
                     {a}
                   </button>
                 ))}
+                <input 
+                  type="file" 
+                  ref={fileInputRef} 
+                  onChange={handleAvatarUpload} 
+                  accept="image/*" 
+                  className="hidden" 
+                />
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  className={cn(
+                    "w-10 h-10 flex items-center justify-center rounded-xl transition-all",
+                    avatar.startsWith('data:image') ? "bg-stone-900 dark:bg-stone-100 scale-110 shadow-lg" : "bg-stone-50 dark:bg-stone-800 hover:bg-stone-100 dark:hover:bg-stone-700"
+                  )}
+                >
+                  <Upload className="w-5 h-5 text-stone-400 dark:text-stone-500" />
+                </button>
               </div>
             </div>
 
@@ -7177,11 +7213,11 @@ const NamePrompt = ({ onSave }: { onSave: (name: string) => void }) => {
       <motion.div 
         initial={{ opacity: 0, scale: 0.9, y: 20 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
-        className="relative w-full max-w-md bg-white rounded-[3rem] shadow-2xl p-10 text-center"
+        className="relative w-full max-w-md bg-white dark:bg-stone-900 rounded-[3rem] shadow-2xl p-10 text-center border border-stone-100 dark:border-stone-800"
       >
-        <div className="w-20 h-20 bg-stone-900 rounded-3xl flex items-center justify-center text-white text-3xl font-bold mx-auto mb-8 shadow-xl shadow-stone-200">木</div>
-        <h2 className="text-3xl font-editorial italic text-stone-900 mb-2">Welcome to Komorebi</h2>
-        <p className="text-stone-500 font-serif italic mb-8">What should we call you on your journey?</p>
+        <div className="w-20 h-20 bg-stone-900 dark:bg-stone-100 rounded-3xl flex items-center justify-center text-white dark:text-stone-900 text-3xl font-bold mx-auto mb-8 shadow-xl shadow-stone-200 dark:shadow-none">木</div>
+        <h2 className="text-3xl font-editorial italic text-stone-900 dark:text-stone-100 mb-2">Welcome to Komorebi</h2>
+        <p className="text-stone-500 dark:text-stone-400 font-serif italic mb-8">What should we call you on your journey?</p>
         
         <form onSubmit={(e) => { e.preventDefault(); if (name.trim()) onSave(name.trim()); }} className="space-y-4">
           <input 
@@ -7189,12 +7225,12 @@ const NamePrompt = ({ onSave }: { onSave: (name: string) => void }) => {
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="Enter your name..."
-            className="w-full p-5 bg-stone-50 border-none rounded-2xl text-center text-xl font-medium focus:ring-2 focus:ring-stone-200 transition-all outline-none"
+            className="w-full p-5 bg-stone-50 dark:bg-stone-800 border-none rounded-2xl text-center text-xl font-medium text-stone-900 dark:text-stone-100 focus:ring-2 focus:ring-stone-200 dark:focus:ring-stone-700 transition-all outline-none"
           />
           <button 
             type="submit"
             disabled={!name.trim()}
-            className="w-full py-5 bg-stone-900 text-white rounded-full font-bold hover:bg-stone-800 transition-all shadow-xl shadow-stone-200 disabled:opacity-50"
+            className="w-full py-5 bg-stone-900 dark:bg-stone-100 text-white dark:text-stone-900 rounded-full font-bold hover:bg-stone-800 dark:hover:bg-stone-200 transition-all shadow-xl shadow-stone-200 dark:shadow-none disabled:opacity-50"
           >
             Start Learning
           </button>
