@@ -324,7 +324,17 @@ const getAI = (profile?: UserProfile | null, purpose: AIPurpose = 'general') => 
         }
 
         if (contentType && contentType.includes("application/json")) {
-          return await response.json();
+          const data = await response.json();
+          // Ensure compatibility with both raw Gemini and our standardized format
+          if (data.text && !data.candidates) {
+            return {
+              ...data,
+              candidates: [{
+                content: { parts: [{ text: data.text }] }
+              }]
+            };
+          }
+          return data;
         } else {
           const text = await response.text();
           throw new Error(`Expected JSON response from AI Proxy but got: ${text.substring(0, 100)}`);
@@ -366,7 +376,17 @@ const getAI = (profile?: UserProfile | null, purpose: AIPurpose = 'general') => 
             }
 
             if (contentType && contentType.includes("application/json")) {
-              return await response.json();
+              const data = await response.json();
+              // Ensure compatibility with both raw Gemini and our standardized format
+              if (data.text && !data.candidates) {
+                return {
+                  ...data,
+                  candidates: [{
+                    content: { parts: [{ text: data.text }] }
+                  }]
+                };
+              }
+              return data;
             } else {
               const text = await response.text();
               throw new Error(`Expected JSON response from AI Proxy but got: ${text.substring(0, 100)}`);
