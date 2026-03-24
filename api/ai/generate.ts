@@ -4,8 +4,8 @@ import axios from 'axios';
 /**
  * Vercel Serverless Function: AI Proxy for Google Gemini API
  * 
- * This function acts as a secure bridge between the frontend and the Gemini API.
- * It handles request normalization, robust response parsing, and error management.
+ * This function ensures all requests to the Gemini API are correctly formatted
+ * to avoid "INVALID_ARGUMENT" errors related to the 'contents' field.
  */
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   // 1. Security: Only allow POST requests
@@ -17,55 +17,61 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    // 2. Extract and Normalize Input
-    // We accept both 'prompt' (simple) and 'contents' (Gemini-native) formats.
+    // 2. Extract Input
     const { prompt, contents, key: bodyKey } = req.body;
     
     // 3. API Key Management
-    // Priority: Environment Variable > Request Body
     const apiKey = process.env.GEMINI_API_KEY || bodyKey;
     
     if (!apiKey) {
       return res.status(400).json({ 
         error: "Missing API Key", 
-        message: "Gemini API key is required via environment variable or request body." 
+        message: "Gemini API key is required." 
       });
     }
 
-    // 4. Construct Gemini Payload
-    // We strictly use the gemini-1.5-flash model as requested.
-    const GEMINI_ENDPOINT = `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+    // 4. Normalize Input to String (Requirement: No plain objects/arrays in 'text')
+    let rawInput = "";
     
-    let geminiPayload;
-    
-    if (contents) {
-      // If native contents format is provided, use it directly
-      geminiPayload = { contents };
-    } else if (prompt) {
-      // If simple prompt is provided, wrap it in Gemini's structure
-      geminiPayload = {
-        contents: [{
-          parts: [{ text: String(prompt) }]
-        }]
-      };
-    } else {
+    // Check 'contents' first, then 'prompt'
+    const inputSource = contents !== undefined ? contents : prompt;
+
+    if (inputSource === undefined || inputSource === null) {
       return res.status(400).json({ 
         error: "Invalid Input", 
         message: "Please provide either a 'prompt' or 'contents' in the request body." 
       });
     }
 
-    // 5. Call Gemini API
+    if (typeof inputSource === 'string') {
+      rawInput = inputSource;
+    } else {
+      // If it's an object or array, convert to string as per requirements
+      rawInput = JSON.stringify(inputSource);
+    }
+
+    // 5. Construct STRICT Gemini Payload
+    // Requirement: contents must be an array of objects with parts array
+    const geminiPayload = {
+      contents: [
+        {
+          parts: [
+            { text: rawInput }
+          ]
+        }
+      ]
+    };
+
+    // 6. Call Gemini API (Strictly gemini-1.5-flash)
+    const GEMINI_ENDPOINT = `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+    
     const response = await axios.post(GEMINI_ENDPOINT, geminiPayload, {
       headers: { 'Content-Type': 'application/json' },
-      timeout: 30000 // 30-second timeout for stability
+      timeout: 30000
     });
 
-    // 6. Robust Response Parsing
-    // Gemini responses can have multiple candidates and multiple parts.
-    // We need to safely extract and combine all text parts.
+    // 7. Robust Response Parsing
     const candidates = response.data?.candidates || [];
-    
     if (candidates.length === 0) {
       throw new Error("Gemini API returned no candidates.");
     }
@@ -74,30 +80,29 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     
     // Handle safety blocks
     if (firstCandidate.finishReason === 'SAFETY') {
+      const safetyMsg = "Response blocked by safety filters.";
       return res.status(200).json({
-        text: "Response blocked by safety filters.",
-        reply: "Response blocked by safety filters.",
-        message: "Response blocked by safety filters."
+        text: safetyMsg,
+        reply: safetyMsg,
+        message: safetyMsg
       });
     }
 
     const parts = firstCandidate.content?.parts || [];
     
-    // Combine all text parts into a single string
+    // Combine all text parts
     let combinedText = parts
       .map((part: any) => part.text || "")
       .join("")
       .trim();
 
-    // 7. Fallback for Empty Responses
+    // Fallback for empty responses
     if (!combinedText) {
-      // Sometimes Gemini returns a finishReason but no text parts
       const reason = firstCandidate.finishReason || "UNKNOWN";
       combinedText = `The AI could not generate a response. (Reason: ${reason})`;
     }
 
-    // 8. Return Standardized Response Format (CRITICAL)
-    // We provide the same text in three fields to ensure frontend compatibility.
+    // 8. Return Standardized Response Format
     return res.status(200).json({
       text: combinedText,
       reply: combinedText,
@@ -105,7 +110,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     });
 
   } catch (error: any) {
-    // 9. Comprehensive Error Handling
     const statusCode = error.response?.status || 500;
     const errorData = error.response?.data || {};
     
