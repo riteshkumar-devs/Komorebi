@@ -8,7 +8,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     const { prompt, contents, key } = req.body;
 
-    // ✅ Use ENV key fallback
+    // ✅ API key (ENV fallback)
     const apiKey = key || process.env.GEMINI_API_KEY;
 
     if (!apiKey) {
@@ -22,7 +22,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(400).json({ error: "No input text provided" });
     }
 
-    // ✅ STABLE Gemini endpoint (FIXED)
+    // ✅ Stable Gemini endpoint
     const response = await fetch(
       `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
       {
@@ -42,10 +42,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const data = await response.json();
 
-    // ✅ Safe response parsing
-    const text =
-      data?.candidates?.[0]?.content?.parts?.[0]?.text ||
-      "No response from AI";
+    // ✅ ROBUST PARSING (FIXED)
+    let text = "No response from AI";
+
+    if (data?.candidates?.length > 0) {
+      const parts = data.candidates[0]?.content?.parts;
+
+      if (Array.isArray(parts)) {
+        text = parts
+          .map((p: any) => p.text || "")
+          .join("")
+          .trim();
+      }
+    }
+
+    if (!text) {
+      text = "No response from AI";
+    }
 
     return res.status(200).json({ text });
 
