@@ -42,7 +42,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const data = await response.json();
 
-    // ✅ ROBUST PARSING (FIXED)
+    // ✅ Robust parsing
     let text = "No response from AI";
 
     if (data?.candidates?.length > 0) {
@@ -60,7 +60,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       text = "No response from AI";
     }
 
-    return res.status(200).json({ text });
+    // ✅ FIX: return multiple formats (frontend-safe)
+    return res.status(200).json({
+      text,
+      reply: text,
+      message: text
+    });
 
   } catch (error: any) {
     console.error("AI Proxy Error:", error);
