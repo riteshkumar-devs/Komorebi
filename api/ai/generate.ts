@@ -1,62 +1,28 @@
-import express from "express";
-import path from "path";
-import { fileURLToPath } from "url";
-import dotenv from "dotenv";
-import axios from "axios";
+import type { VercelRequest, VercelResponse } from '@vercel/node';
+import axios from 'axios';
 
-console.log("[Server] Initializing server.ts...");
-console.log("[Server] VERCEL:", process.env.VERCEL);
-console.log("[Server] NODE_ENV:", process.env.NODE_ENV);
-
-dotenv.config();
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-const app = express();
-const PORT = 3000;
-
-// Top-level health check for Vercel
-app.get("/api/ping", (req, res) => {
-  res.json({ pong: true, env: process.env.NODE_ENV, vercel: !!process.env.VERCEL });
-});
-
-app.use(express.json({ limit: '50mb' }));
-
-// Request logging
-app.use((req, res, next) => {
-  console.log(`${new Date().toISOString()} - ${req.method} ${req.url} - Accept: ${req.headers.accept}`);
-  next();
-});
-
-// API routes go here
-app.get("/api/health", (req, res) => {
-  res.json({ status: "ok" });
-});
-
-// AI Proxy Endpoint
-app.get("/api/ai/generate", (req, res) => {
-  res.status(405).json({ error: "Method Not Allowed. Please use POST to access the AI Proxy." });
-});
-
-app.post(["/api/ai/generate", "/api/ai/generate/"], async (req, res) => {
-  try {
-    console.log(`[AI Proxy] Headers:`, JSON.stringify(req.headers));
-  const { provider, key, baseUrl, model, contents, systemInstruction, responseMimeType } = req.body;
-
-  if (!key) {
-    return res.status(400).json({ error: "API key is required" });
+export default async function handler(req: VercelRequest, res: VercelResponse) {
+  // Only allow POST
+  if (req.method !== 'POST') {
+    return res.status(405).json({ error: "Method Not Allowed. Please use POST to access the AI Proxy." });
   }
 
-  const sanitizedBody = { ...req.body, key: '***' };
-  console.log(`[AI Proxy] Request:`, JSON.stringify(sanitizedBody));
-  switch (provider) {
+  try {
+    const { provider, key, baseUrl, model, contents, systemInstruction, responseMimeType } = req.body;
+
+    if (!key) {
+      return res.status(400).json({ error: "API key is required" });
+    }
+
+    const sanitizedBody = { ...req.body, key: '***' };
+    console.log(`[AI Proxy] Processing request:`, JSON.stringify(sanitizedBody));
+
+    switch (provider) {
       case 'openai':
       case 'openrouter':
       case 'custom': {
         let targetModel = model;
         if (provider === 'openrouter') {
-          // Map common model names to OpenRouter format if needed
           if (!model || model.includes('gemini')) {
             if (model === 'gemini-3-flash-preview') {
               targetModel = 'google/gemini-2.0-flash-001';
@@ -71,12 +37,12 @@ app.post(["/api/ai/generate", "/api/ai/generate/"], async (req, res) => {
         const defaultBaseUrl = 
           provider === 'openai' ? "https://api.openai.com/v1/chat/completions" : 
           provider === 'openrouter' ? "https://openrouter.ai/api/v1/chat/completions" : 
-          ""; // Custom must provide baseUrl or it will fail
+          "";
         
         const defaultModel = 
           provider === 'openai' ? "gpt-4o" : 
           provider === 'openrouter' ? "google/gemini-2.0-flash-001" : 
-          "gpt-3.5-turbo"; // Default for custom if not specified
+          "gpt-3.5-turbo";
         
         let userContent = contents;
         if (Array.isArray(contents)) {
@@ -110,9 +76,9 @@ app.post(["/api/ai/generate", "/api/ai/generate/"], async (req, res) => {
             timeout: 30000
           }
         );
-        console.log(`AI Provider ${provider} responded with status: ${response.status}`);
+
         if (response.data?.choices?.[0]?.message?.content) {
-          return res.json({ text: response.data.choices[0].message.content });
+          return res.status(200).json({ text: response.data.choices[0].message.content });
         } else {
           throw new Error(`Unexpected response format from ${provider}: ${JSON.stringify(response.data)}`);
         }
@@ -135,7 +101,7 @@ app.post(["/api/ai/generate", "/api/ai/generate/"], async (req, res) => {
             }
           }
         );
-        return res.json({ text: response.data.content[0].text });
+        return res.status(200).json({ text: response.data.content[0].text });
       }
 
       case 'huggingface': {
@@ -149,7 +115,7 @@ app.post(["/api/ai/generate", "/api/ai/generate/"], async (req, res) => {
             }
           }
         );
-        return res.json({ text: Array.isArray(response.data) ? response.data[0].generated_text : response.data.generated_text });
+        return res.status(200).json({ text: Array.isArray(response.data) ? response.data[0].generated_text : response.data.generated_text });
       }
 
       case 'ollama': {
@@ -162,19 +128,17 @@ app.post(["/api/ai/generate", "/api/ai/generate/"], async (req, res) => {
             stream: false
           }
         );
-        return res.json({ text: response.data.response });
+        return res.status(200).json({ text: response.data.response });
       }
 
       case 'gemini':
       default: {
-        // Map gemini-3 names to known stable names if the API rejects them
         let geminiModel = model || "gemini-1.5-flash";
         if (geminiModel === 'gemini-3-flash-preview') geminiModel = 'gemini-2.0-flash';
         if (geminiModel === 'gemini-3.1-pro-preview') geminiModel = 'gemini-1.5-pro';
 
         const url = `https://generativelanguage.googleapis.com/v1beta/models/${geminiModel}:generateContent?key=${key}`;
         
-        // Handle multimodal contents if needed
         let parts = [];
         if (typeof contents === 'string') {
           parts = [{ text: contents }];
@@ -200,12 +164,12 @@ app.post(["/api/ai/generate", "/api/ai/generate/"], async (req, res) => {
 
         const candidate = response.data.candidates?.[0];
         if (candidate?.finishReason === 'SAFETY') {
-          return res.json({ text: "Response blocked by safety filters." });
+          return res.status(200).json({ text: "Response blocked by safety filters." });
         }
         
         const text = candidate?.content?.parts?.[0]?.text;
         if (text !== undefined) {
-          return res.json({ text });
+          return res.status(200).json({ text });
         } else {
           throw new Error(`Gemini API returned no text. Finish reason: ${candidate?.finishReason}. Full response: ${JSON.stringify(response.data)}`);
         }
@@ -215,47 +179,10 @@ app.post(["/api/ai/generate", "/api/ai/generate/"], async (req, res) => {
     const errorData = error.response?.data || error.message;
     console.error("[AI Proxy Error]:", errorData);
     
-    // Return a structured error that the frontend can display
     return res.status(error.response?.status || 500).json({ 
       error: "AI Proxy Request Failed", 
       message: typeof errorData === 'string' ? errorData : (errorData.error?.message || errorData.message || JSON.stringify(errorData)),
       details: errorData
     });
   }
-});
-
-// Catch-all for unmatched API routes
-app.all("/api/*", (req, res) => {
-  console.warn(`Unmatched API route: ${req.method} ${req.url}`);
-  res.status(404).json({ error: `API route not found: ${req.method} ${req.url}` });
-});
-
-async function startServer() {
-  // Vite middleware for development
-  if (process.env.NODE_ENV !== "production") {
-    const viteModule = "vite";
-    const { createServer: createViteServer } = await import(viteModule);
-    const vite = await createViteServer({
-      server: { middlewareMode: true },
-      appType: "spa",
-    });
-    app.use(vite.middlewares);
-  } else {
-    const distPath = path.join(process.cwd(), "dist");
-    app.use(express.static(distPath));
-    app.get("*", (req, res) => {
-      res.sendFile(path.join(distPath, "index.html"));
-    });
-  }
-
-  app.listen(PORT, "0.0.0.0", () => {
-    console.log(`KOMOREBI_SERVER_STARTUP_SUCCESS: Running on http://localhost:${PORT}`);
-  });
 }
-
-// Only start the server if we're not in a serverless environment (like Vercel)
-if (process.env.NODE_ENV !== "production" || !process.env.VERCEL) {
-  startServer();
-}
-
-export default app;
