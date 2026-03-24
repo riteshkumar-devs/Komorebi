@@ -40,6 +40,7 @@ import {
   ChevronRight, 
   CheckCircle2, 
   XCircle,
+  PlayCircle,
   AlertCircle,
   Trophy,
   Volume2,
@@ -197,44 +198,211 @@ const calculateRank = (wordCount: number) => {
 // --- AI Key Management ---
 let currentKeyIndex = 0;
 
-const getApiKey = (profile?: UserProfile | null) => {
-  // 1. Try profile keys first (rotation)
-  if (profile?.apiKeys && profile.apiKeys.length > 0) {
-    const keys = profile.apiKeys.filter(k => k.trim().length > 0);
-    if (keys.length > 0) {
-      return keys[currentKeyIndex % keys.length].trim();
+type AIPurpose = 'translation' | 'sensei' | 'dictionary' | 'general';
+
+const getApiKey = (profile?: UserProfile | null, purpose: AIPurpose = 'general') => {
+  // 1. Try new structuredKeys first
+  if (profile?.apiSettings?.structuredKeys) {
+    const { mode, structuredKeys } = profile.apiSettings;
+    
+    // Try specific purpose first if in particular mode
+    if (mode === 'particular' && purpose !== 'general') {
+      const specificSet = 
+        purpose === 'translation' ? structuredKeys.translation : 
+        purpose === 'sensei' ? structuredKeys.sensei : 
+        purpose === 'dictionary' ? structuredKeys.dictionary : 
+        null;
+      
+      if (specificSet && specificSet.length > 0) {
+        const validKeys = specificSet.filter(k => k.key.trim().length > 0);
+        if (validKeys.length > 0) {
+          return validKeys[currentKeyIndex % validKeys.length];
+        }
+      }
+    }
+    
+    // Fallback to universal keys (or use them if in universal mode)
+    const universalSet = structuredKeys.universal;
+    if (universalSet && universalSet.length > 0) {
+      const validKeys = universalSet.filter(k => k.key.trim().length > 0);
+      if (validKeys.length > 0) {
+        return validKeys[currentKeyIndex % validKeys.length];
+      }
     }
   }
 
-  // 2. Try localStorage (user manual entry)
-  const localKey = typeof window !== 'undefined' ? localStorage.getItem('komorebi_gemini_key') : null;
-  if (localKey) return localKey.trim();
+  // 2. Try old apiSettings
+  if (profile?.apiSettings) {
+    const { mode, universalKeys, translationKeys, senseiKeys, dictionaryKeys } = profile.apiSettings;
+    if (mode === 'particular' && purpose !== 'general') {
+      const keys = (purpose === 'translation' ? translationKeys : 
+                    purpose === 'sensei' ? senseiKeys : 
+                    purpose === 'dictionary' ? dictionaryKeys : 
+                    []) || [];
+      const validKeys = keys.filter(k => k.trim().length > 0);
+      if (validKeys.length > 0) {
+        return { key: validKeys[currentKeyIndex % validKeys.length].trim(), provider: 'gemini' as const };
+      }
+    }
+    
+    // Fallback to universal keys
+    const keys = universalKeys || [];
+    const validKeys = keys.filter(k => k.trim().length > 0);
+    if (validKeys.length > 0) {
+      return { key: validKeys[currentKeyIndex % validKeys.length].trim(), provider: 'gemini' as const };
+    }
+  }
 
-  // 3. Try environment variables
-  const key = process.env.GEMINI_API_KEY || 
+  // 3. Fallback to old apiKeys
+  if (profile?.apiKeys && profile.apiKeys.length > 0) {
+    const keys = profile.apiKeys.filter(k => k.trim().length > 0);
+    if (keys.length > 0) {
+      return { key: keys[currentKeyIndex % keys.length].trim(), provider: 'gemini' as const };
+    }
+  }
+
+  // 4. Try localStorage (user manual entry)
+  const localKey = typeof window !== 'undefined' ? localStorage.getItem('komorebi_gemini_key') : null;
+  if (localKey) return { key: localKey.trim(), provider: 'gemini' as const };
+
+  // 5. Try environment variables
+  const envKey = process.env.GEMINI_API_KEY || 
          process.env.GOOGLE_API_KEY ||
          process.env.GEMINI_API_EY ||
          (import.meta as any).env?.VITE_GEMINI_API_KEY || 
          (import.meta as any).env?.VITE_GOOGLE_API_KEY ||
          (import.meta as any).env?.VITE_GEMINI_API_EY ||
          '';
-  return key.trim();
+  
+  const trimmedEnvKey = envKey.trim();
+  // Ignore placeholder keys or obviously invalid ones
+  if (!trimmedEnvKey || trimmedEnvKey.includes('TODO') || trimmedEnvKey.length < 10) return null;
+  
+  return { key: trimmedEnvKey, provider: 'gemini' as const };
 };
 
-const getAI = (profile?: UserProfile | null) => {
-  const keyToUse = getApiKey(profile);
+const getAI = (profile?: UserProfile | null, purpose: AIPurpose = 'general') => {
+  const keyInfo = getApiKey(profile, purpose);
   
-  if (!keyToUse) {
-    console.warn("No Gemini API keys found.");
+  if (!keyInfo) {
+    console.warn(`No API keys found for purpose: ${purpose}`);
     return null;
   }
   
-  try {
-    console.log(`Initializing AI with key starting with: ${keyToUse.substring(0, 4)}...`);
-    return new GoogleGenAI({ apiKey: keyToUse });
-  } catch (error) {
-    console.error("AI Initialization Error:", error);
-    return null;
+  // Return an object that mimics the Gemini SDK but calls our proxy
+  return {
+    models: {
+      generateContent: async (params: any) => {
+        const response = await fetch('/api/ai/generate', {
+          method: 'POST',
+          headers: { 
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+          },
+          body: JSON.stringify({
+            provider: keyInfo.provider,
+            key: keyInfo.key,
+            baseUrl: (keyInfo as any).baseUrl,
+            model: params.model,
+            contents: params.contents,
+            systemInstruction: params.config?.systemInstruction,
+            responseMimeType: params.config?.responseMimeType
+          })
+        });
+
+        const contentType = response.headers.get("content-type");
+        if (!response.ok) {
+          if (contentType && contentType.includes("application/json")) {
+            const errorData = await response.json();
+            const errorMsg = typeof errorData.details === 'string' ? errorData.details : 
+                           (typeof errorData.error === 'string' ? errorData.error : JSON.stringify(errorData));
+            throw new Error(errorMsg || "AI Proxy request failed");
+          } else {
+            const text = await response.text();
+            throw new Error(`AI Proxy failed with status ${response.status}. ${text.substring(0, 100)}`);
+          }
+        }
+
+        if (contentType && contentType.includes("application/json")) {
+          return await response.json();
+        } else {
+          const text = await response.text();
+          throw new Error(`Expected JSON response from AI Proxy but got: ${text.substring(0, 100)}`);
+        }
+      }
+    },
+    chats: {
+      create: (params: any) => {
+        return {
+          sendMessage: async (msgParams: any) => {
+            const response = await fetch('/api/ai/generate', {
+              method: 'POST',
+              headers: { 
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+              },
+              body: JSON.stringify({
+                provider: keyInfo.provider,
+                key: keyInfo.key,
+                baseUrl: (keyInfo as any).baseUrl,
+                model: params.model,
+                contents: msgParams.message,
+                systemInstruction: params.config?.systemInstruction,
+                responseMimeType: params.config?.responseMimeType
+              })
+            });
+
+            const contentType = response.headers.get("content-type");
+            if (!response.ok) {
+              if (contentType && contentType.includes("application/json")) {
+                const errorData = await response.json();
+                const errorMsg = typeof errorData.details === 'string' ? errorData.details : 
+                               (typeof errorData.error === 'string' ? errorData.error : JSON.stringify(errorData));
+                throw new Error(errorMsg || "AI Proxy request failed");
+              } else {
+                const text = await response.text();
+                throw new Error(`AI Proxy failed with status ${response.status}. ${text.substring(0, 100)}`);
+              }
+            }
+
+            if (contentType && contentType.includes("application/json")) {
+              return await response.json();
+            } else {
+              const text = await response.text();
+              throw new Error(`Expected JSON response from AI Proxy but got: ${text.substring(0, 100)}`);
+            }
+          }
+        };
+      }
+    }
+  };
+};
+
+const checkAICache = (profile: UserProfile | null, prompt: string): string | null => {
+  if (!profile?.aiCache) return null;
+  const normalizedPrompt = prompt.trim().toLowerCase();
+  return profile.aiCache[normalizedPrompt] || null;
+};
+
+const updateAICache = async (profile: UserProfile | null, user: any, prompt: string, response: string, isDemo: boolean, setProfile: any) => {
+  if (!profile) return;
+  const normalizedPrompt = prompt.trim().toLowerCase();
+  
+  // Only cache if it's a simple greeting or if it's a relatively short response
+  // But user said "Hello or Hii or Hyy these things only 1 time and then store use this method in every thing"
+  // So we cache everything as requested.
+  const newCache = { ...(profile.aiCache || {}), [normalizedPrompt]: response };
+  
+  if (isDemo) {
+    const updatedProfile = { ...profile, aiCache: newCache };
+    localStorage.setItem('komorebi_profile', JSON.stringify(updatedProfile));
+    setProfile(updatedProfile);
+  } else if (user) {
+    try {
+      await updateDoc(doc(db, 'users', user.uid), { aiCache: newCache });
+    } catch (e) {
+      console.error("Error updating AI cache:", e);
+    }
   }
 };
 
@@ -1392,7 +1560,7 @@ const VocabList = ({ vocab }: { vocab: Vocabulary[] }) => {
 };
 
 const Translator = () => {
-  const { profile } = useContext(AuthContext);
+  const { profile, user, isDemo, setProfile } = useContext(AuthContext);
   const [text, setText] = useState('');
   const [result, setResult] = useState('');
   const [loading, setLoading] = useState(false);
@@ -1406,9 +1574,17 @@ const Translator = () => {
   const handleTranslate = async () => {
     if (!text.trim()) return;
     
+    // Check cache first
+    const cachedResponse = checkAICache(profile, text);
+    if (cachedResponse) {
+      console.log("Using cached translation for:", text);
+      setResult(cachedResponse);
+      return;
+    }
+
     setLoading(true);
     try {
-      const ai = getAI(profile);
+      const ai = getAI(profile, 'translation');
       if (!ai) {
         setResult("I need an API key to translate! Please add your `GEMINI_API_KEY` in the app settings (⚙️ icon -> Secrets).");
         return;
@@ -1423,6 +1599,11 @@ const Translator = () => {
 
       const translation = response.text?.trim() || "Translation failed";
       setResult(translation);
+      
+      // Update cache
+      if (translation !== "Translation failed") {
+        updateAICache(profile, user, text, translation, !!isDemo, setProfile);
+      }
     } catch (error: any) {
       console.error("Translation Error:", error);
       setResult(`Error: ${error.message || "Something went wrong. Please try again."}`);
@@ -1436,7 +1617,7 @@ const Translator = () => {
     setIsScanning(true);
     setResult('');
     try {
-      const ai = getAI(profile);
+      const ai = getAI(profile, 'translation');
       if (!ai) {
         setResult("API key required.");
         return;
@@ -1452,7 +1633,10 @@ const Translator = () => {
             },
           },
           {
-            text: "Detect the Japanese or English text in this image and translate it to the other language (Japanese to English or English to Japanese). Provide ONLY the translation. If it's Japanese, include Romaji in parentheses.",
+            text: `Detect the Japanese or English text in this image and translate it to the other language (Japanese to English or English to Japanese). 
+            IMPORTANT: Maintain the EXACT same line-by-line order as seen in the image. 
+            If there are multiple lines, translate each line separately and present them in the same order.
+            Provide ONLY the translation. If it's Japanese, include Romaji in parentheses.`,
           },
         ],
       });
@@ -1661,45 +1845,45 @@ const Translator = () => {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -20 }}
-              className="bg-stone-900 dark:bg-stone-100 p-12 rounded-[3rem] shadow-2xl relative overflow-hidden"
+              className="bg-stone-900 dark:bg-stone-100 p-8 md:p-10 rounded-[2.5rem] shadow-2xl relative overflow-hidden"
             >
               {/* Decorative background element */}
               <div className="absolute top-0 right-0 w-64 h-64 bg-amber-400/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
               
               <div className="relative z-10 flex flex-col items-center text-center">
                 {loading ? (
-                  <div className="flex flex-col items-center gap-4 py-8">
-                    <div className="w-12 h-12 border-4 border-white/20 dark:border-stone-900/20 border-t-amber-400 rounded-full animate-spin" />
-                    <p className="text-stone-400 dark:text-stone-500 font-serif italic text-lg">AI is translating...</p>
+                  <div className="flex flex-col items-center gap-4 py-6">
+                    <div className="w-10 h-10 border-4 border-white/20 dark:border-stone-900/20 border-t-amber-400 rounded-full animate-spin" />
+                    <p className="text-stone-400 dark:text-stone-500 font-serif italic text-base">AI is translating...</p>
                   </div>
                 ) : (
                   <>
-                    <div className="w-12 h-12 bg-white/10 dark:bg-stone-900/10 rounded-full flex items-center justify-center mb-6">
-                      <Languages className="w-6 h-6 text-amber-400" />
+                    <div className="w-10 h-10 bg-white/10 dark:bg-stone-900/10 rounded-full flex items-center justify-center mb-4">
+                      <Languages className="w-5 h-5 text-amber-400" />
                     </div>
-                    <h3 className="text-stone-400 dark:text-stone-500 text-sm font-medium uppercase tracking-widest mb-4">Translation Result</h3>
-                    <p className="text-white dark:text-stone-900 text-4xl font-editorial italic leading-tight mb-8 max-w-2xl">
+                    <h3 className="text-stone-400 dark:text-stone-500 text-[10px] font-bold uppercase tracking-widest mb-4">Translation Result</h3>
+                    <div className="text-white dark:text-stone-900 text-2xl md:text-3xl font-editorial italic leading-tight mb-8 max-w-2xl whitespace-pre-wrap">
                       {result}
-                    </p>
+                    </div>
                     
                     <div className="flex items-center gap-4">
                       <button 
                         onClick={() => handlePlay(result)}
                         disabled={ttsLoading}
-                        className="p-5 bg-white/10 dark:bg-stone-900/10 text-white dark:text-stone-900 rounded-full hover:bg-white/20 dark:hover:bg-stone-900/20 transition-all group active:scale-90"
+                        className="p-4 bg-white/10 dark:bg-stone-900/10 text-white dark:text-stone-900 rounded-full hover:bg-white/20 dark:hover:bg-stone-900/20 transition-all group active:scale-90"
                         title="Listen to translation"
                       >
                         {ttsLoading ? (
-                          <div className="w-6 h-6 border-2 border-white/30 dark:border-stone-900/30 border-t-white dark:border-t-stone-900 rounded-full animate-spin" />
+                          <div className="w-5 h-5 border-2 border-white/30 dark:border-stone-900/30 border-t-white dark:border-t-stone-900 rounded-full animate-spin" />
                         ) : (
-                          <Volume2 className="w-6 h-6 group-hover:scale-110 transition-transform" />
+                          <Volume2 className="w-5 h-5 group-hover:scale-110 transition-transform" />
                         )}
                       </button>
                       <button 
                         onClick={() => {
                           navigator.clipboard.writeText(result);
                         }}
-                        className="px-6 py-3 bg-white/10 dark:bg-stone-900/10 text-white dark:text-stone-900 rounded-full text-sm font-medium hover:bg-white/20 dark:hover:bg-stone-900/20 transition-all"
+                        className="px-5 py-2.5 bg-white/10 dark:bg-stone-900/10 text-white dark:text-stone-900 rounded-full text-xs font-bold uppercase tracking-widest hover:bg-white/20 dark:hover:bg-stone-900/20 transition-all"
                       >
                         Copy Text
                       </button>
@@ -2464,7 +2648,7 @@ const VocabEntry = ({ vocab }: { vocab: Vocabulary[] }) => {
 };
 
 const Dictionary = () => {
-  const { profile, user, isDemo, discoveredWords, setDiscoveredWords } = useContext(AuthContext);
+  const { profile, setProfile, user, isDemo, discoveredWords, setDiscoveredWords } = useContext(AuthContext);
   const [query, setQuery] = useState('');
   const [result, setResult] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -2518,9 +2702,36 @@ const Dictionary = () => {
   ];
 
   const handleDiscover = async () => {
+    const cachedResponse = checkAICache(profile, 'discover_100_words');
+    if (cachedResponse) {
+      try {
+        const words = JSON.parse(cachedResponse);
+        if (Array.isArray(words)) {
+          const newWords = words.map(w => ({ ...w, createdAt: Timestamp.now() }));
+          const updatedWords = [...discoveredWords, ...newWords];
+          const uniqueWords = Array.from(new Map(updatedWords.map(item => [item['jp'], item])).values());
+          
+          if (isDemo) {
+            setDiscoveredWords(uniqueWords);
+            localStorage.setItem('discovered_words', JSON.stringify(uniqueWords));
+          } else if (user) {
+            const discoveredRef = collection(db, 'users', user.uid, 'discovered_words');
+            for (const word of newWords) {
+              if (!discoveredWords.some(dw => dw.jp === word.jp)) {
+                await addDoc(discoveredRef, word);
+              }
+            }
+          }
+          return;
+        }
+      } catch (e) {
+        console.error("Cache Parse Error:", e);
+      }
+    }
+
     setDiscovering(true);
     try {
-      const ai = getAI(profile);
+      const ai = getAI(profile, 'translation');
       if (!ai) throw new Error("API Key not found.");
 
       const response = await ai.models.generateContent({
@@ -2540,7 +2751,8 @@ const Dictionary = () => {
         }
       });
 
-      const words = JSON.parse(response.text || "[]");
+      const responseText = response.text || "[]";
+      const words = JSON.parse(responseText);
       if (Array.isArray(words)) {
         const newWords = words.map(w => ({ ...w, createdAt: Timestamp.now() }));
         const updatedWords = [...discoveredWords, ...newWords];
@@ -2559,6 +2771,9 @@ const Dictionary = () => {
             }
           }
         }
+
+        // Update cache
+        updateAICache(profile, user, 'discover_100_words', responseText, !!isDemo, setProfile);
       }
     } catch (error) {
       console.error("Discovery Error:", error);
@@ -2571,10 +2786,10 @@ const Dictionary = () => {
     if (e) e.preventDefault();
     if (!query) return;
 
-    const cacheKey = `dict_${query.trim().toLowerCase()}`;
-    const cached = localStorage.getItem(cacheKey);
-    if (cached) {
-      setResult(cached);
+    const searchTerm = query.trim();
+    const cachedResponse = checkAICache(profile, `dict_${searchTerm}`);
+    if (cachedResponse) {
+      setResult(cachedResponse);
       setShowCommon(false);
       return;
     }
@@ -2582,12 +2797,12 @@ const Dictionary = () => {
     setLoading(true);
     setShowCommon(false);
     try {
-      const ai = getAI(profile);
+      const ai = getAI(profile, 'translation');
       if (!ai) throw new Error("API Key not found. Please add GEMINI_API_KEY to your secrets.");
 
       const response = await ai.models.generateContent({
         model: "gemini-3-flash-preview",
-        contents: `Act as a professional Japanese-English dictionary. Provide a concise, structured definition for "${query}". 
+        contents: `Act as a professional Japanese-English dictionary. Provide a concise, structured definition for "${searchTerm}". 
         Include:
         1. Kanji/Kana
         2. Romaji
@@ -2598,7 +2813,11 @@ const Dictionary = () => {
 
       const definition = response.text?.trim() || "No results found.";
       setResult(definition);
-      localStorage.setItem(cacheKey, definition);
+      
+      // Update cache
+      if (definition !== "No results found.") {
+        updateAICache(profile, user, `dict_${searchTerm}`, definition, !!isDemo, setProfile);
+      }
     } catch (error: any) {
       console.error("AI Error:", error);
       setResult(`Sorry, I couldn't find that word. Error: ${error.message || "Unknown error"}`);
@@ -3074,7 +3293,103 @@ const Settings = ({ vocab }: { vocab: Vocabulary[] }) => {
 
   const avatars = ['🦊', '🐱', '🐶', '🐼', '🐨', '🦁', '🐯', '🐸', '🐵', '🦉'];
 
+  const handleUpdateApiSettings = async (updates: Partial<UserProfile['apiSettings']>) => {
+    try {
+      const currentSettings = profile?.apiSettings || { mode: 'universal', universalKeys: profile?.apiKeys || [] };
+      const newSettings = { ...currentSettings, ...updates };
+      
+      if (isDemo) {
+        const p = JSON.parse(localStorage.getItem('komorebi_profile') || '{}');
+        const updatedProfile = { ...p, apiSettings: newSettings };
+        localStorage.setItem('komorebi_profile', JSON.stringify(updatedProfile));
+        setProfile(updatedProfile as any);
+      } else if (user) {
+        await updateDoc(doc(db, 'users', user.uid), { apiSettings: newSettings });
+      }
+    } catch (error) {
+      console.error("Error updating API settings:", error);
+    }
+  };
+
+  const handleAddKey = (type: 'universal' | 'translation' | 'sensei' | 'dictionary') => {
+    const currentSettings = profile?.apiSettings || { mode: 'universal', universalKeys: profile?.apiKeys || [] };
+    
+    // Support both legacy and structured
+    const structuredKeys = currentSettings.structuredKeys || {};
+    const keySet = structuredKeys[type] || [];
+    const newStructuredKeys = {
+      ...structuredKeys,
+      [type]: [...keySet, { key: '', provider: 'gemini' }]
+    };
+
+    // Also update legacy for backward compatibility if it's gemini
+    const legacyField = type === 'universal' ? 'universalKeys' : 
+                        type === 'translation' ? 'translationKeys' : 
+                        type === 'sensei' ? 'senseiKeys' : 'dictionaryKeys';
+    const legacyKeys = [...(currentSettings[legacyField] || []), ''];
+
+    handleUpdateApiSettings({ 
+      structuredKeys: newStructuredKeys,
+      [legacyField]: legacyKeys
+    });
+  };
+
+  const handleKeyChange = (type: 'universal' | 'translation' | 'sensei' | 'dictionary', idx: number, field: 'key' | 'provider' | 'baseUrl' | 'customProvider', value: string) => {
+    const currentSettings = profile?.apiSettings || { mode: 'universal', universalKeys: profile?.apiKeys || [] };
+    const structuredKeys = currentSettings.structuredKeys || {};
+    const keySet = [...(structuredKeys[type] || [{ key: '', provider: 'gemini' }])];
+    
+    if (!keySet[idx]) keySet[idx] = { key: '', provider: 'gemini' };
+    
+    if (field === 'provider') {
+      keySet[idx] = { ...keySet[idx], provider: value as any };
+    } else {
+      keySet[idx] = { ...keySet[idx], [field]: value };
+    }
+
+    const newStructuredKeys = {
+      ...structuredKeys,
+      [type]: keySet
+    };
+
+    // Sync legacy if it's the key field and provider is gemini
+    const legacyField = type === 'universal' ? 'universalKeys' : 
+                        type === 'translation' ? 'translationKeys' : 
+                        type === 'sensei' ? 'senseiKeys' : 'dictionaryKeys';
+    const legacyKeys = [...(currentSettings[legacyField] || [])];
+    if (field === 'key') {
+      legacyKeys[idx] = value;
+    }
+
+    handleUpdateApiSettings({ 
+      structuredKeys: newStructuredKeys,
+      [legacyField]: legacyKeys
+    });
+  };
+
+  const handleRemoveKey = (type: 'universal' | 'translation' | 'sensei' | 'dictionary', idx: number) => {
+    const currentSettings = profile?.apiSettings || { mode: 'universal', universalKeys: profile?.apiKeys || [] };
+    const structuredKeys = currentSettings.structuredKeys || {};
+    const keySet = (structuredKeys[type] || []).filter((_, i) => i !== idx);
+    
+    const newStructuredKeys = {
+      ...structuredKeys,
+      [type]: keySet
+    };
+
+    const legacyField = type === 'universal' ? 'universalKeys' : 
+                        type === 'translation' ? 'translationKeys' : 
+                        type === 'sensei' ? 'senseiKeys' : 'dictionaryKeys';
+    const legacyKeys = (currentSettings[legacyField] || []).filter((_, i) => i !== idx);
+
+    handleUpdateApiSettings({ 
+      structuredKeys: newStructuredKeys,
+      [legacyField]: legacyKeys
+    });
+  };
+
   const handleUpdateApiKeys = async (newKeys: string[]) => {
+    // Legacy support
     try {
       if (isDemo) {
         const p = JSON.parse(localStorage.getItem('komorebi_profile') || '{}');
@@ -3223,45 +3538,79 @@ const Settings = ({ vocab }: { vocab: Vocabulary[] }) => {
     }
   };
 
-  const handleTestAI = async () => {
+  const handleTestAI = async (specificKeyInfo?: { key: string, provider: string, baseUrl?: string, customProvider?: string }) => {
     setTestStatus('testing');
     setTestError(null);
     try {
-      const ai = getAI(profile);
-      if (!ai) throw new Error("API Key is missing. Please add a key first.");
+      let keyInfo = specificKeyInfo;
       
-      // Use a very simple prompt for testing
-      const response = await ai.models.generateContent({
-        model: "gemini-3-flash-preview",
-        contents: "Respond with exactly the word 'OK'.",
-        config: {
-          temperature: 0.1,
-          topP: 0.1,
-          topK: 1,
-        }
-      });
-      
-      if (response.text && response.text.toUpperCase().includes('OK')) {
-        setTestStatus('success');
-        // Reset error if it was successful
-        setTestError(null);
-      } else if (response.text) {
-        throw new Error(`AI responded but not with the expected format: "${response.text.substring(0, 50)}..."`);
-      } else {
-        throw new Error("Received an empty response from the AI. Check your API key permissions.");
+      if (!keyInfo) {
+        // Try to find any key to test, starting with universal, then sensei, etc.
+        keyInfo = getApiKey(profile, 'general');
+        if (!keyInfo) keyInfo = getApiKey(profile, 'sensei');
+        if (!keyInfo) keyInfo = getApiKey(profile, 'translation');
+        if (!keyInfo) keyInfo = getApiKey(profile, 'dictionary');
       }
-    } catch (error: any) {
-      console.error("AI Test Error:", error);
+
+      if (!keyInfo) {
+        throw new Error("No API keys found. Please add a key in Settings.");
+      }
+
+      const providerName = (keyInfo as any).customProvider || keyInfo.provider.toUpperCase();
+      console.log(`Testing ${providerName} connection...`);
+      
+      const response = await fetch('/api/ai/generate', {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify({
+          provider: keyInfo.provider,
+          key: keyInfo.key,
+          baseUrl: keyInfo.baseUrl,
+          model: keyInfo.provider === 'openrouter' ? 'google/gemini-2.0-flash-001' : 'gemini-3-flash-preview',
+          contents: "Respond with exactly the word 'OK'.",
+          systemInstruction: "You are a helpful assistant testing a connection."
+        })
+      });
+
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        const text = await response.text();
+        throw new Error(`Expected JSON response from AI Proxy but got: ${text.substring(0, 100)}...`);
+      }
+
+      const data = await response.json();
+      
+      if (!response.ok) {
+        const errorDetail = typeof data.error === 'object' ? JSON.stringify(data.error, null, 2) : (data.error || data.message || 'Unknown error');
+        throw new Error(`AI Proxy Error: ${errorDetail}`);
+      }
+
+      if (data.text && data.text.toUpperCase().includes('OK')) {
+        setTestStatus('success');
+        setTestError(null);
+        alert(`AI Connection Success! (${providerName})\nResponse: ${data.text}`);
+      } else {
+        throw new Error(`AI responded but not with the expected format: "${data.text?.substring(0, 50)}..."`);
+      }
+    } catch (err: any) {
+      console.error('AI Test Error:', err);
+      let errorMsg = 'Unknown error';
+      if (err instanceof Error) {
+        errorMsg = err.message;
+      } else if (typeof err === 'object') {
+        try {
+          errorMsg = JSON.stringify(err, null, 2);
+        } catch (e) {
+          errorMsg = String(err);
+        }
+      } else {
+        errorMsg = String(err);
+      }
       setTestStatus('error');
-      
-      // Provide more helpful error messages based on common Gemini errors
-      let msg = error.message || "An unknown error occurred.";
-      if (msg.includes('403')) msg = "Forbidden (403): Your API key may be invalid or restricted.";
-      if (msg.includes('429')) msg = "Quota Exceeded (429): You've hit the rate limit for this key.";
-      if (msg.includes('404')) msg = "Model Not Found (404): The selected model is not available for this key.";
-      if (msg.includes('API key not valid')) msg = "Invalid API Key: Please check the key and try again.";
-      
-      setTestError(msg);
+      setTestError(errorMsg);
     }
   };
 
@@ -3274,56 +3623,314 @@ const Settings = ({ vocab }: { vocab: Vocabulary[] }) => {
 
       <div className="space-y-6">
         <section className="space-y-6">
-          <h3 className="text-sm font-bold uppercase tracking-widest text-stone-400 dark:text-stone-500">AI & API Keys</h3>
-          <div className="space-y-4">
-            <div className="p-4 bg-stone-50 dark:bg-stone-800/50 rounded-3xl border border-stone-100 dark:border-stone-800 space-y-4">
+          <h3 className="text-sm font-bold uppercase tracking-widest text-stone-400 dark:text-stone-500">AI & API Settings</h3>
+          <div className="p-4 md:p-6 bg-stone-50 dark:bg-stone-800/50 rounded-[2rem] border border-stone-100 dark:border-stone-800 space-y-6">
+            <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <div className="text-[10px] font-bold text-stone-400 dark:text-stone-500 uppercase tracking-widest">Gemini API Keys</div>
+                <h4 className="text-sm font-bold text-stone-900 dark:text-stone-100">AI Usage Information</h4>
                 <button 
-                  onClick={() => {
-                    const newKeys = [...(profile?.apiKeys || []), ''];
-                    handleUpdateApiKeys(newKeys);
+                  onClick={async () => {
+                    try {
+                      const res = await fetch('/api/health');
+                      const data = await res.json();
+                      alert(`API Health: ${JSON.stringify(data)}`);
+                    } catch (e: any) {
+                      alert(`API Health Check Failed: ${e.message}`);
+                    }
                   }}
-                  className="text-[10px] font-bold text-stone-900 dark:text-stone-100 hover:underline uppercase tracking-widest"
+                  className="text-[10px] text-stone-400 hover:text-stone-600 underline"
                 >
-                  + Add Key
+                  Check API Health
                 </button>
               </div>
-              
-              <div className="space-y-2">
-                {(profile?.apiKeys || ['']).map((key, idx) => (
-                  <div key={idx} className="flex gap-2">
-                    <input 
-                      type="password"
-                      value={key}
-                      onChange={(e) => {
-                        const newKeys = [...(profile?.apiKeys || [''])];
-                        newKeys[idx] = e.target.value;
-                        handleUpdateApiKeys(newKeys);
-                      }}
-                      className="flex-1 p-3 bg-white dark:bg-stone-900 rounded-xl text-xs font-mono border border-stone-100 dark:border-stone-800 text-stone-900 dark:text-stone-100 focus:ring-2 focus:ring-stone-200 dark:focus:ring-stone-700 outline-none transition-all"
-                      placeholder="Enter API key..."
-                    />
-                    <button 
-                      onClick={() => {
-                        const newKeys = (profile?.apiKeys || []).filter((_, i) => i !== idx);
-                        handleUpdateApiKeys(newKeys);
-                      }}
-                      className="p-3 text-red-400 hover:text-red-600 transition-all"
-                    >
-                      <XCircle className="w-4 h-4" />
-                    </button>
-                  </div>
-                ))}
-              </div>
-              
-              <p className="text-[9px] text-stone-400 dark:text-stone-500 font-serif italic">
-                Add multiple keys for automatic fallback when a key is exhausted.
+              <p className="text-[10px] md:text-xs text-stone-500 dark:text-stone-400 font-serif italic">
+                This project uses Gemini AI for: Dictionary lookups, sentence/paragraph translation, Image translation (Google Lens-style), and the Sensei Chat Bot.
               </p>
             </div>
 
+            <div className="flex gap-2 md:gap-4 p-1 bg-stone-100 dark:bg-stone-900 rounded-2xl">
+              <button 
+                onClick={() => handleUpdateApiSettings({ mode: 'universal' })}
+                className={cn(
+                  "flex-1 py-2.5 md:py-3 rounded-xl text-[9px] md:text-[10px] font-bold uppercase tracking-widest transition-all",
+                  (profile?.apiSettings?.mode || 'universal') === 'universal' ? "bg-white dark:bg-stone-800 text-stone-900 dark:text-stone-100 shadow-sm" : "text-stone-400"
+                )}
+              >
+                Universal API
+              </button>
+              <button 
+                onClick={() => handleUpdateApiSettings({ mode: 'particular' })}
+                className={cn(
+                  "flex-1 py-2.5 md:py-3 rounded-xl text-[9px] md:text-[10px] font-bold uppercase tracking-widest transition-all",
+                  profile?.apiSettings?.mode === 'particular' ? "bg-white dark:bg-stone-800 text-stone-900 dark:text-stone-100 shadow-sm" : "text-stone-400"
+                )}
+              >
+                Particular API
+              </button>
+            </div>
+
+            {/* Universal Keys */}
+            {((profile?.apiSettings?.mode || 'universal') === 'universal') && (
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="text-[10px] font-bold text-stone-400 dark:text-stone-500 uppercase tracking-widest">Universal Keys</div>
+                  <button 
+                    onClick={() => handleAddKey('universal')}
+                    className="text-[10px] font-bold text-stone-900 dark:text-stone-100 hover:underline uppercase tracking-widest"
+                  >
+                    + Add Key
+                  </button>
+                </div>
+                <div className="space-y-4">
+                  {(profile?.apiSettings?.structuredKeys?.universal || (profile?.apiSettings?.universalKeys || profile?.apiKeys || ['']).map(k => ({ key: k, provider: 'gemini' }))).map((keyObj: any, idx: number) => (
+                    <div key={idx} className="space-y-2 p-3 md:p-4 bg-white dark:bg-stone-900 rounded-2xl border border-stone-100 dark:border-stone-800">
+                      <div className="flex items-center gap-2">
+                        <select 
+                          value={keyObj.provider}
+                          onChange={(e) => handleKeyChange('universal', idx, 'provider', e.target.value)}
+                          className="w-20 md:w-24 p-2 bg-stone-50 dark:bg-stone-800 rounded-xl text-[9px] md:text-[10px] font-bold uppercase tracking-widest border border-stone-100 dark:border-stone-800 outline-none shrink-0"
+                        >
+                          <option value="gemini">Gemini</option>
+                          <option value="openai">OpenAI</option>
+                          <option value="anthropic">Anthropic</option>
+                          <option value="openrouter">OpenRouter</option>
+                          <option value="huggingface">Hugging Face</option>
+                          <option value="ollama">Ollama</option>
+                          <option value="custom">Custom...</option>
+                        </select>
+                        <input 
+                          type="password"
+                          value={keyObj.key}
+                          onChange={(e) => handleKeyChange('universal', idx, 'key', e.target.value)}
+                          className="flex-1 min-w-0 p-2 bg-stone-50 dark:bg-stone-800 rounded-xl text-xs font-mono border border-stone-100 dark:border-stone-800 text-stone-900 dark:text-stone-100 outline-none"
+                          placeholder="API Key..."
+                        />
+                        <button 
+                          onClick={() => handleTestAI({ key: keyObj.key, provider: keyObj.provider, baseUrl: keyObj.baseUrl, customProvider: keyObj.customProvider })}
+                          className="p-1 text-stone-400 hover:text-stone-600 shrink-0"
+                          title="Test this key"
+                        >
+                          <PlayCircle className="w-4 h-4" />
+                        </button>
+                        <button onClick={() => handleRemoveKey('universal', idx)} className="p-1 text-red-400 hover:text-red-600 shrink-0"><XCircle className="w-4 h-4" /></button>
+                      </div>
+                      {keyObj.provider === 'custom' && (
+                        <input 
+                          type="text"
+                          value={keyObj.customProvider || ''}
+                          onChange={(e) => handleKeyChange('universal', idx, 'customProvider', e.target.value)}
+                          className="w-full p-2 bg-stone-50 dark:bg-stone-800 rounded-xl text-[10px] font-mono border border-stone-100 dark:border-stone-800 text-stone-900 dark:text-stone-100 outline-none"
+                          placeholder="Provider Name (e.g. TogetherAI)..."
+                        />
+                      )}
+                      {keyObj.provider !== 'gemini' && (
+                        <input 
+                          type="text"
+                          value={keyObj.baseUrl || ''}
+                          onChange={(e) => handleKeyChange('universal', idx, 'baseUrl', e.target.value)}
+                          className="w-full p-2 bg-stone-50 dark:bg-stone-800 rounded-xl text-[10px] font-mono border border-stone-100 dark:border-stone-800 text-stone-900 dark:text-stone-100 outline-none"
+                          placeholder="Base URL (optional)..."
+                        />
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Particular Keys */}
+            {profile?.apiSettings?.mode === 'particular' && (
+              <div className="space-y-8">
+                {/* Translation Keys */}
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div className="text-[10px] font-bold text-stone-400 dark:text-stone-500 uppercase tracking-widest">Translation & Image Keys</div>
+                    <button onClick={() => handleAddKey('translation')} className="text-[10px] font-bold text-stone-900 dark:text-stone-100 hover:underline uppercase tracking-widest">+ Add Key</button>
+                  </div>
+                  <div className="space-y-4">
+                    {(profile?.apiSettings?.structuredKeys?.translation || (profile?.apiSettings?.translationKeys || ['']).map(k => ({ key: k, provider: 'gemini' }))).map((keyObj: any, idx: number) => (
+                      <div key={idx} className="space-y-2 p-3 md:p-4 bg-white dark:bg-stone-900 rounded-2xl border border-stone-100 dark:border-stone-800">
+                        <div className="flex items-center gap-2">
+                          <select 
+                            value={keyObj.provider}
+                            onChange={(e) => handleKeyChange('translation', idx, 'provider', e.target.value)}
+                            className="w-20 md:w-24 p-2 bg-stone-50 dark:bg-stone-800 rounded-xl text-[9px] md:text-[10px] font-bold uppercase tracking-widest border border-stone-100 dark:border-stone-800 outline-none shrink-0"
+                          >
+                            <option value="gemini">Gemini</option>
+                            <option value="openai">OpenAI</option>
+                            <option value="anthropic">Anthropic</option>
+                            <option value="openrouter">OpenRouter</option>
+                            <option value="huggingface">Hugging Face</option>
+                            <option value="ollama">Ollama</option>
+                            <option value="custom">Custom...</option>
+                          </select>
+                          <input 
+                            type="password"
+                            value={keyObj.key}
+                            onChange={(e) => handleKeyChange('translation', idx, 'key', e.target.value)}
+                            className="flex-1 min-w-0 p-2 bg-stone-50 dark:bg-stone-800 rounded-xl text-xs font-mono border border-stone-100 dark:border-stone-800 text-stone-900 dark:text-stone-100 outline-none"
+                            placeholder="API Key..."
+                          />
+                          <button 
+                            onClick={() => handleTestAI({ key: keyObj.key, provider: keyObj.provider, baseUrl: keyObj.baseUrl, customProvider: keyObj.customProvider })}
+                            className="p-1 text-stone-400 hover:text-stone-600 shrink-0"
+                            title="Test this key"
+                          >
+                            <PlayCircle className="w-4 h-4" />
+                          </button>
+                          <button onClick={() => handleRemoveKey('translation', idx)} className="p-1 text-red-400 hover:text-red-600 shrink-0"><XCircle className="w-4 h-4" /></button>
+                        </div>
+                        {keyObj.provider === 'custom' && (
+                          <input 
+                            type="text"
+                            value={keyObj.customProvider || ''}
+                            onChange={(e) => handleKeyChange('translation', idx, 'customProvider', e.target.value)}
+                            className="w-full p-2 bg-stone-50 dark:bg-stone-800 rounded-xl text-[10px] font-mono border border-stone-100 dark:border-stone-800 text-stone-900 dark:text-stone-100 outline-none"
+                            placeholder="Provider Name (e.g. TogetherAI)..."
+                          />
+                        )}
+                        {keyObj.provider !== 'gemini' && (
+                          <input 
+                            type="text"
+                            value={keyObj.baseUrl || ''}
+                            onChange={(e) => handleKeyChange('translation', idx, 'baseUrl', e.target.value)}
+                            className="w-full p-2 bg-stone-50 dark:bg-stone-800 rounded-xl text-[10px] font-mono border border-stone-100 dark:border-stone-800 text-stone-900 dark:text-stone-100 outline-none"
+                            placeholder="Base URL (optional)..."
+                          />
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Sensei Keys */}
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div className="text-[10px] font-bold text-stone-400 dark:text-stone-500 uppercase tracking-widest">Sensei Chat Bot Keys</div>
+                    <button onClick={() => handleAddKey('sensei')} className="text-[10px] font-bold text-stone-900 dark:text-stone-100 hover:underline uppercase tracking-widest">+ Add Key</button>
+                  </div>
+                  <div className="space-y-4">
+                    {(profile?.apiSettings?.structuredKeys?.sensei || (profile?.apiSettings?.senseiKeys || ['']).map(k => ({ key: k, provider: 'gemini' }))).map((keyObj: any, idx: number) => (
+                      <div key={idx} className="space-y-2 p-3 md:p-4 bg-white dark:bg-stone-900 rounded-2xl border border-stone-100 dark:border-stone-800">
+                        <div className="flex items-center gap-2">
+                          <select 
+                            value={keyObj.provider}
+                            onChange={(e) => handleKeyChange('sensei', idx, 'provider', e.target.value)}
+                            className="w-20 md:w-24 p-2 bg-stone-50 dark:bg-stone-800 rounded-xl text-[9px] md:text-[10px] font-bold uppercase tracking-widest border border-stone-100 dark:border-stone-800 outline-none shrink-0"
+                          >
+                            <option value="gemini">Gemini</option>
+                            <option value="openai">OpenAI</option>
+                            <option value="anthropic">Anthropic</option>
+                            <option value="openrouter">OpenRouter</option>
+                            <option value="huggingface">Hugging Face</option>
+                            <option value="ollama">Ollama</option>
+                            <option value="custom">Custom...</option>
+                          </select>
+                          <input 
+                            type="password"
+                            value={keyObj.key}
+                            onChange={(e) => handleKeyChange('sensei', idx, 'key', e.target.value)}
+                            className="flex-1 min-w-0 p-2 bg-stone-50 dark:bg-stone-800 rounded-xl text-xs font-mono border border-stone-100 dark:border-stone-800 text-stone-900 dark:text-stone-100 outline-none"
+                            placeholder="API Key..."
+                          />
+                          <button 
+                            onClick={() => handleTestAI({ key: keyObj.key, provider: keyObj.provider, baseUrl: keyObj.baseUrl, customProvider: keyObj.customProvider })}
+                            className="p-1 text-stone-400 hover:text-stone-600 shrink-0"
+                            title="Test this key"
+                          >
+                            <PlayCircle className="w-4 h-4" />
+                          </button>
+                          <button onClick={() => handleRemoveKey('sensei', idx)} className="p-1 text-red-400 hover:text-red-600 shrink-0"><XCircle className="w-4 h-4" /></button>
+                        </div>
+                        {keyObj.provider === 'custom' && (
+                          <input 
+                            type="text"
+                            value={keyObj.customProvider || ''}
+                            onChange={(e) => handleKeyChange('sensei', idx, 'customProvider', e.target.value)}
+                            className="w-full p-2 bg-stone-50 dark:bg-stone-800 rounded-xl text-[10px] font-mono border border-stone-100 dark:border-stone-800 text-stone-900 dark:text-stone-100 outline-none"
+                            placeholder="Provider Name (e.g. TogetherAI)..."
+                          />
+                        )}
+                        {keyObj.provider !== 'gemini' && (
+                          <input 
+                            type="text"
+                            value={keyObj.baseUrl || ''}
+                            onChange={(e) => handleKeyChange('sensei', idx, 'baseUrl', e.target.value)}
+                            className="w-full p-2 bg-stone-50 dark:bg-stone-800 rounded-xl text-[10px] font-mono border border-stone-100 dark:border-stone-800 text-stone-900 dark:text-stone-100 outline-none"
+                            placeholder="Base URL (optional)..."
+                          />
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Dictionary Keys */}
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div className="text-[10px] font-bold text-stone-400 dark:text-stone-500 uppercase tracking-widest">Dictionary Keys</div>
+                    <button onClick={() => handleAddKey('dictionary')} className="text-[10px] font-bold text-stone-900 dark:text-stone-100 hover:underline uppercase tracking-widest">+ Add Key</button>
+                  </div>
+                  <div className="space-y-4">
+                    {(profile?.apiSettings?.structuredKeys?.dictionary || (profile?.apiSettings?.dictionaryKeys || ['']).map(k => ({ key: k, provider: 'gemini' }))).map((keyObj: any, idx: number) => (
+                      <div key={idx} className="space-y-2 p-3 md:p-4 bg-white dark:bg-stone-900 rounded-2xl border border-stone-100 dark:border-stone-800">
+                        <div className="flex items-center gap-2">
+                          <select 
+                            value={keyObj.provider}
+                            onChange={(e) => handleKeyChange('dictionary', idx, 'provider', e.target.value)}
+                            className="w-20 md:w-24 p-2 bg-stone-50 dark:bg-stone-800 rounded-xl text-[9px] md:text-[10px] font-bold uppercase tracking-widest border border-stone-100 dark:border-stone-800 outline-none shrink-0"
+                          >
+                            <option value="gemini">Gemini</option>
+                            <option value="openai">OpenAI</option>
+                            <option value="anthropic">Anthropic</option>
+                            <option value="openrouter">OpenRouter</option>
+                            <option value="huggingface">Hugging Face</option>
+                            <option value="ollama">Ollama</option>
+                            <option value="custom">Custom...</option>
+                          </select>
+                          <input 
+                            type="password"
+                            value={keyObj.key}
+                            onChange={(e) => handleKeyChange('dictionary', idx, 'key', e.target.value)}
+                            className="flex-1 min-w-0 p-2 bg-stone-50 dark:bg-stone-800 rounded-xl text-xs font-mono border border-stone-100 dark:border-stone-800 text-stone-900 dark:text-stone-100 outline-none"
+                            placeholder="API Key..."
+                          />
+                          <button 
+                            onClick={() => handleTestAI({ key: keyObj.key, provider: keyObj.provider, baseUrl: keyObj.baseUrl, customProvider: keyObj.customProvider })}
+                            className="p-1 text-stone-400 hover:text-stone-600 shrink-0"
+                            title="Test this key"
+                          >
+                            <PlayCircle className="w-4 h-4" />
+                          </button>
+                          <button onClick={() => handleRemoveKey('dictionary', idx)} className="p-1 text-red-400 hover:text-red-600 shrink-0"><XCircle className="w-4 h-4" /></button>
+                        </div>
+                        {keyObj.provider === 'custom' && (
+                          <input 
+                            type="text"
+                            value={keyObj.customProvider || ''}
+                            onChange={(e) => handleKeyChange('dictionary', idx, 'customProvider', e.target.value)}
+                            className="w-full p-2 bg-stone-50 dark:bg-stone-800 rounded-xl text-[10px] font-mono border border-stone-100 dark:border-stone-800 text-stone-900 dark:text-stone-100 outline-none"
+                            placeholder="Provider Name (e.g. TogetherAI)..."
+                          />
+                        )}
+                        {keyObj.provider !== 'gemini' && (
+                          <input 
+                            type="text"
+                            value={keyObj.baseUrl || ''}
+                            onChange={(e) => handleKeyChange('dictionary', idx, 'baseUrl', e.target.value)}
+                            className="w-full p-2 bg-stone-50 dark:bg-stone-800 rounded-xl text-[10px] font-mono border border-stone-100 dark:border-stone-800 text-stone-900 dark:text-stone-100 outline-none"
+                            placeholder="Base URL (optional)..."
+                          />
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+
             <button
-              onClick={handleTestAI}
+              onClick={() => handleTestAI()}
               disabled={testStatus === 'testing'}
               className={cn(
                 "w-full p-4 rounded-2xl text-xs font-bold uppercase tracking-widest transition-all flex items-center justify-center gap-2",
@@ -4025,7 +4632,7 @@ const RankTest = ({ vocab }: { vocab: Vocabulary[] }) => {
 };
 
 const Chatbot = () => {
-  const { profile } = useContext(AuthContext);
+  const { profile, setProfile, user, isDemo } = useContext(AuthContext);
   const [messages, setMessages] = useState<{ role: 'user' | 'model'; text: string }[]>(() => {
     const saved = localStorage.getItem('chatbot_history');
     return saved ? JSON.parse(saved) : [
@@ -4050,18 +4657,26 @@ const Chatbot = () => {
     e.preventDefault();
     if (!input.trim() || loading) return;
 
-    if (!getApiKey(profile)) {
+    const userMsg = input.trim();
+    setInput('');
+    setMessages(prev => [...prev, { role: 'user', text: userMsg }]);
+
+    // Check cache
+    const cachedResponse = checkAICache(profile, `chat_${userMsg}`);
+    if (cachedResponse) {
+      setMessages(prev => [...prev, { role: 'model', text: cachedResponse }]);
+      return;
+    }
+
+    if (!getApiKey(profile, 'sensei')) {
       setMessages(prev => [...prev, { role: 'model', text: "Please add your Gemini API key in the settings to enable Sensei Chat." }]);
       return;
     }
 
-    const userMsg = input.trim();
-    setInput('');
-    setMessages(prev => [...prev, { role: 'user', text: userMsg }]);
     setLoading(true);
 
     try {
-      let ai = getAI(profile);
+      let ai = getAI(profile, 'sensei');
       if (!ai) throw new Error("AI Key not found.");
 
       const chat = ai.chats.create({
@@ -4075,10 +4690,13 @@ const Chatbot = () => {
         const response = await chat.sendMessage({ message: userMsg });
         const modelText = response.text || "I apologize, but I am unable to process your request at the moment.";
         setMessages(prev => [...prev, { role: 'model', text: modelText }]);
+        
+        // Update cache
+        updateAICache(profile, user, `chat_${userMsg}`, modelText, !!isDemo, setProfile);
       } catch (error: any) {
         if (error.message?.includes('429') || error.message?.includes('quota')) {
           if (rotateApiKey(profile)) {
-            ai = getAI(profile);
+            ai = getAI(profile, 'sensei');
             if (ai) {
               const newChat = ai.chats.create({
                 model: "gemini-3-flash-preview",
@@ -4089,6 +4707,9 @@ const Chatbot = () => {
               const retryResponse = await newChat.sendMessage({ message: userMsg });
               const retryText = retryResponse.text || "I apologize, but I am unable to process your request at the moment.";
               setMessages(prev => [...prev, { role: 'model', text: retryText }]);
+              
+              // Update cache
+              updateAICache(profile, user, `chat_${userMsg}`, retryText, !!isDemo, setProfile);
               return;
             }
           }

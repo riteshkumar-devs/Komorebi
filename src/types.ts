@@ -1,5 +1,12 @@
 import { Timestamp } from 'firebase/firestore';
 
+export interface APIKey {
+  key: string;
+  provider: 'gemini' | 'openai' | 'huggingface' | 'ollama' | 'anthropic' | 'openrouter' | 'custom';
+  baseUrl?: string;
+  customProvider?: string;
+}
+
 export interface UserProfile {
   uid: string;
   displayName: string | null;
@@ -17,7 +24,22 @@ export interface UserProfile {
   notificationsEnabled?: boolean;
   achievements?: string[]; // IDs of unlocked achievements
   pinnedAchievements?: string[]; // IDs of pinned achievements (max 10)
-  apiKeys?: string[]; // Multiple Gemini API keys
+  apiKeys?: string[]; // Multiple Gemini API keys (legacy)
+  apiSettings?: {
+    mode: 'universal' | 'particular';
+    universalKeys?: string[];
+    translationKeys?: string[];
+    senseiKeys?: string[];
+    dictionaryKeys?: string[];
+    // New structured keys
+    structuredKeys?: {
+      universal?: APIKey[];
+      translation?: APIKey[];
+      sensei?: APIKey[];
+      dictionary?: APIKey[];
+    };
+  };
+  aiCache?: { [key: string]: string };
   quoteCache?: { text: string; translation: string }[];
   quoteStats?: { lastDate: string; count: number };
   theme?: 'light' | 'dark' | 'system';
