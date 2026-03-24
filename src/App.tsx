@@ -3578,7 +3578,10 @@ const Settings = ({ vocab }: { vocab: Vocabulary[] }) => {
       const contentType = response.headers.get('content-type');
       if (!contentType || !contentType.includes('application/json')) {
         const text = await response.text();
-        throw new Error(`Expected JSON response from AI Proxy but got: ${text.substring(0, 100)}...`);
+        const isHtml = text.trim().startsWith('<!doctype html>') || text.trim().startsWith('<html');
+        throw new Error(isHtml 
+          ? `Expected JSON response from AI Proxy but got HTML. This usually means the backend is not reachable at this URL. If you are on Vercel, please ensure you have redeployed with the new server configuration.`
+          : `Expected JSON response from AI Proxy but got: ${text.substring(0, 100)}...`);
       }
 
       const data = await response.json();
@@ -3632,10 +3635,11 @@ const Settings = ({ vocab }: { vocab: Vocabulary[] }) => {
                   onClick={async () => {
                     try {
                       const res = await fetch('/api/health');
+                      if (!res.ok) throw new Error(`Status: ${res.status}`);
                       const data = await res.json();
                       alert(`API Health: ${JSON.stringify(data)}`);
                     } catch (e: any) {
-                      alert(`API Health Check Failed: ${e.message}`);
+                      alert(`API Health Check Failed: ${e.message}\n\nNote: If you are on Vercel, the backend API might not be reachable. Please use the AI Studio App URL.`);
                     }
                   }}
                   className="text-[10px] text-stone-400 hover:text-stone-600 underline"
@@ -3643,6 +3647,14 @@ const Settings = ({ vocab }: { vocab: Vocabulary[] }) => {
                   Check API Health
                 </button>
               </div>
+              {window.location.hostname.includes('vercel.app') && (
+                <div className="p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-900/30 rounded-xl mb-4">
+                  <p className="text-[10px] text-blue-600 dark:text-blue-400 font-bold uppercase tracking-widest mb-1">ℹ️ Vercel Deployment</p>
+                  <p className="text-[10px] text-blue-500 dark:text-blue-400 font-serif italic">
+                    You are on Vercel. I have added full-stack support, but you may need to redeploy your Vercel project for the API routes to become active.
+                  </p>
+                </div>
+              )}
               <p className="text-[10px] md:text-xs text-stone-500 dark:text-stone-400 font-serif italic">
                 This project uses Gemini AI for: Dictionary lookups, sentence/paragraph translation, Image translation (Google Lens-style), and the Sensei Chat Bot.
               </p>
