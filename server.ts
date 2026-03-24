@@ -1,9 +1,12 @@
 import express from "express";
-import { createServer as createViteServer } from "vite";
 import path from "path";
 import { fileURLToPath } from "url";
 import dotenv from "dotenv";
 import axios from "axios";
+
+console.log("[Server] Initializing server.ts...");
+console.log("[Server] VERCEL:", process.env.VERCEL);
+console.log("[Server] NODE_ENV:", process.env.NODE_ENV);
 
 dotenv.config();
 
@@ -12,6 +15,11 @@ const __dirname = path.dirname(__filename);
 
 const app = express();
 const PORT = 3000;
+
+// Top-level health check for Vercel
+app.get("/api/ping", (req, res) => {
+  res.json({ pong: true, env: process.env.NODE_ENV, vercel: !!process.env.VERCEL });
+});
 
 app.use(express.json({ limit: '50mb' }));
 
@@ -32,17 +40,17 @@ app.get("/api/ai/generate", (req, res) => {
 });
 
 app.post(["/api/ai/generate", "/api/ai/generate/"], async (req, res) => {
-  console.log(`AI Proxy Headers:`, JSON.stringify(req.headers));
+  try {
+    console.log(`[AI Proxy] Headers:`, JSON.stringify(req.headers));
   const { provider, key, baseUrl, model, contents, systemInstruction, responseMimeType } = req.body;
 
   if (!key) {
     return res.status(400).json({ error: "API key is required" });
   }
 
-  try {
-    const sanitizedBody = { ...req.body, key: '***' };
-    console.log(`Processing AI request:`, JSON.stringify(sanitizedBody));
-    switch (provider) {
+  const sanitizedBody = { ...req.body, key: '***' };
+  console.log(`[AI Proxy] Request:`, JSON.stringify(sanitizedBody));
+  switch (provider) {
       case 'openai':
       case 'openrouter':
       case 'custom': {
@@ -76,7 +84,7 @@ app.post(["/api/ai/generate", "/api/ai/generate/"], async (req, res) => {
             if (typeof c === 'string') return c;
             return c.parts?.map((p: any) => p.text).join('\n') || c.text || "";
           }).join('\n');
-        } else if (typeof contents === 'object' && contents.parts) {
+        } else if (contents && typeof contents === 'object' && contents.parts) {
           userContent = contents.parts.map((p: any) => p.text).join('\n');
         }
 
@@ -86,7 +94,7 @@ app.post(["/api/ai/generate", "/api/ai/generate/"], async (req, res) => {
             model: targetModel || defaultModel,
             messages: [
               ...(systemInstruction ? [{ role: "system", content: systemInstruction }] : []),
-              { role: "user", content: userContent }
+              { role: "user", content: userContent || "" }
             ],
             response_format: responseMimeType === "application/json" ? { type: "json_object" } : undefined
           },
@@ -98,11 +106,16 @@ app.post(["/api/ai/generate", "/api/ai/generate/"], async (req, res) => {
                 "HTTP-Referer": "https://ais-dev-crgco6vlf2kgfzw2voqzza-570758212111.asia-southeast1.run.app",
                 "X-Title": "Komorebi Japanese Learning"
               } : {})
-            }
+            },
+            timeout: 30000
           }
         );
         console.log(`AI Provider ${provider} responded with status: ${response.status}`);
-        return res.json({ text: response.data.choices[0].message.content });
+        if (response.data?.choices?.[0]?.message?.content) {
+          return res.json({ text: response.data.choices[0].message.content });
+        } else {
+          throw new Error(`Unexpected response format from ${provider}: ${JSON.stringify(response.data)}`);
+        }
       }
 
       case 'anthropic': {
@@ -154,9 +167,12 @@ app.post(["/api/ai/generate", "/api/ai/generate/"], async (req, res) => {
 
       case 'gemini':
       default: {
-        // For Gemini, we can still use the SDK on frontend or proxy it here
-        // If we proxy it here, we use the REST API
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/${model || "gemini-1.5-flash"}:generateContent?key=${key}`;
+        // Map gemini-3 names to known stable names if the API rejects them
+        let geminiModel = model || "gemini-1.5-flash";
+        if (geminiModel === 'gemini-3-flash-preview') geminiModel = 'gemini-2.0-flash';
+        if (geminiModel === 'gemini-3.1-pro-preview') geminiModel = 'gemini-1.5-pro';
+
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/${geminiModel}:generateContent?key=${key}`;
         
         // Handle multimodal contents if needed
         let parts = [];
@@ -168,8 +184,10 @@ app.post(["/api/ai/generate", "/api/ai/generate/"], async (req, res) => {
             if (c.inlineData) return { inlineData: c.inlineData };
             return c;
           });
-        } else if (contents.parts) {
+        } else if (contents && contents.parts) {
           parts = contents.parts;
+        } else {
+          parts = [{ text: String(contents || "") }];
         }
 
         const response = await axios.post(url, {
@@ -178,18 +196,30 @@ app.post(["/api/ai/generate", "/api/ai/generate/"], async (req, res) => {
           generationConfig: {
             responseMimeType: responseMimeType || "text/plain"
           }
-        });
+        }, { timeout: 30000 });
 
-        const text = response.data.candidates?.[0]?.content?.parts?.[0]?.text;
-        return res.json({ text });
+        const candidate = response.data.candidates?.[0];
+        if (candidate?.finishReason === 'SAFETY') {
+          return res.json({ text: "Response blocked by safety filters." });
+        }
+        
+        const text = candidate?.content?.parts?.[0]?.text;
+        if (text !== undefined) {
+          return res.json({ text });
+        } else {
+          throw new Error(`Gemini API returned no text. Finish reason: ${candidate?.finishReason}. Full response: ${JSON.stringify(response.data)}`);
+        }
       }
     }
   } catch (error: any) {
     const errorData = error.response?.data || error.message;
-    console.error("AI Proxy Error:", errorData);
-    res.status(error.response?.status || 500).json({ 
-      error: "AI Provider Error", 
-      details: typeof errorData === 'object' ? JSON.stringify(errorData) : errorData
+    console.error("[AI Proxy Error]:", errorData);
+    
+    // Return a structured error that the frontend can display
+    return res.status(error.response?.status || 500).json({ 
+      error: "AI Proxy Request Failed", 
+      message: typeof errorData === 'string' ? errorData : (errorData.error?.message || errorData.message || JSON.stringify(errorData)),
+      details: errorData
     });
   }
 });
@@ -203,6 +233,7 @@ app.all("/api/*", (req, res) => {
 async function startServer() {
   // Vite middleware for development
   if (process.env.NODE_ENV !== "production") {
+    const { createServer: createViteServer } = await import("vite");
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: "spa",

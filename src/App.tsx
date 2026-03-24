@@ -3631,21 +3631,38 @@ const Settings = ({ vocab }: { vocab: Vocabulary[] }) => {
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <h4 className="text-sm font-bold text-stone-900 dark:text-stone-100">AI Usage Information</h4>
-                <button 
-                  onClick={async () => {
-                    try {
-                      const res = await fetch('/api/health');
-                      if (!res.ok) throw new Error(`Status: ${res.status}`);
-                      const data = await res.json();
-                      alert(`API Health: ${JSON.stringify(data)}`);
-                    } catch (e: any) {
-                      alert(`API Health Check Failed: ${e.message}\n\nNote: If you are on Vercel, the backend API might not be reachable. Please use the AI Studio App URL.`);
-                    }
-                  }}
-                  className="text-[10px] text-stone-400 hover:text-stone-600 underline"
-                >
-                  Check API Health
-                </button>
+                <div className="flex gap-2">
+                  <button 
+                    onClick={async () => {
+                      try {
+                        const res = await fetch('/api/health');
+                        if (!res.ok) throw new Error(`Status: ${res.status}`);
+                        const data = await res.json();
+                        alert(`API Health: ${JSON.stringify(data)}`);
+                      } catch (e: any) {
+                        alert(`API Health Check Failed: ${e.message}\n\nNote: If you are on Vercel, the backend API might not be reachable. Please use the AI Studio App URL.`);
+                      }
+                    }}
+                    className="text-[10px] text-stone-400 hover:text-stone-600 underline"
+                  >
+                    Check API Health
+                  </button>
+                  <button 
+                    onClick={async () => {
+                      try {
+                        const res = await fetch('/api/ping');
+                        if (!res.ok) throw new Error(`Status: ${res.status}`);
+                        const data = await res.json();
+                        alert(`API Ping: ${JSON.stringify(data)}`);
+                      } catch (e: any) {
+                        alert(`API Ping Failed: ${e.message}`);
+                      }
+                    }}
+                    className="text-[10px] text-stone-400 hover:text-stone-600 underline"
+                  >
+                    Ping API
+                  </button>
+                </div>
               </div>
               {window.location.hostname.includes('vercel.app') && (
                 <div className="p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-900/30 rounded-xl mb-4">
