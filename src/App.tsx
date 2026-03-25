@@ -285,8 +285,13 @@ const getAI = (profile?: UserProfile | null, purpose: AIPurpose = 'general') => 
     console.warn(`No API keys found for purpose: ${purpose}`);
     return null;
   }
+
+  // Use SDK directly for Gemini as per baseline
+  if (keyInfo.provider === 'gemini') {
+    return new GoogleGenAI({ apiKey: keyInfo.key });
+  }
   
-  // Return an object that mimics the Gemini SDK but calls our proxy
+  // Return an object that mimics the Gemini SDK but calls our proxy for other providers
   return {
     models: {
       generateContent: async (params: any) => {
@@ -2780,10 +2785,10 @@ const Dictionary = () => {
             className="grid grid-cols-1 sm:grid-cols-2 gap-4"
           >
             {displayWords.map((word, i) => (
-              <button
+              <div
                 key={i}
                 onClick={() => { setQuery(word.jp); setTimeout(() => handleSearch(), 100); }}
-                className="p-6 bg-white border border-stone-100 rounded-2xl text-left hover:border-stone-300 transition-all group"
+                className="p-6 bg-white border border-stone-100 rounded-2xl text-left hover:border-stone-300 transition-all group cursor-pointer"
               >
                 <div className="flex justify-between items-start mb-2">
                   <span className="text-2xl font-serif text-stone-900">{word.jp}</span>
@@ -2804,7 +2809,7 @@ const Dictionary = () => {
                 </div>
                 <div className="text-xs font-mono text-stone-400 uppercase tracking-widest mb-1">{word.ro}</div>
                 <div className="text-sm text-stone-600 font-editorial italic">{word.en}</div>
-              </button>
+              </div>
             ))}
           </motion.div>
         )}
@@ -3437,42 +3442,57 @@ const Settings = ({ vocab }: { vocab: Vocabulary[] }) => {
 
       const providerName = (keyInfo as any).customProvider || keyInfo.provider.toUpperCase();
       console.log(`Testing ${providerName} connection...`);
-      
-      const response = await fetch('/api/ai/generate', {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Accept': 'application/json'
-        },
-        body: JSON.stringify({
-          provider: keyInfo.provider,
-          key: keyInfo.key,
-          baseUrl: keyInfo.baseUrl,
-          model: keyInfo.provider === 'openrouter' ? 'google/gemini-2.0-flash-001' : 'gemini-3-flash-preview',
+
+      let responseText = '';
+
+      if (keyInfo.provider === 'gemini') {
+        const ai = new GoogleGenAI({ apiKey: keyInfo.key });
+        const response = await ai.models.generateContent({
+          model: 'gemini-3-flash-preview',
           contents: "Respond with exactly the word 'OK'.",
-          systemInstruction: "You are a helpful assistant testing a connection."
-        })
-      });
+          config: {
+            systemInstruction: "You are a helpful assistant testing a connection."
+          }
+        });
+        responseText = response.text || '';
+      } else {
+        const response = await fetch('/api/ai/generate', {
+          method: 'POST',
+          headers: { 
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+          },
+          body: JSON.stringify({
+            provider: keyInfo.provider,
+            key: keyInfo.key,
+            baseUrl: keyInfo.baseUrl,
+            model: keyInfo.provider === 'openrouter' ? 'google/gemini-2.0-flash-001' : 'gemini-3-flash-preview',
+            contents: "Respond with exactly the word 'OK'.",
+            systemInstruction: "You are a helpful assistant testing a connection."
+          })
+        });
 
-      const contentType = response.headers.get('content-type');
-      if (!contentType || !contentType.includes('application/json')) {
-        const text = await response.text();
-        throw new Error(`Expected JSON response from AI Proxy but got: ${text.substring(0, 100)}...`);
+        const contentType = response.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+          const text = await response.text();
+          throw new Error(`Expected JSON response from AI Proxy but got: ${text.substring(0, 100)}...`);
+        }
+
+        const data = await response.json();
+        
+        if (!response.ok) {
+          const errorDetail = typeof data.error === 'object' ? JSON.stringify(data.error, null, 2) : (data.error || data.message || 'Unknown error');
+          throw new Error(`AI Proxy Error: ${errorDetail}`);
+        }
+        responseText = data.text || '';
       }
 
-      const data = await response.json();
-      
-      if (!response.ok) {
-        const errorDetail = typeof data.error === 'object' ? JSON.stringify(data.error, null, 2) : (data.error || data.message || 'Unknown error');
-        throw new Error(`AI Proxy Error: ${errorDetail}`);
-      }
-
-      if (data.text && data.text.toUpperCase().includes('OK')) {
+      if (responseText && responseText.toUpperCase().includes('OK')) {
         setTestStatus('success');
         setTestError(null);
-        alert(`AI Connection Success! (${providerName})\nResponse: ${data.text}`);
+        alert(`AI Connection Success! (${providerName})\nResponse: ${responseText}`);
       } else {
-        throw new Error(`AI responded but not with the expected format: "${data.text?.substring(0, 50)}..."`);
+        throw new Error(`AI responded but not with the expected format: "${responseText.substring(0, 50)}..."`);
       }
     } catch (err: any) {
       console.error('AI Test Error:', err);
