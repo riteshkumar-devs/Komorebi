@@ -8,63 +8,48 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   try {
     const { prompt, key } = req.body;
-
     const apiKey = key || process.env.GEMINI_API_KEY;
 
     if (!apiKey) {
       return res.status(400).json({
-        error: "Missing API Key",
-        message: "Gemini API key is required."
+        error: "Missing API Key"
       });
     }
 
     const userText = String(prompt || "");
 
-    // ✅ Correct Gemini payload
-    const geminiPayload = {
+    const payload = {
       contents: [
         {
           role: "user",
-          parts: [
-            { text: userText }
-          ]
+          parts: [{ text: userText }]
         }
       ]
     };
 
-    console.log("🔥 NEW VERSION RUNNING");
-    console.log("FINAL PAYLOAD:", JSON.stringify(geminiPayload));
+    console.log("🔥 FINAL WORKING VERSION");
 
-    // ✅ FINAL WORKING ENDPOINT (LATEST MODEL)
-    const GEMINI_ENDPOINT =
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`;
+    // ✅ WORKING MODEL
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${apiKey}`;
 
-    const response = await axios.post(GEMINI_ENDPOINT, geminiPayload, {
-      headers: {
-        "Content-Type": "application/json"
-      },
-      timeout: 30000
+    const response = await axios.post(url, payload, {
+      headers: { "Content-Type": "application/json" }
     });
 
-    const candidates = response.data?.candidates || [];
-    const parts = candidates[0]?.content?.parts || [];
-
-    const output = parts
-      .map((p: any) => p.text || "")
-      .join("")
-      .trim();
+    const text =
+      response.data?.candidates?.[0]?.content?.parts?.[0]?.text || "";
 
     return res.status(200).json({
-      text: output || "No response generated.",
-      reply: output || "No response generated.",
-      message: output || "No response generated."
+      text,
+      reply: text,
+      message: text
     });
 
   } catch (error: any) {
-    console.error("❌ Gemini Error:", error.response?.data || error.message);
+    console.error("❌ ERROR:", error.response?.data || error.message);
 
     return res.status(error.response?.status || 500).json({
-      error: "AI request failed",
+      error: "Failed",
       message: error.response?.data?.error?.message || error.message
     });
   }
