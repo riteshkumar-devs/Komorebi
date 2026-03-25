@@ -1,8 +1,8 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import axios from 'axios';
+import { GoogleGenerativeAI } from "@google/generative-ai";
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  if (req.method !== 'POST') {
+  if (req.method !== "POST") {
     return res.status(405).json({ error: "Method Not Allowed" });
   }
 
@@ -11,46 +11,45 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const apiKey = process.env.GEMINI_API_KEY;
 
     if (!apiKey) {
-      return res.status(400).json({ error: "Missing API Key" });
+      return res.status(400).json({
+        error: "Missing API Key",
+        message: "GEMINI_API_KEY not found in environment variables."
+      });
     }
 
-    const payload = {
-      contents: [
-        {
-          role: "user",
-          parts: [{ text: String(prompt || "") }]
-        }
-      ]
-    };
+    const userText = String(prompt || "").trim();
 
-    console.log("🔥 FINAL REAL FIX");
+    if (!userText) {
+      return res.status(400).json({
+        error: "Missing Prompt",
+        message: "Prompt is required."
+      });
+    }
 
-    const response = await axios.post(
-      "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent",
-      payload,
-      {
-        headers: {
-          "Content-Type": "application/json",
-          "x-goog-api-key": apiKey   // ✅ IMPORTANT CHANGE
-        }
-      }
-    );
+    console.log("🔥 SDK VERSION RUNNING");
 
-    const text =
-      response.data?.candidates?.[0]?.content?.parts?.[0]?.text || "";
+    const genAI = new GoogleGenerativeAI(apiKey);
+
+    const model = genAI.getGenerativeModel({
+      model: "gemini-1.5-flash"
+    });
+
+    const result = await model.generateContent(userText);
+    const response = await result.response;
+    const text = response.text();
 
     return res.status(200).json({
-      text,
-      reply: text,
-      message: text
+      text: text || "No response generated.",
+      reply: text || "No response generated.",
+      message: text || "No response generated."
     });
 
   } catch (error: any) {
-    console.error("❌ ERROR:", error.response?.data || error.message);
+    console.error("❌ GEMINI SDK ERROR:", error);
 
-    return res.status(error.response?.status || 500).json({
-      error: "Failed",
-      message: error.response?.data?.error?.message || error.message
+    return res.status(500).json({
+      error: "AI request failed",
+      message: error?.message || "Unknown error"
     });
   }
 }
