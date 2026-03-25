@@ -84,9 +84,6 @@ import {
   Sun,
   Moon,
   Monitor,
-  Camera,
-  Upload,
-  Image as ImageIcon,
   Scan
 } from 'lucide-react';
 import { GoogleGenAI, Modality } from "@google/genai";
@@ -1565,11 +1562,7 @@ const Translator = () => {
   const [result, setResult] = useState('');
   const [loading, setLoading] = useState(false);
   const [mode, setMode] = useState<'text' | 'photo'>('text');
-  const [selectedImage, setSelectedImage] = useState<string | null>(null);
-  const [isScanning, setIsScanning] = useState(false);
   const { play, loading: ttsLoading } = useTTSContext();
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const cameraInputRef = useRef<HTMLInputElement>(null);
 
   const handleTranslate = async () => {
     if (!text.trim()) return;
@@ -1609,59 +1602,6 @@ const Translator = () => {
       setResult(`Error: ${error.message || "Something went wrong. Please try again."}`);
     } finally {
       setLoading(false);
-    }
-  };
-
-  const handlePhotoTranslate = async (base64Image: string) => {
-    setLoading(true);
-    setIsScanning(true);
-    setResult('');
-    try {
-      const ai = getAI(profile, 'translation');
-      if (!ai) {
-        setResult("API key required.");
-        return;
-      }
-
-      const response = await ai.models.generateContent({
-        model: "gemini-3-flash-preview",
-        contents: [
-          {
-            inlineData: {
-              mimeType: "image/jpeg",
-              data: base64Image.split(',')[1],
-            },
-          },
-          {
-            text: `Detect the Japanese or English text in this image and translate it to the other language (Japanese to English or English to Japanese). 
-            IMPORTANT: Maintain the EXACT same line-by-line order as seen in the image. 
-            If there are multiple lines, translate each line separately and present them in the same order.
-            Provide ONLY the translation. If it's Japanese, include Romaji in parentheses.`,
-          },
-        ],
-      });
-
-      const translation = response.text?.trim() || "Translation failed";
-      setResult(translation);
-    } catch (error: any) {
-      console.error("Photo Translation Error:", error);
-      setResult(`Error: ${error.message}`);
-    } finally {
-      setLoading(false);
-      setIsScanning(false);
-    }
-  };
-
-  const onFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        const base64 = reader.result as string;
-        setSelectedImage(base64);
-        handlePhotoTranslate(base64);
-      };
-      reader.readAsDataURL(file);
     }
   };
 
@@ -1760,81 +1700,20 @@ const Translator = () => {
             animate={{ opacity: 1, y: 0 }}
             className="bg-white dark:bg-stone-900 p-8 rounded-[3rem] shadow-xl border border-stone-100 dark:border-stone-800"
           >
-            <div className="flex flex-col items-center justify-center min-h-[400px] border-2 border-dashed border-stone-200 dark:border-stone-800 rounded-[2.5rem] bg-stone-50/50 dark:bg-stone-800/30 overflow-hidden relative group">
-              {selectedImage ? (
-                <div className="relative w-full h-full flex items-center justify-center">
-                  <img 
-                    src={selectedImage} 
-                    alt="Selected" 
-                    className="max-w-full max-h-[500px] object-contain rounded-2xl"
-                  />
-                  {isScanning && (
-                    <motion.div 
-                      initial={{ top: 0 }}
-                      animate={{ top: '100%' }}
-                      transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
-                      className="absolute left-0 right-0 h-1 bg-amber-400 shadow-[0_0_15px_rgba(251,191,36,0.8)] z-10"
-                    />
-                  )}
-                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all flex items-center justify-center opacity-0 group-hover:opacity-100">
-                    <button 
-                      onClick={() => setSelectedImage(null)}
-                      className="px-6 py-3 bg-white text-stone-900 rounded-full font-bold shadow-lg hover:scale-105 transition-all"
-                    >
-                      Clear Image
-                    </button>
-                  </div>
-                  
-                  {/* Google Lens-like corners */}
-                  <div className="absolute top-8 left-8 w-12 h-12 border-t-4 border-l-4 border-white rounded-tl-xl" />
-                  <div className="absolute top-8 right-8 w-12 h-12 border-t-4 border-r-4 border-white rounded-tr-xl" />
-                  <div className="absolute bottom-8 left-8 w-12 h-12 border-b-4 border-l-4 border-white rounded-bl-xl" />
-                  <div className="absolute bottom-8 right-8 w-12 h-12 border-b-4 border-r-4 border-white rounded-br-xl" />
+            <div className="flex flex-col items-center justify-center min-h-[400px] border-2 border-dashed border-stone-200 dark:border-stone-800 rounded-[2.5rem] bg-stone-50/50 dark:bg-stone-800/30 overflow-hidden relative">
+              <div className="text-center p-12">
+                <div className="w-24 h-24 bg-stone-100 dark:bg-stone-700 rounded-full flex items-center justify-center mx-auto mb-6">
+                  <Sparkles className="w-10 h-10 text-amber-500" />
                 </div>
-              ) : (
-                <div className="text-center p-12">
-                  <div className="w-24 h-24 bg-stone-100 dark:bg-stone-700 rounded-full flex items-center justify-center mx-auto mb-6 group-hover:scale-110 transition-transform">
-                    <Scan className="w-10 h-10 text-stone-400 dark:text-stone-500" />
-                  </div>
-                  <h3 className="text-2xl font-editorial italic text-stone-900 dark:text-stone-100 mb-2">Visual Translation</h3>
-                  <p className="text-stone-500 dark:text-stone-400 font-serif italic mb-8 max-w-xs mx-auto">Capture or upload a photo to translate text instantly like Google Lens.</p>
-                  
-                  <div className="flex flex-wrap justify-center gap-4">
-                    <button 
-                      onClick={() => {
-                        if (fileInputRef.current) {
-                          fileInputRef.current.setAttribute('capture', 'environment');
-                          fileInputRef.current.click();
-                        }
-                      }}
-                      className="px-8 py-4 bg-stone-900 dark:bg-stone-100 text-white dark:text-stone-900 rounded-2xl font-bold hover:scale-105 active:scale-95 transition-all flex items-center gap-3 shadow-lg"
-                    >
-                      <Camera className="w-5 h-5" />
-                      Take Photo
-                    </button>
-                    <button 
-                      onClick={() => {
-                        if (fileInputRef.current) {
-                          fileInputRef.current.removeAttribute('capture');
-                          fileInputRef.current.click();
-                        }
-                      }}
-                      className="px-8 py-4 bg-stone-100 dark:bg-stone-800 text-stone-900 dark:text-stone-100 rounded-2xl font-bold hover:bg-stone-200 dark:hover:bg-stone-700 transition-all flex items-center gap-3 shadow-sm"
-                    >
-                      <Upload className="w-5 h-5" />
-                      Upload
-                    </button>
-                  </div>
+                <h3 className="text-2xl font-editorial italic text-stone-900 dark:text-stone-100 mb-2">Visual Translation</h3>
+                <p className="text-stone-500 dark:text-stone-400 font-serif italic mb-8 max-w-xs mx-auto">
+                  Capture or upload a photo to translate text instantly like Google Lens.
+                </p>
+                <div className="inline-flex items-center gap-2 px-6 py-3 bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 rounded-2xl text-lg font-bold border border-amber-200 dark:border-amber-800 shadow-sm">
+                  <Sparkles className="w-5 h-5" />
+                  Coming Soon
                 </div>
-              )}
-              
-              <input 
-                type="file" 
-                ref={fileInputRef} 
-                className="hidden" 
-                accept="image/*"
-                onChange={onFileChange}
-              />
+              </div>
             </div>
           </motion.div>
         )}

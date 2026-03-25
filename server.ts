@@ -16,20 +16,20 @@ async function startServer() {
 
   app.use(express.json({ limit: '50mb' }));
 
-  // Request logging
-  app.use((req, res, next) => {
-    console.log(`${new Date().toISOString()} - ${req.method} ${req.url} - Accept: ${req.headers.accept}`);
-    next();
-  });
-
   // API routes go here
   app.get("/api/health", (req, res) => {
+    console.log("Health check request received");
     res.json({ status: "ok" });
   });
 
   // AI Proxy Endpoint
-  app.post(["/api/ai/generate", "/api/ai/generate/"], async (req, res) => {
-    console.log(`AI Proxy Headers:`, JSON.stringify(req.headers));
+  app.post("/api/ai/generate", async (req, res) => {
+    console.log("Incoming AI request:", {
+      provider: req.body.provider,
+      model: req.body.model,
+      hasKey: !!req.body.key,
+      contentsType: typeof req.body.contents
+    });
     const { provider, key, baseUrl, model, contents, systemInstruction, responseMimeType } = req.body;
 
     if (!key) {
@@ -37,35 +37,11 @@ async function startServer() {
     }
 
     try {
-      const sanitizedBody = { ...req.body, key: '***' };
-      console.log(`Processing AI request:`, JSON.stringify(sanitizedBody));
       switch (provider) {
         case 'openai':
-        case 'openrouter':
-        case 'custom': {
-          let targetModel = model;
-          if (provider === 'openrouter') {
-            // Map common model names to OpenRouter format if needed
-            if (!model || model.includes('gemini')) {
-              if (model === 'gemini-3-flash-preview') {
-                targetModel = 'google/gemini-2.0-flash-001';
-              } else if (model === 'gemini-3.1-pro-preview') {
-                targetModel = 'google/gemini-pro-1.5';
-              } else {
-                targetModel = 'google/gemini-2.0-flash-001';
-              }
-            }
-          }
-
-          const defaultBaseUrl = 
-            provider === 'openai' ? "https://api.openai.com/v1/chat/completions" : 
-            provider === 'openrouter' ? "https://openrouter.ai/api/v1/chat/completions" : 
-            ""; // Custom must provide baseUrl or it will fail
-          
-          const defaultModel = 
-            provider === 'openai' ? "gpt-4o" : 
-            provider === 'openrouter' ? "google/gemini-2.0-flash-001" : 
-            "gpt-3.5-turbo"; // Default for custom if not specified
+        case 'openrouter': {
+          const defaultBaseUrl = provider === 'openai' ? "https://api.openai.com/v1/chat/completions" : "https://openrouter.ai/api/v1/chat/completions";
+          const defaultModel = provider === 'openai' ? "gpt-4o" : "google/gemini-2.0-flash-001";
           
           let userContent = contents;
           if (Array.isArray(contents)) {
@@ -80,7 +56,7 @@ async function startServer() {
           const response = await axios.post(
             baseUrl || defaultBaseUrl,
             {
-              model: targetModel || defaultModel,
+              model: model || defaultModel,
               messages: [
                 ...(systemInstruction ? [{ role: "system", content: systemInstruction }] : []),
                 { role: "user", content: userContent }
@@ -93,12 +69,11 @@ async function startServer() {
                 "Content-Type": "application/json",
                 ...(provider === 'openrouter' ? {
                   "HTTP-Referer": "https://ais-dev-crgco6vlf2kgfzw2voqzza-570758212111.asia-southeast1.run.app",
-                  "X-Title": "Komorebi Japanese Learning"
+                  "X-Title": "Japanese Learning App"
                 } : {})
               }
             }
           );
-          console.log(`AI Provider ${provider} responded with status: ${response.status}`);
           return res.json({ text: response.data.choices[0].message.content });
         }
 
@@ -182,19 +157,12 @@ async function startServer() {
         }
       }
     } catch (error: any) {
-      const errorData = error.response?.data || error.message;
-      console.error("AI Proxy Error:", errorData);
+      console.error("AI Proxy Error:", error.response?.data || error.message);
       res.status(error.response?.status || 500).json({ 
         error: "AI Provider Error", 
-        details: typeof errorData === 'object' ? JSON.stringify(errorData) : errorData
+        details: error.response?.data || error.message 
       });
     }
-  });
-
-  // Catch-all for unmatched API routes
-  app.all("/api/*", (req, res) => {
-    console.warn(`Unmatched API route: ${req.method} ${req.url}`);
-    res.status(404).json({ error: `API route not found: ${req.method} ${req.url}` });
   });
 
   // Vite middleware for development
@@ -213,8 +181,11 @@ async function startServer() {
   }
 
   app.listen(PORT, "0.0.0.0", () => {
-    console.log(`KOMOREBI_SERVER_STARTUP_SUCCESS: Running on http://localhost:${PORT}`);
+    console.log(`Server running on http://localhost:${PORT}`);
   });
 }
 
-startServer();
+startServer().catch(err => {
+  console.error("Failed to start server:", err);
+  process.exit(1);
+});
