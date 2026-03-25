@@ -293,6 +293,16 @@ const getAI = (profile?: UserProfile | null, purpose: AIPurpose = 'general') => 
   return {
     models: {
       generateContent: async (params: any) => {
+        let promptText = "";
+        if (typeof params === 'string') {
+          promptText = params;
+        } else if (typeof params.contents === 'string') {
+          promptText = params.contents;
+        } else if (Array.isArray(params.contents)) {
+          // Extract text from Gemini format: [{ parts: [{ text: "..." }] }]
+          promptText = params.contents[0]?.parts?.[0]?.text || "";
+        }
+
         const response = await fetch('/api/ai/generate', {
           method: 'POST',
           headers: { 
@@ -300,7 +310,7 @@ const getAI = (profile?: UserProfile | null, purpose: AIPurpose = 'general') => 
             'Accept': 'application/json'
           },
           body: JSON.stringify({
-            prompt: params.contents,
+            prompt: promptText,
             key: keyInfo.key
           })
         });
@@ -340,6 +350,7 @@ const getAI = (profile?: UserProfile | null, purpose: AIPurpose = 'general') => 
       create: (params: any) => {
         return {
           sendMessage: async (msgParams: any) => {
+            const promptText = typeof msgParams === 'string' ? msgParams : (msgParams.message || "");
             const response = await fetch('/api/ai/generate', {
               method: 'POST',
               headers: { 
@@ -347,7 +358,7 @@ const getAI = (profile?: UserProfile | null, purpose: AIPurpose = 'general') => 
                 'Accept': 'application/json'
               },
               body: JSON.stringify({
-                prompt: msgParams.message,
+                prompt: promptText,
                 key: keyInfo.key
               })
             });

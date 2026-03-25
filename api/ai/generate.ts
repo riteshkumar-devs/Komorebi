@@ -4,10 +4,9 @@ import axios from 'axios';
 /**
  * Vercel Serverless Function: AI Proxy for Google Gemini API
  * 
- * STRICT IMPLEMENTATION:
- * 1. Ignores 'contents' from frontend.
- * 2. Only reads 'prompt' and 'key' from req.body.
- * 3. Formats request exactly for Gemini API.
+ * STRICT MINIMAL IMPLEMENTATION:
+ * 1. Only reads 'prompt' and 'key' from req.body.
+ * 2. Formats request exactly for Gemini API.
  */
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   // Only allow POST
@@ -43,6 +42,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       ]
     };
 
+    // DEBUG: Log the final payload (Requirement)
+    console.log("FINAL PAYLOAD:", JSON.stringify(geminiPayload));
+
     // 5. Call Gemini API (gemini-1.5-flash)
     const GEMINI_ENDPOINT = `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
     
@@ -62,7 +64,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       .join("")
       .trim();
 
-    // 7. Return Standardized Response Format
+    // 7. Return Standardized Response Format (Requirement)
     return res.status(200).json({
       text: combinedText || "No response generated.",
       reply: combinedText || "No response generated.",
