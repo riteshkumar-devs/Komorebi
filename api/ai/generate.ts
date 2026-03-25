@@ -7,34 +7,34 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    const { prompt, key } = req.body;
-    const apiKey = key || process.env.GEMINI_API_KEY;
+    const { prompt } = req.body;
+    const apiKey = process.env.GEMINI_API_KEY;
 
     if (!apiKey) {
-      return res.status(400).json({
-        error: "Missing API Key"
-      });
+      return res.status(400).json({ error: "Missing API Key" });
     }
-
-    const userText = String(prompt || "");
 
     const payload = {
       contents: [
         {
           role: "user",
-          parts: [{ text: userText }]
+          parts: [{ text: String(prompt || "") }]
         }
       ]
     };
 
-    console.log("🔥 FINAL WORKING VERSION");
+    console.log("🔥 FINAL REAL FIX");
 
-    // ✅ WORKING MODEL
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${apiKey}`;
-
-    const response = await axios.post(url, payload, {
-      headers: { "Content-Type": "application/json" }
-    });
+    const response = await axios.post(
+      "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent",
+      payload,
+      {
+        headers: {
+          "Content-Type": "application/json",
+          "x-goog-api-key": apiKey   // ✅ IMPORTANT CHANGE
+        }
+      }
+    );
 
     const text =
       response.data?.candidates?.[0]?.content?.parts?.[0]?.text || "";
