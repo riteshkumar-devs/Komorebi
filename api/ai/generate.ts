@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import { GoogleGenAI } from "@google/genai";
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== "POST") {
@@ -26,26 +26,25 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       });
     }
 
-    console.log("🔥 SDK VERSION RUNNING");
+    console.log("🔥 GOOGLE GENAI SDK RUNNING");
 
-    const genAI = new GoogleGenerativeAI(apiKey);
+    const ai = new GoogleGenAI({ apiKey });
 
-    const model = genAI.getGenerativeModel({
-      model: "gemini-1.5-flash"
+    const response = await ai.models.generateContent({
+      model: "gemini-1.5-flash",
+      contents: userText,
     });
 
-    const result = await model.generateContent(userText);
-    const response = await result.response;
-    const text = response.text();
+    const text = response.text || "No response generated.";
 
     return res.status(200).json({
-      text: text || "No response generated.",
-      reply: text || "No response generated.",
-      message: text || "No response generated."
+      text,
+      reply: text,
+      message: text
     });
 
   } catch (error: any) {
-    console.error("❌ GEMINI SDK ERROR:", error);
+    console.error("❌ GOOGLE GENAI ERROR:", error);
 
     return res.status(500).json({
       error: "AI request failed",
