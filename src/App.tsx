@@ -293,16 +293,6 @@ const getAI = (profile?: UserProfile | null, purpose: AIPurpose = 'general') => 
   return {
     models: {
       generateContent: async (params: any) => {
-        let promptText = "";
-        if (typeof params === 'string') {
-          promptText = params;
-        } else if (typeof params.contents === 'string') {
-          promptText = params.contents;
-        } else if (Array.isArray(params.contents)) {
-          // Extract text from Gemini format: [{ parts: [{ text: "..." }] }]
-          promptText = params.contents[0]?.parts?.[0]?.text || "";
-        }
-
         const response = await fetch('/api/ai/generate', {
           method: 'POST',
           headers: { 
@@ -310,8 +300,13 @@ const getAI = (profile?: UserProfile | null, purpose: AIPurpose = 'general') => 
             'Accept': 'application/json'
           },
           body: JSON.stringify({
-            prompt: promptText,
-            key: keyInfo.key
+            provider: keyInfo.provider,
+            key: keyInfo.key,
+            baseUrl: (keyInfo as any).baseUrl,
+            model: params.model,
+            contents: params.contents,
+            systemInstruction: params.config?.systemInstruction,
+            responseMimeType: params.config?.responseMimeType
           })
         });
 
@@ -329,17 +324,7 @@ const getAI = (profile?: UserProfile | null, purpose: AIPurpose = 'general') => 
         }
 
         if (contentType && contentType.includes("application/json")) {
-          const data = await response.json();
-          // Ensure compatibility with both raw Gemini and our standardized format
-          if (data.text && !data.candidates) {
-            return {
-              ...data,
-              candidates: [{
-                content: { parts: [{ text: data.text }] }
-              }]
-            };
-          }
-          return data;
+          return await response.json();
         } else {
           const text = await response.text();
           throw new Error(`Expected JSON response from AI Proxy but got: ${text.substring(0, 100)}`);
@@ -350,7 +335,6 @@ const getAI = (profile?: UserProfile | null, purpose: AIPurpose = 'general') => 
       create: (params: any) => {
         return {
           sendMessage: async (msgParams: any) => {
-            const promptText = typeof msgParams === 'string' ? msgParams : (msgParams.message || "");
             const response = await fetch('/api/ai/generate', {
               method: 'POST',
               headers: { 
@@ -358,8 +342,13 @@ const getAI = (profile?: UserProfile | null, purpose: AIPurpose = 'general') => 
                 'Accept': 'application/json'
               },
               body: JSON.stringify({
-                prompt: promptText,
-                key: keyInfo.key
+                provider: keyInfo.provider,
+                key: keyInfo.key,
+                baseUrl: (keyInfo as any).baseUrl,
+                model: params.model,
+                contents: msgParams.message,
+                systemInstruction: params.config?.systemInstruction,
+                responseMimeType: params.config?.responseMimeType
               })
             });
 
@@ -377,17 +366,7 @@ const getAI = (profile?: UserProfile | null, purpose: AIPurpose = 'general') => 
             }
 
             if (contentType && contentType.includes("application/json")) {
-              const data = await response.json();
-              // Ensure compatibility with both raw Gemini and our standardized format
-              if (data.text && !data.candidates) {
-                return {
-                  ...data,
-                  candidates: [{
-                    content: { parts: [{ text: data.text }] }
-                  }]
-                };
-              }
-              return data;
+              return await response.json();
             } else {
               const text = await response.text();
               throw new Error(`Expected JSON response from AI Proxy but got: ${text.substring(0, 100)}`);
@@ -3289,22 +3268,6 @@ const Settings = ({ vocab }: { vocab: Vocabulary[] }) => {
   const [notificationsEnabled, setNotificationsEnabled] = useState(profile?.notificationsEnabled ?? true);
   const [theme, setTheme] = useState<'light' | 'dark' | 'system'>(profile?.theme || 'system');
   const [saving, setSaving] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
-  const handleAvatarUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      if (file.size > 1024 * 1024) { // 1MB limit
-        alert("Image too large. Please choose an image under 1MB.");
-        return;
-      }
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setAvatar(reader.result as string);
-      };
-      reader.readAsDataURL(file);
-    }
-  };
 
   useEffect(() => {
     if (profile?.theme) {
@@ -3603,18 +3566,19 @@ const Settings = ({ vocab }: { vocab: Vocabulary[] }) => {
           'Accept': 'application/json'
         },
         body: JSON.stringify({
-          prompt: "Respond with exactly the word 'OK'.",
-          key: keyInfo.key
+          provider: keyInfo.provider,
+          key: keyInfo.key,
+          baseUrl: keyInfo.baseUrl,
+          model: keyInfo.provider === 'openrouter' ? 'google/gemini-2.0-flash-001' : 'gemini-3-flash-preview',
+          contents: "Respond with exactly the word 'OK'.",
+          systemInstruction: "You are a helpful assistant testing a connection."
         })
       });
 
       const contentType = response.headers.get('content-type');
       if (!contentType || !contentType.includes('application/json')) {
         const text = await response.text();
-        const isHtml = text.trim().startsWith('<!doctype html>') || text.trim().startsWith('<html');
-        throw new Error(isHtml 
-          ? `Expected JSON response from AI Proxy but got HTML. This usually means the backend is not reachable at this URL. If you are on Vercel, please ensure you have redeployed with the new server configuration.`
-          : `Expected JSON response from AI Proxy but got: ${text.substring(0, 100)}...`);
+        throw new Error(`Expected JSON response from AI Proxy but got: ${text.substring(0, 100)}...`);
       }
 
       const data = await response.json();
@@ -3664,47 +3628,21 @@ const Settings = ({ vocab }: { vocab: Vocabulary[] }) => {
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <h4 className="text-sm font-bold text-stone-900 dark:text-stone-100">AI Usage Information</h4>
-                <div className="flex gap-2">
-                  <button 
-                    onClick={async () => {
-                      try {
-                        const res = await fetch('/api/health');
-                        if (!res.ok) throw new Error(`Status: ${res.status}`);
-                        const data = await res.json();
-                        alert(`API Health: ${JSON.stringify(data)}`);
-                      } catch (e: any) {
-                        alert(`API Health Check Failed: ${e.message}\n\nNote: If you are on Vercel, the backend API might not be reachable. Please use the AI Studio App URL.`);
-                      }
-                    }}
-                    className="text-[10px] text-stone-400 hover:text-stone-600 underline"
-                  >
-                    Check API Health
-                  </button>
-                  <button 
-                    onClick={async () => {
-                      try {
-                        const res = await fetch('/api/ping');
-                        if (!res.ok) throw new Error(`Status: ${res.status}`);
-                        const data = await res.json();
-                        alert(`API Ping: ${JSON.stringify(data)}`);
-                      } catch (e: any) {
-                        alert(`API Ping Failed: ${e.message}`);
-                      }
-                    }}
-                    className="text-[10px] text-stone-400 hover:text-stone-600 underline"
-                  >
-                    Ping API
-                  </button>
-                </div>
+                <button 
+                  onClick={async () => {
+                    try {
+                      const res = await fetch('/api/health');
+                      const data = await res.json();
+                      alert(`API Health: ${JSON.stringify(data)}`);
+                    } catch (e: any) {
+                      alert(`API Health Check Failed: ${e.message}`);
+                    }
+                  }}
+                  className="text-[10px] text-stone-400 hover:text-stone-600 underline"
+                >
+                  Check API Health
+                </button>
               </div>
-              {window.location.hostname.includes('vercel.app') && (
-                <div className="p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-900/30 rounded-xl mb-4">
-                  <p className="text-[10px] text-blue-600 dark:text-blue-400 font-bold uppercase tracking-widest mb-1">ℹ️ Vercel Deployment</p>
-                  <p className="text-[10px] text-blue-500 dark:text-blue-400 font-serif italic">
-                    You are on Vercel. I have added full-stack support, but you may need to redeploy your Vercel project for the API routes to become active.
-                  </p>
-                </div>
-              )}
               <p className="text-[10px] md:text-xs text-stone-500 dark:text-stone-400 font-serif italic">
                 This project uses Gemini AI for: Dictionary lookups, sentence/paragraph translation, Image translation (Google Lens-style), and the Sensei Chat Bot.
               </p>
@@ -4015,12 +3953,8 @@ const Settings = ({ vocab }: { vocab: Vocabulary[] }) => {
           
           <div className="space-y-6">
             <div className="flex items-center gap-6 p-4 bg-stone-50 dark:bg-stone-800/50 rounded-3xl border border-stone-100 dark:border-stone-800">
-              <div className="w-20 h-20 bg-white dark:bg-stone-900 rounded-2xl flex items-center justify-center text-4xl shadow-sm border border-stone-100 dark:border-stone-800 overflow-hidden">
-                {avatar.startsWith('data:image') ? (
-                  <img src={avatar} alt="Avatar" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
-                ) : (
-                  avatar
-                )}
+              <div className="w-20 h-20 bg-white dark:bg-stone-900 rounded-2xl flex items-center justify-center text-4xl shadow-sm border border-stone-100 dark:border-stone-800">
+                {avatar}
               </div>
               <div className="flex-1 space-y-1">
                 <div className="text-[10px] font-bold text-stone-400 dark:text-stone-500 uppercase tracking-widest">Current Identity</div>
@@ -4048,22 +3982,6 @@ const Settings = ({ vocab }: { vocab: Vocabulary[] }) => {
                     {a}
                   </button>
                 ))}
-                <input 
-                  type="file" 
-                  ref={fileInputRef} 
-                  onChange={handleAvatarUpload} 
-                  accept="image/*" 
-                  className="hidden" 
-                />
-                <button
-                  onClick={() => fileInputRef.current?.click()}
-                  className={cn(
-                    "w-10 h-10 flex items-center justify-center rounded-xl transition-all",
-                    avatar.startsWith('data:image') ? "bg-stone-900 dark:bg-stone-100 scale-110 shadow-lg" : "bg-stone-50 dark:bg-stone-800 hover:bg-stone-100 dark:hover:bg-stone-700"
-                  )}
-                >
-                  <Upload className="w-5 h-5 text-stone-400 dark:text-stone-500" />
-                </button>
               </div>
             </div>
 
@@ -7210,11 +7128,11 @@ const NamePrompt = ({ onSave }: { onSave: (name: string) => void }) => {
       <motion.div 
         initial={{ opacity: 0, scale: 0.9, y: 20 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
-        className="relative w-full max-w-md bg-white dark:bg-stone-900 rounded-[3rem] shadow-2xl p-10 text-center border border-stone-100 dark:border-stone-800"
+        className="relative w-full max-w-md bg-white rounded-[3rem] shadow-2xl p-10 text-center"
       >
-        <div className="w-20 h-20 bg-stone-900 dark:bg-stone-100 rounded-3xl flex items-center justify-center text-white dark:text-stone-900 text-3xl font-bold mx-auto mb-8 shadow-xl shadow-stone-200 dark:shadow-none">木</div>
-        <h2 className="text-3xl font-editorial italic text-stone-900 dark:text-stone-100 mb-2">Welcome to Komorebi</h2>
-        <p className="text-stone-500 dark:text-stone-400 font-serif italic mb-8">What should we call you on your journey?</p>
+        <div className="w-20 h-20 bg-stone-900 rounded-3xl flex items-center justify-center text-white text-3xl font-bold mx-auto mb-8 shadow-xl shadow-stone-200">木</div>
+        <h2 className="text-3xl font-editorial italic text-stone-900 mb-2">Welcome to Komorebi</h2>
+        <p className="text-stone-500 font-serif italic mb-8">What should we call you on your journey?</p>
         
         <form onSubmit={(e) => { e.preventDefault(); if (name.trim()) onSave(name.trim()); }} className="space-y-4">
           <input 
@@ -7222,12 +7140,12 @@ const NamePrompt = ({ onSave }: { onSave: (name: string) => void }) => {
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="Enter your name..."
-            className="w-full p-5 bg-stone-50 dark:bg-stone-800 border-none rounded-2xl text-center text-xl font-medium text-stone-900 dark:text-stone-100 focus:ring-2 focus:ring-stone-200 dark:focus:ring-stone-700 transition-all outline-none"
+            className="w-full p-5 bg-stone-50 border-none rounded-2xl text-center text-xl font-medium focus:ring-2 focus:ring-stone-200 transition-all outline-none"
           />
           <button 
             type="submit"
             disabled={!name.trim()}
-            className="w-full py-5 bg-stone-900 dark:bg-stone-100 text-white dark:text-stone-900 rounded-full font-bold hover:bg-stone-800 dark:hover:bg-stone-200 transition-all shadow-xl shadow-stone-200 dark:shadow-none disabled:opacity-50"
+            className="w-full py-5 bg-stone-900 text-white rounded-full font-bold hover:bg-stone-800 transition-all shadow-xl shadow-stone-200 disabled:opacity-50"
           >
             Start Learning
           </button>
