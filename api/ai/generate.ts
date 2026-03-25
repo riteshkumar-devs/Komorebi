@@ -1,32 +1,27 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { GoogleGenAI } from "@google/genai";
+import axios from "axios";
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Method Not Allowed" });
   }
 
-  try {
-    const { prompt } = req.body;
-    const apiKey = process.env.GEMINI_API_KEY;
+  const { prompt, key, provider } = req.body;
+  const userText = String(prompt || "").trim();
 
-    if (!apiKey) {
-      return res.status(400).json({
-        error: "Missing API Key",
-        message: "GEMINI_API_KEY not found in environment variables."
-      });
-    }
+  if (!userText) {
+    return res.status(400).json({
+      error: "Missing Prompt",
+      message: "Prompt is required."
+    });
+  }
 
-    const userText = String(prompt || "").trim();
+  const callGemini = async () => {
+    const apiKey = String(key || "").trim();
+    if (!apiKey) throw new Error("Missing Gemini API Key");
 
-    if (!userText) {
-      return res.status(400).json({
-        error: "Missing Prompt",
-        message: "Prompt is required."
-      });
-    }
-
-    console.log("🔥 GOOGLE GENAI SDK RUNNING");
+    console.log("🔥 TRYING GEMINI (USER KEY)");
 
     const ai = new GoogleGenAI({ apiKey });
 
@@ -35,29 +30,66 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       contents: [
         {
           role: "user",
-          parts: [
-            { text: userText }
-          ]
+          parts: [{ text: userText }]
         }
       ]
     });
 
-    console.log("✅ RAW GOOGLE RESPONSE:", JSON.stringify(response, null, 2));
-
     const text =
       response?.candidates?.[0]?.content?.parts?.[0]?.text ||
       response?.text ||
-      "No response generated.";
+      "";
+
+    if (!text) throw new Error("Gemini returned empty response");
+
+    return text;
+  };
+
+  const callOpenRouter = async () => {
+    const apiKey = String(key || "").trim();
+    if (!apiKey) throw new Error("Missing OpenRouter API Key");
+
+    console.log("⚡ TRYING OPENROUTER (USER KEY)");
+
+    const response = await axios.post(
+      "https://openrouter.ai/api/v1/chat/completions",
+      {
+        model: "mistralai/mistral-7b-instruct:free",
+        messages: [{ role: "user", content: userText }]
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          "Content-Type": "application/json"
+        },
+        timeout: 30000
+      }
+    );
+
+    const text = response.data?.choices?.[0]?.message?.content || "";
+
+    if (!text) throw new Error("OpenRouter returned empty response");
+
+    return text;
+  };
+
+  try {
+    let output = "";
+
+    if (provider === "openrouter") {
+      output = await callOpenRouter();
+    } else {
+      output = await callGemini();
+    }
 
     return res.status(200).json({
-      text,
-      reply: text,
-      message: text
+      text: output,
+      reply: output,
+      message: output
     });
 
   } catch (error: any) {
-    console.error("❌ GOOGLE GENAI ERROR MESSAGE:", error?.message);
-    console.error("❌ GOOGLE GENAI ERROR OBJECT:", error);
+    console.error("❌ AI ERROR:", error?.message || error);
 
     return res.status(500).json({
       error: "AI request failed",
