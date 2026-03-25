@@ -35,7 +35,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       contents: userText,
     });
 
-    const text = response.text || "No response generated.";
+    console.log("✅ RAW GOOGLE RESPONSE:", JSON.stringify(response, null, 2));
+
+    const text =
+      response?.text ||
+      response?.candidates?.[0]?.content?.parts?.[0]?.text ||
+      "No response generated.";
 
     return res.status(200).json({
       text,
@@ -44,7 +49,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     });
 
   } catch (error: any) {
-    console.error("❌ GOOGLE GENAI ERROR:", error);
+    console.error("❌ GOOGLE GENAI ERROR FULL:", JSON.stringify(error, null, 2));
+    console.error("❌ GOOGLE GENAI ERROR MESSAGE:", error?.message);
+    console.error("❌ GOOGLE GENAI ERROR STACK:", error?.stack);
+    console.error("❌ GOOGLE GENAI ERROR OBJECT:", error);
 
     return res.status(500).json({
       error: "AI request failed",
