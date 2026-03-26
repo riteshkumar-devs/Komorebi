@@ -2,9 +2,10 @@ import { Timestamp } from 'firebase/firestore';
 
 export interface APIKey {
   key: string;
-  provider: 'gemini' | 'openai' | 'huggingface' | 'ollama' | 'anthropic' | 'openrouter' | 'custom';
+  provider: 'gemini' | 'openai' | 'huggingface' | 'ollama' | 'anthropic' | 'openrouter' | 'custom' | 'groq' | 'mistral' | 'cohere' | 'deepseek' | 'together' | 'perplexity' | 'xai';
   baseUrl?: string;
   customProvider?: string;
+  model?: string;
 }
 
 export interface UserProfile {

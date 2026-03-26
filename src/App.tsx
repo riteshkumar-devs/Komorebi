@@ -130,6 +130,114 @@ const ACHIEVEMENTS = [
   }))
 ];
 
+const AI_MODELS: Record<string, { id: string; name: string }[]> = {
+  gemini: [
+    { id: 'gemini-2.0-flash', name: 'Gemini 2.0 Flash' },
+    { id: 'gemini-1.5-flash', name: 'Gemini 1.5 Flash' },
+    { id: 'gemini-1.5-pro', name: 'Gemini 1.5 Pro' },
+    { id: 'gemini-2.0-pro-exp-02-05', name: 'Gemini 2.0 Pro Exp' },
+  ],
+  openai: [
+    { id: 'gpt-4o', name: 'GPT-4o' },
+    { id: 'gpt-4o-mini', name: 'GPT-4o Mini' },
+    { id: 'o1-preview', name: 'o1 Preview' },
+    { id: 'o1-mini', name: 'o1 Mini' },
+    { id: 'gpt-4-turbo', name: 'GPT-4 Turbo' },
+  ],
+  openrouter: [
+    { id: 'google/gemini-2.0-flash-001', name: 'Gemini 2.0 Flash' },
+    { id: 'google/gemini-2.0-pro-001', name: 'Gemini 2.0 Pro' },
+    { id: 'anthropic/claude-3.5-sonnet', name: 'Claude 3.5 Sonnet' },
+    { id: 'anthropic/claude-3-opus', name: 'Claude 3 Opus' },
+    { id: 'meta-llama/llama-3.1-405b-instruct', name: 'Llama 3.1 405B' },
+    { id: 'mistralai/mistral-large', name: 'Mistral Large' },
+    { id: 'deepseek/deepseek-chat', name: 'DeepSeek V3' },
+    { id: 'perplexity/llama-3.1-sonar-large-128k-online', name: 'Sonar Large' },
+  ],
+  anthropic: [
+    { id: 'claude-3-5-sonnet-20240620', name: 'Claude 3.5 Sonnet' },
+    { id: 'claude-3-opus-20240229', name: 'Claude 3 Opus' },
+    { id: 'claude-3-haiku-20240307', name: 'Claude 3 Haiku' },
+  ],
+  groq: [
+    { id: 'llama-3.1-70b-versatile', name: 'Llama 3.1 70B' },
+    { id: 'llama-3.1-8b-instant', name: 'Llama 3.1 8B' },
+    { id: 'mixtral-8x7b-32768', name: 'Mixtral 8x7B' },
+    { id: 'gemma2-9b-it', name: 'Gemma 2 9B' },
+  ],
+  mistral: [
+    { id: 'mistral-large-latest', name: 'Mistral Large' },
+    { id: 'mistral-medium-latest', name: 'Mistral Medium' },
+    { id: 'mistral-small-latest', name: 'Mistral Small' },
+    { id: 'pixtral-12b-2409', name: 'Pixtral 12B' },
+  ],
+  cohere: [
+    { id: 'command-r-plus', name: 'Command R+' },
+    { id: 'command-r', name: 'Command R' },
+    { id: 'command-light', name: 'Command Light' },
+  ],
+  deepseek: [
+    { id: 'deepseek-chat', name: 'DeepSeek Chat' },
+    { id: 'deepseek-coder', name: 'DeepSeek Coder' },
+  ],
+  together: [
+    { id: 'meta-llama/Llama-3-70b-chat-hf', name: 'Llama 3 70B' },
+    { id: 'mistralai/Mixtral-8x7B-Instruct-v0.1', name: 'Mixtral 8x7B' },
+    { id: 'togethercomputer/StripedHyena-Nous-7B', name: 'StripedHyena 7B' },
+  ],
+  perplexity: [
+    { id: 'llama-3.1-sonar-large-128k-online', name: 'Sonar Large Online' },
+    { id: 'llama-3.1-sonar-small-128k-online', name: 'Sonar Small Online' },
+    { id: 'llama-3.1-sonar-large-128k-chat', name: 'Sonar Large Chat' },
+  ],
+  xai: [
+    { id: 'grok-beta', name: 'Grok Beta' },
+    { id: 'grok-2', name: 'Grok 2' },
+  ],
+  huggingface: [
+    { id: 'meta-llama/Llama-3.1-70B-Instruct', name: 'Llama 3.1 70B' },
+    { id: 'mistralai/Mistral-7B-v0.1', name: 'Mistral 7B' },
+    { id: 'google/gemma-2-9b-it', name: 'Gemma 2 9B' },
+  ],
+  ollama: [
+    { id: 'llama3', name: 'Llama 3' },
+    { id: 'mistral', name: 'Mistral' },
+    { id: 'phi3', name: 'Phi 3' },
+    { id: 'gemma2', name: 'Gemma 2' },
+  ]
+};
+
+const checkAchievements = (profile: UserProfile, vocabCount: number, notesCount: number, senseiChatCount: number) => {
+  const newAchievements: string[] = [...(profile.achievements || [])];
+  let changed = false;
+
+  const addAchievement = (id: string) => {
+    if (!newAchievements.includes(id)) {
+      newAchievements.push(id);
+      changed = true;
+    }
+  };
+
+  if (vocabCount >= 1) addAchievement('first_word');
+  if (profile.streakCount >= 3) addAchievement('streak_3');
+  if (profile.streakCount >= 7) addAchievement('streak_7');
+  if (profile.streakCount >= 30) addAchievement('streak_30');
+  if (vocabCount >= 50) addAchievement('vocab_50');
+  if (vocabCount >= 100) addAchievement('vocab_100');
+  if (vocabCount >= 500) addAchievement('vocab_500');
+  if (senseiChatCount >= 10) addAchievement('chat_10');
+
+  // Rank achievements
+  const rankIndex = SOLO_LEVELING_RANKS.indexOf(profile.rank || 'E5');
+  if (rankIndex >= SOLO_LEVELING_RANKS.indexOf('D5')) addAchievement('rank_d');
+  if (rankIndex >= SOLO_LEVELING_RANKS.indexOf('C5')) addAchievement('rank_c');
+  if (rankIndex >= SOLO_LEVELING_RANKS.indexOf('B5')) addAchievement('rank_b');
+  if (rankIndex >= SOLO_LEVELING_RANKS.indexOf('A5')) addAchievement('rank_a');
+  if (rankIndex >= SOLO_LEVELING_RANKS.indexOf('S5')) addAchievement('rank_s');
+
+  return changed ? newAchievements : null;
+};
+
 // --- Rank System ---
 const SOLO_LEVELING_RANKS = [
   'E5', 'E4', 'E3', 'E2', 'E1',
@@ -218,7 +326,8 @@ const getApiKey = (profile?: UserProfile | null, purpose: AIPurpose = 'general')
       if (specificSet && specificSet.length > 0) {
         const validKeys = specificSet.filter(k => k.key.trim().length > 0);
         if (validKeys.length > 0) {
-          return validKeys[currentKeyIndex % validKeys.length];
+          const vk = validKeys[currentKeyIndex % validKeys.length];
+          return { key: vk.key, provider: vk.provider, baseUrl: vk.baseUrl, model: vk.model };
         }
       }
     }
@@ -228,7 +337,8 @@ const getApiKey = (profile?: UserProfile | null, purpose: AIPurpose = 'general')
     if (universalSet && universalSet.length > 0) {
       const validKeys = universalSet.filter(k => k.key.trim().length > 0);
       if (validKeys.length > 0) {
-        return validKeys[currentKeyIndex % validKeys.length];
+        const vk = validKeys[currentKeyIndex % validKeys.length];
+        return { key: vk.key, provider: vk.provider, baseUrl: vk.baseUrl, model: vk.model };
       }
     }
   }
@@ -283,10 +393,23 @@ const getApiKey = (profile?: UserProfile | null, purpose: AIPurpose = 'general')
   return { key: trimmedEnvKey, provider: 'gemini' as const };
 };
 
-const getSafeModel = (provider?: 'openrouter' | 'gemini') => {
-  return provider === 'openrouter'
-    ? 'google/gemini-2.0-flash-001'
-    : 'gemini-2.0-flash';
+
+const getSafeModel = (provider?: string, requestedModel?: string) => {
+  if (!provider) return 'gemini-2.0-flash';
+  
+  // User requested specific defaults for these two
+  if (provider === 'openrouter') return 'google/gemini-2.0-flash-001';
+  if (provider === 'gemini') return 'gemini-2.0-flash';
+
+  const models = AI_MODELS[provider.toLowerCase()];
+  if (!models || models.length === 0) return 'gemini-2.0-flash';
+  
+  if (requestedModel) {
+    const found = models.find((m: any) => m.id === requestedModel);
+    if (found) return requestedModel;
+  }
+  
+  return models[0].id;
 };
 
 const getAI = (profile?: UserProfile | null, purpose: AIPurpose = 'general') => {
@@ -296,6 +419,8 @@ const getAI = (profile?: UserProfile | null, purpose: AIPurpose = 'general') => 
     console.warn(`No API keys found for purpose: ${purpose}`);
     return null;
   }
+
+  const model = keyInfo.model || getSafeModel(keyInfo.provider);
 
   // Use SDK directly for Gemini as per baseline
   if (keyInfo.provider === 'gemini') {
@@ -316,7 +441,7 @@ const getAI = (profile?: UserProfile | null, purpose: AIPurpose = 'general') => 
             provider: keyInfo.provider,
             key: keyInfo.key,
             baseUrl: (keyInfo as any).baseUrl,
-            model: params.model,
+            model: params.model || model,
             contents: params.contents,
             systemInstruction: params.config?.systemInstruction,
             responseMimeType: params.config?.responseMimeType
@@ -327,9 +452,16 @@ const getAI = (profile?: UserProfile | null, purpose: AIPurpose = 'general') => 
         if (!response.ok) {
           if (contentType && contentType.includes("application/json")) {
             const errorData = await response.json();
-            const errorMsg = typeof errorData.details === 'string' ? errorData.details : 
-                           (typeof errorData.error === 'string' ? errorData.error : JSON.stringify(errorData));
-            throw new Error(errorMsg || "AI Proxy request failed");
+            // Try to extract the most useful error message
+            let errorMsg = errorData.error || "AI Proxy request failed";
+            
+            if (errorMsg.includes("quota") || errorMsg.includes("billing") || errorMsg.includes("credit")) {
+              errorMsg = "AI Provider Error: You exceeded your current quota or have no credits. Please check your plan and billing details.";
+            } else if (errorMsg.includes("API key") || errorMsg.includes("unauthorized") || errorMsg.includes("invalid_api_key")) {
+              errorMsg = "AI Provider Error: Incorrect API key provided. Please check your key in Settings.";
+            }
+            
+            throw new Error(errorMsg);
           } else {
             const text = await response.text();
             throw new Error(`AI Proxy failed with status ${response.status}. ${text.substring(0, 100)}`);
@@ -1333,7 +1465,7 @@ const Dashboard = ({ vocabCount, vocab, logout }: { vocabCount: number, vocab: V
           <h3 className="text-xs font-bold text-stone-900 dark:text-stone-100">Dictionary</h3>
         </motion.div>
 
-        {/* Japan Hub Card */}
+        {/* Overview Japan Card */}
         <motion.div 
           variants={{
             hidden: { opacity: 0, y: 20 },
@@ -1344,7 +1476,7 @@ const Dashboard = ({ vocabCount, vocab, logout }: { vocabCount: number, vocab: V
           className="bg-[#f5f2ed] dark:bg-[#292524] p-6 rounded-[2.5rem] border border-stone-100 dark:border-stone-800 shadow-sm flex flex-col justify-center items-center text-center cursor-pointer group"
         >
           <CloudSun className="w-6 h-6 text-stone-400 mb-2" />
-          <h3 className="text-xs font-bold text-stone-900 dark:text-stone-100">Japan Hub</h3>
+          <h3 className="text-xs font-bold text-stone-900 dark:text-stone-100">Overview Japan</h3>
         </motion.div>
 
         {/* Image Sensei Card */}
@@ -1865,7 +1997,17 @@ const DrawingCanvas = ({
 
     const observer = new ResizeObserver(resize);
     observer.observe(canvas);
-    return () => observer.disconnect();
+
+    // Watch for dark mode changes
+    const themeObserver = new MutationObserver(() => {
+      resize();
+    });
+    themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+
+    return () => {
+      observer.disconnect();
+      themeObserver.disconnect();
+    };
   }, []);
 
   // Load initial data when target or ctx changes
@@ -1944,7 +2086,7 @@ const DrawingCanvas = ({
     <div className="space-y-4">
       <div className="relative bg-white dark:bg-stone-800 rounded-[2.5rem] border-2 border-stone-100 dark:border-stone-700 shadow-inner overflow-hidden aspect-square max-w-[320px] mx-auto touch-none">
         {showGhost && (
-          <div className="absolute inset-0 flex items-center justify-center opacity-[0.05] dark:opacity-[0.2] pointer-events-none select-none">
+          <div className="absolute inset-0 flex items-center justify-center opacity-[0.1] dark:opacity-[0.3] pointer-events-none select-none">
             <span className="text-[14rem] font-serif text-stone-900 dark:text-stone-100">{target}</span>
           </div>
         )}
@@ -2575,9 +2717,10 @@ const JapanHub = () => {
   const { profile } = useContext(AuthContext);
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState<any>(null);
-  const [activeSection, setActiveSection] = useState<'weather' | 'currency' | 'news' | 'best'>('weather');
+  const [activeSection, setActiveSection] = useState<'overview' | 'weather' | 'currency' | 'news' | 'best'>('overview');
 
   const sections = [
+    { id: 'overview', label: 'Overview', icon: Layout, query: 'General overview of Japan today: key events, main highlights, and general vibe.' },
     { id: 'weather', label: 'Weather', icon: CloudSun, query: 'Current weather in major Japanese cities (Tokyo, Osaka, Sapporo, Fukuoka)' },
     { id: 'currency', label: 'Currency', icon: Coins, query: 'Latest Japanese Yen (JPY) exchange rate news and trends' },
     { id: 'news', label: 'Latest News', icon: Newspaper, query: 'Top news headlines from Japan today' },
@@ -2593,11 +2736,13 @@ const JapanHub = () => {
       const ai = getAI(profile, 'general');
       if (!ai) throw new Error("API Key not found.");
 
+      const provider = getApiKey(profile, 'general')?.provider;
       const response = await ai.models.generateContent({
-        model: getSafeModel(getApiKey(profile, 'general')?.provider),
+        model: getSafeModel(provider),
         contents: section.query,
         config: {
-          tools: [{ googleSearch: {} }],
+          // Only use googleSearch if it's Gemini, as proxy doesn't support it for others yet
+          tools: provider === 'gemini' ? [{ googleSearch: {} }] : undefined,
         },
       });
 
@@ -2620,7 +2765,7 @@ const JapanHub = () => {
   return (
     <div className="max-w-4xl mx-auto p-4 md:p-8">
       <div className="mb-12">
-        <h2 className="text-4xl font-editorial italic text-stone-900 dark:text-stone-100 mb-2">Japan Hub</h2>
+        <h2 className="text-4xl font-editorial italic text-stone-900 dark:text-stone-100 mb-2">Overview Japan</h2>
         <p className="text-stone-500 dark:text-stone-400 font-serif">Real-time insights and updates from the Land of the Rising Sun.</p>
       </div>
 
@@ -2878,13 +3023,15 @@ const Dictionary = () => {
       if (!ai) throw new Error("API Key not found.");
 
       // Get existing words to avoid duplicates
-      const existingJp = discoveredWords.map(w => w.jp).slice(-50); // Send last 50 to save tokens but avoid recent repeats
+      // Get existing words to avoid duplicates - use more history for better discovery
+      const existingJp = discoveredWords.map(w => w.jp).slice(-100); 
 
       const response = await ai.models.generateContent({
         model: getSafeModel(getApiKey(profile, 'translation')?.provider),
         contents: `Provide a list of 20 common and useful Japanese words for beginners. 
         Make sure these words are DIFFERENT from these already discovered ones: ${existingJp.join(', ')}.
         Avoid basic ones like 'Konnichiwa' or 'Arigatou'.
+        Focus on interesting nouns, verbs, and adjectives that a traveler or student would find useful.
         For each word, provide:
         1. Japanese (Kanji/Kana)
         2. Romaji
@@ -3024,7 +3171,7 @@ const Dictionary = () => {
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Search in Japanese or English..."
-          className="w-full p-6 pl-16 bg-white dark:bg-stone-800 border-2 border-stone-100 dark:border-stone-700 rounded-[2rem] shadow-sm focus:border-stone-900 dark:focus:border-stone-100 transition-all text-lg outline-none font-serif italic text-stone-900 dark:text-stone-100 placeholder:text-stone-300 dark:placeholder:text-stone-600"
+          className="w-full p-6 pl-16 bg-white dark:bg-stone-900 border-2 border-stone-100 dark:border-stone-800 rounded-[2rem] shadow-sm focus:border-stone-900 dark:focus:border-stone-100 transition-all text-lg outline-none font-serif italic text-stone-900 dark:text-stone-100 placeholder:text-stone-300 dark:placeholder:text-stone-600"
         />
         <button 
           type="submit"
@@ -3476,7 +3623,7 @@ const Settings = ({ vocab }: { vocab: Vocabulary[] }) => {
     });
   };
 
-  const handleKeyChange = (type: 'universal' | 'translation' | 'sensei' | 'dictionary', idx: number, field: 'key' | 'provider' | 'baseUrl' | 'customProvider', value: string) => {
+  const handleKeyChange = (type: 'universal' | 'translation' | 'sensei' | 'dictionary', idx: number, field: 'key' | 'provider' | 'baseUrl' | 'customProvider' | 'model', value: string) => {
     const currentSettings = profile?.apiSettings || { mode: 'universal', universalKeys: profile?.apiKeys || [] };
     const structuredKeys = currentSettings.structuredKeys || {};
     const keySet = [...(structuredKeys[type] || [{ key: '', provider: 'gemini' }])];
@@ -3484,7 +3631,9 @@ const Settings = ({ vocab }: { vocab: Vocabulary[] }) => {
     if (!keySet[idx]) keySet[idx] = { key: '', provider: 'gemini' };
     
     if (field === 'provider') {
-      keySet[idx] = { ...keySet[idx], provider: value as any };
+      // Reset model when provider changes
+      const defaultModel = AI_MODELS[value.toLowerCase()]?.[0]?.id || 'gemini-2.0-flash';
+      keySet[idx] = { ...keySet[idx], provider: value as any, model: defaultModel };
     } else {
       keySet[idx] = { ...keySet[idx], [field]: value };
     }
@@ -3739,8 +3888,15 @@ const Settings = ({ vocab }: { vocab: Vocabulary[] }) => {
         const data = await response.json();
         
         if (!response.ok) {
-          const errorDetail = typeof data.error === 'object' ? JSON.stringify(data.error, null, 2) : (data.error || data.message || 'Unknown error');
-          throw new Error(`AI Proxy Error: ${errorDetail}`);
+          let errorMsg = data.error || 'Unknown error';
+          
+          if (errorMsg.includes("quota") || errorMsg.includes("billing") || errorMsg.includes("credit")) {
+            errorMsg = "You exceeded your current quota or have no credits. Please check your plan and billing details.";
+          } else if (errorMsg.includes("API key") || errorMsg.includes("unauthorized") || errorMsg.includes("invalid_api_key")) {
+            errorMsg = "Incorrect API key provided. Please check your key in Settings.";
+          }
+          
+          throw new Error(`AI Proxy Error: ${errorMsg}`);
         }
         responseText = data.text || '';
       }
@@ -3852,9 +4008,28 @@ const Settings = ({ vocab }: { vocab: Vocabulary[] }) => {
                           <option value="anthropic">Anthropic</option>
                           <option value="openrouter">OpenRouter</option>
                           <option value="huggingface">Hugging Face</option>
+                          <option value="groq">Groq</option>
+                          <option value="mistral">Mistral</option>
+                          <option value="cohere">Cohere</option>
+                          <option value="deepseek">DeepSeek</option>
+                          <option value="together">Together AI</option>
+                          <option value="perplexity">Perplexity</option>
+                          <option value="xai">xAI (Grok)</option>
                           <option value="ollama">Ollama</option>
                           <option value="custom">Custom...</option>
                         </select>
+                        {/* Model Selector */}
+                        {AI_MODELS[keyObj.provider.toLowerCase()] && (
+                          <select 
+                            value={keyObj.model || AI_MODELS[keyObj.provider.toLowerCase()][0].id}
+                            onChange={(e) => handleKeyChange('universal', idx, 'model', e.target.value)}
+                            className="w-24 md:w-32 p-2 bg-stone-50 dark:bg-stone-800 rounded-xl text-[9px] md:text-[10px] font-bold uppercase tracking-widest border border-stone-100 dark:border-stone-800 outline-none shrink-0"
+                          >
+                            {AI_MODELS[keyObj.provider.toLowerCase()].map((m: any) => (
+                              <option key={m.id} value={m.id}>{m.name}</option>
+                            ))}
+                          </select>
+                        )}
                         <input 
                           type="password"
                           value={keyObj.key}
@@ -3918,9 +4093,28 @@ const Settings = ({ vocab }: { vocab: Vocabulary[] }) => {
                             <option value="anthropic">Anthropic</option>
                             <option value="openrouter">OpenRouter</option>
                             <option value="huggingface">Hugging Face</option>
+                            <option value="groq">Groq</option>
+                            <option value="mistral">Mistral</option>
+                            <option value="cohere">Cohere</option>
+                            <option value="deepseek">DeepSeek</option>
+                            <option value="together">Together AI</option>
+                            <option value="perplexity">Perplexity</option>
+                            <option value="xai">xAI (Grok)</option>
                             <option value="ollama">Ollama</option>
                             <option value="custom">Custom...</option>
                           </select>
+                          {/* Model Selector */}
+                          {AI_MODELS[keyObj.provider.toLowerCase()] && (
+                            <select 
+                              value={keyObj.model || AI_MODELS[keyObj.provider.toLowerCase()][0].id}
+                              onChange={(e) => handleKeyChange('translation', idx, 'model', e.target.value)}
+                              className="w-24 md:w-32 p-2 bg-stone-50 dark:bg-stone-800 rounded-xl text-[9px] md:text-[10px] font-bold uppercase tracking-widest border border-stone-100 dark:border-stone-800 outline-none shrink-0"
+                            >
+                              {AI_MODELS[keyObj.provider.toLowerCase()].map((m: any) => (
+                                <option key={m.id} value={m.id}>{m.name}</option>
+                              ))}
+                            </select>
+                          )}
                           <input 
                             type="password"
                             value={keyObj.key}
@@ -3980,9 +4174,28 @@ const Settings = ({ vocab }: { vocab: Vocabulary[] }) => {
                             <option value="anthropic">Anthropic</option>
                             <option value="openrouter">OpenRouter</option>
                             <option value="huggingface">Hugging Face</option>
+                            <option value="groq">Groq</option>
+                            <option value="mistral">Mistral</option>
+                            <option value="cohere">Cohere</option>
+                            <option value="deepseek">DeepSeek</option>
+                            <option value="together">Together AI</option>
+                            <option value="perplexity">Perplexity</option>
+                            <option value="xai">xAI (Grok)</option>
                             <option value="ollama">Ollama</option>
                             <option value="custom">Custom...</option>
                           </select>
+                          {/* Model Selector */}
+                          {AI_MODELS[keyObj.provider.toLowerCase()] && (
+                            <select 
+                              value={keyObj.model || AI_MODELS[keyObj.provider.toLowerCase()][0].id}
+                              onChange={(e) => handleKeyChange('sensei', idx, 'model', e.target.value)}
+                              className="w-24 md:w-32 p-2 bg-stone-50 dark:bg-stone-800 rounded-xl text-[9px] md:text-[10px] font-bold uppercase tracking-widest border border-stone-100 dark:border-stone-800 outline-none shrink-0"
+                            >
+                              {AI_MODELS[keyObj.provider.toLowerCase()].map((m: any) => (
+                                <option key={m.id} value={m.id}>{m.name}</option>
+                              ))}
+                            </select>
+                          )}
                           <input 
                             type="password"
                             value={keyObj.key}
@@ -4042,9 +4255,28 @@ const Settings = ({ vocab }: { vocab: Vocabulary[] }) => {
                             <option value="anthropic">Anthropic</option>
                             <option value="openrouter">OpenRouter</option>
                             <option value="huggingface">Hugging Face</option>
+                            <option value="groq">Groq</option>
+                            <option value="mistral">Mistral</option>
+                            <option value="cohere">Cohere</option>
+                            <option value="deepseek">DeepSeek</option>
+                            <option value="together">Together AI</option>
+                            <option value="perplexity">Perplexity</option>
+                            <option value="xai">xAI (Grok)</option>
                             <option value="ollama">Ollama</option>
                             <option value="custom">Custom...</option>
                           </select>
+                          {/* Model Selector */}
+                          {AI_MODELS[keyObj.provider.toLowerCase()] && (
+                            <select 
+                              value={keyObj.model || AI_MODELS[keyObj.provider.toLowerCase()][0].id}
+                              onChange={(e) => handleKeyChange('dictionary', idx, 'model', e.target.value)}
+                              className="w-24 md:w-32 p-2 bg-stone-50 dark:bg-stone-800 rounded-xl text-[9px] md:text-[10px] font-bold uppercase tracking-widest border border-stone-100 dark:border-stone-800 outline-none shrink-0"
+                            >
+                              {AI_MODELS[keyObj.provider.toLowerCase()].map((m: any) => (
+                                <option key={m.id} value={m.id}>{m.name}</option>
+                              ))}
+                            </select>
+                          )}
                           <input 
                             type="password"
                             value={keyObj.key}
@@ -4086,21 +4318,42 @@ const Settings = ({ vocab }: { vocab: Vocabulary[] }) => {
               </div>
             )}
 
-            <button
-              onClick={() => handleTestAI()}
-              disabled={testStatus === 'testing'}
-              className={cn(
-                "w-full p-4 rounded-2xl text-xs font-bold uppercase tracking-widest transition-all flex items-center justify-center gap-2",
-                testStatus === 'success' ? "bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-800" :
-                testStatus === 'error' ? "bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 border border-red-100 dark:border-red-800" :
-                "bg-stone-900 dark:bg-stone-100 text-white dark:text-stone-900 hover:bg-stone-800 dark:hover:bg-stone-200"
-              )}
-            >
-              {testStatus === 'testing' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
-              {testStatus === 'testing' ? "Testing Connection..." : 
-               testStatus === 'success' ? "Connection Successful" : 
-               testStatus === 'error' ? "Connection Failed" : "Test AI Connection"}
-            </button>
+            <div className="flex flex-col sm:flex-row gap-3">
+              <button
+                onClick={() => handleTestAI()}
+                disabled={testStatus === 'testing'}
+                className={cn(
+                  "flex-1 p-4 rounded-2xl text-xs font-bold uppercase tracking-widest transition-all flex items-center justify-center gap-2",
+                  testStatus === 'success' ? "bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-800" :
+                  testStatus === 'error' ? "bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 border border-red-100 dark:border-red-800" :
+                  "bg-stone-900 dark:bg-stone-100 text-white dark:text-stone-900 hover:bg-stone-800 dark:hover:bg-stone-200"
+                )}
+              >
+                {testStatus === 'testing' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+                {testStatus === 'testing' ? "Testing Connection..." : 
+                 testStatus === 'success' ? "Connection Successful" : 
+                 testStatus === 'error' ? "Connection Failed" : "Test AI Connection"}
+              </button>
+
+              <button
+                onClick={() => {
+                  if (confirm("Are you sure you want to clear all API keys? This cannot be undone.")) {
+                    handleUpdateApiSettings({
+                      structuredKeys: {
+                        universal: [{ key: '', provider: 'gemini' }],
+                        sensei: [{ key: '', provider: 'gemini' }],
+                        translation: [{ key: '', provider: 'gemini' }],
+                        dictionary: [{ key: '', provider: 'gemini' }]
+                      }
+                    });
+                  }
+                }}
+                className="p-4 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 rounded-2xl text-xs font-bold uppercase tracking-widest hover:bg-red-100 dark:hover:bg-red-800 transition-all border border-red-100 dark:border-red-800 flex items-center justify-center gap-2"
+              >
+                <Trash2 className="w-4 h-4" />
+                Clear All Keys
+              </button>
+            </div>
             {testError && <p className="text-[10px] text-red-500 text-center font-mono">{testError}</p>}
           </div>
         </section>
@@ -4148,7 +4401,7 @@ const Settings = ({ vocab }: { vocab: Vocabulary[] }) => {
                 <input 
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  className="w-full p-4 bg-stone-50 dark:bg-stone-800 text-stone-900 dark:text-stone-100 rounded-2xl border border-transparent focus:border-stone-200 dark:focus:border-stone-700 focus:ring-2 focus:ring-stone-200 dark:focus:ring-stone-700 outline-none transition-all"
+                  className="w-full p-4 bg-stone-50 dark:bg-stone-900 text-stone-900 dark:text-stone-100 rounded-2xl border-2 border-transparent dark:border-stone-800 focus:border-stone-200 dark:focus:border-stone-700 focus:ring-2 focus:ring-stone-200 dark:focus:ring-stone-700 outline-none transition-all"
                   placeholder="Enter your name..."
                 />
               </div>
@@ -6706,23 +6959,22 @@ const MissingApiKeyWarning = () => (
   <motion.div 
     initial={{ opacity: 0, scale: 0.95 }}
     animate={{ opacity: 1, scale: 1 }}
-    className="bg-amber-50 border border-amber-100 p-8 rounded-[2.5rem] text-center space-y-4 shadow-xl shadow-amber-900/5"
+    className="bg-amber-50 dark:bg-amber-900/10 border border-amber-100 dark:border-amber-900/20 p-8 rounded-[2.5rem] text-center space-y-4 shadow-xl shadow-amber-900/5"
   >
-    <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center mx-auto shadow-sm">
+    <div className="w-16 h-16 bg-white dark:bg-stone-800 rounded-full flex items-center justify-center mx-auto shadow-sm">
       <AlertCircle className="w-8 h-8 text-amber-500 animate-pulse" />
     </div>
-    <h3 className="text-xl font-editorial italic text-stone-900">API Key Required</h3>
-    <p className="text-stone-600 font-serif italic text-sm max-w-md mx-auto">
-      To use the AI features like Sensei Chat, Translator, and Dictionary, you need to add your Gemini API Key to the application's secrets.
+    <h3 className="text-xl font-editorial italic text-stone-900 dark:text-stone-100">AI API Key Required</h3>
+    <p className="text-stone-600 dark:text-stone-400 font-serif italic text-sm max-w-md mx-auto">
+      To use the AI features like Sensei Chat, Translator, and Dictionary, you need to add an AI API Key (Gemini, OpenAI, OpenRouter, etc.) in the settings.
     </p>
-    <div className="bg-white p-6 rounded-2xl text-left text-xs space-y-3 border border-amber-50 shadow-sm">
-      <p className="font-bold text-stone-900 uppercase tracking-widest">How to fix:</p>
-      <ol className="list-decimal list-inside space-y-2 text-stone-500">
-        <li>Get a free key from <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noreferrer" className="text-blue-500 underline font-bold">Google AI Studio</a></li>
+    <div className="bg-white dark:bg-stone-800 p-6 rounded-2xl text-left text-xs space-y-3 border border-amber-50 dark:border-stone-700 shadow-sm">
+      <p className="font-bold text-stone-900 dark:text-stone-100 uppercase tracking-widest">How to fix:</p>
+      <ol className="list-decimal list-inside space-y-2 text-stone-500 dark:text-stone-400">
+        <li>Get an API key from your preferred provider (e.g., <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noreferrer" className="text-blue-500 underline font-bold">Google AI Studio</a>)</li>
         <li>Open <b>Settings</b> (⚙️ gear icon, top-right) in this app</li>
-        <li>Go to <b>Secrets</b> section</li>
-        <li>Add <code>GEMINI_API_KEY</code> with your key as the value</li>
-        <li>The app will rebuild automatically</li>
+        <li>Go to <b>AI Settings</b> section</li>
+        <li>Add your key, select the provider, and save</li>
       </ol>
     </div>
   </motion.div>
@@ -7145,6 +7397,39 @@ export default function App() {
     return () => unsub();
   }, [user]);
 
+  // Achievement System
+  const [senseiChatCount, setSenseiChatCount] = useState(0);
+
+  useEffect(() => {
+    const chatHistory = JSON.parse(localStorage.getItem('chatbot_history') || '[]');
+    setSenseiChatCount(chatHistory.length);
+
+    const handleChatUpdate = () => {
+      const updatedHistory = JSON.parse(localStorage.getItem('chatbot_history') || '[]');
+      setSenseiChatCount(updatedHistory.length);
+    };
+
+    window.addEventListener('chatbot_update', handleChatUpdate);
+    return () => window.removeEventListener('chatbot_update', handleChatUpdate);
+  }, []);
+
+  useEffect(() => {
+    if (!profile) return;
+    
+    const vocabCount = vocab.length;
+    const notesCount = notes.length;
+
+    const updatedAchievements = checkAchievements(profile, vocabCount, notesCount, senseiChatCount);
+    
+    if (updatedAchievements) {
+      if (isDemo) {
+        setProfile({ ...profile, achievements: updatedAchievements });
+      } else if (user) {
+        updateDoc(doc(db, 'users', user.uid), { achievements: updatedAchievements }).catch(console.error);
+      }
+    }
+  }, [vocab.length, notes.length, senseiChatCount, profile?.streakCount, profile?.rank]);
+
   // Demo mode notes
   useEffect(() => {
     if (!isDemo || user) return;
@@ -7297,7 +7582,7 @@ const NamePrompt = ({ onSave }: { onSave: (name: string) => void }) => {
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="Enter your name..."
-            className="w-full p-5 bg-stone-50 dark:bg-stone-800 border-none rounded-2xl text-center text-xl font-medium text-stone-900 dark:text-stone-100 focus:ring-2 focus:ring-stone-200 dark:focus:ring-stone-700 transition-all outline-none placeholder:text-stone-300 dark:placeholder:text-stone-600"
+            className="w-full p-5 bg-stone-50 dark:bg-stone-900 border-2 border-transparent dark:border-stone-800 rounded-2xl text-center text-xl font-medium text-stone-900 dark:text-stone-100 focus:ring-2 focus:ring-stone-200 dark:focus:ring-stone-700 transition-all outline-none placeholder:text-stone-300 dark:placeholder:text-stone-600"
           />
           <button 
             type="submit"
