@@ -1651,7 +1651,7 @@ const Translator = () => {
         </div>
       </div>
 
-      {!getApiKey() && <div className="mb-8"><MissingApiKeyWarning /></div>}
+      {!getApiKey(profile) && <div className="mb-8"><MissingApiKeyWarning /></div>}
 
       <div className="grid grid-cols-1 gap-8">
         {mode === 'text' ? (
@@ -2586,42 +2586,19 @@ const Dictionary = () => {
   ];
 
   const handleDiscover = async () => {
-    const cachedResponse = checkAICache(profile, 'discover_100_words');
-    if (cachedResponse) {
-      try {
-        const words = JSON.parse(cachedResponse);
-        if (Array.isArray(words)) {
-          const newWords = words.map(w => ({ ...w, createdAt: Timestamp.now() }));
-          const updatedWords = [...discoveredWords, ...newWords];
-          const uniqueWords = Array.from(new Map(updatedWords.map(item => [item['jp'], item])).values());
-          
-          if (isDemo) {
-            setDiscoveredWords(uniqueWords);
-            localStorage.setItem('discovered_words', JSON.stringify(uniqueWords));
-          } else if (user) {
-            const discoveredRef = collection(db, 'users', user.uid, 'discovered_words');
-            for (const word of newWords) {
-              if (!discoveredWords.some(dw => dw.jp === word.jp)) {
-                await addDoc(discoveredRef, word);
-              }
-            }
-          }
-          return;
-        }
-      } catch (e) {
-        console.error("Cache Parse Error:", e);
-      }
-    }
-
     setDiscovering(true);
     try {
       const ai = getAI(profile, 'translation');
       if (!ai) throw new Error("API Key not found.");
 
+      // Get existing words to avoid duplicates
+      const existingJp = discoveredWords.map(w => w.jp).slice(-50); // Send last 50 to save tokens but avoid recent repeats
+
       const response = await ai.models.generateContent({
         model: "gemini-3-flash-preview",
-        contents: `Provide a list of 100 common and useful Japanese words for beginners. 
-        Make sure these words are DIFFERENT from common basic ones like 'Konnichiwa' or 'Arigatou' if possible.
+        contents: `Provide a list of 20 common and useful Japanese words for beginners. 
+        Make sure these words are DIFFERENT from these already discovered ones: ${existingJp.join(', ')}.
+        Avoid basic ones like 'Konnichiwa' or 'Arigatou'.
         For each word, provide:
         1. Japanese (Kanji/Kana)
         2. Romaji
@@ -2639,25 +2616,20 @@ const Dictionary = () => {
       const words = JSON.parse(responseText);
       if (Array.isArray(words)) {
         const newWords = words.map(w => ({ ...w, createdAt: Timestamp.now() }));
-        const updatedWords = [...discoveredWords, ...newWords];
-        // Remove duplicates based on Japanese text
-        const uniqueWords = Array.from(new Map(updatedWords.map(item => [item['jp'], item])).values());
         
         if (isDemo) {
+          const updatedWords = [...discoveredWords, ...newWords];
+          const uniqueWords = Array.from(new Map(updatedWords.map(item => [item['jp'], item])).values());
           setDiscoveredWords(uniqueWords);
           localStorage.setItem('discovered_words', JSON.stringify(uniqueWords));
         } else if (user) {
           const discoveredRef = collection(db, 'users', user.uid, 'discovered_words');
           for (const word of newWords) {
-            // Check if already exists in unique set to avoid redundant writes
             if (!discoveredWords.some(dw => dw.jp === word.jp)) {
               await addDoc(discoveredRef, word);
             }
           }
         }
-
-        // Update cache
-        updateAICache(profile, user, 'discover_100_words', responseText, !!isDemo, setProfile);
       }
     } catch (error) {
       console.error("Discovery Error:", error);
@@ -2746,14 +2718,14 @@ const Dictionary = () => {
           ) : (
             <>
               <Sparkles className="w-3 h-3" />
-              Discover +100 Words
+              Discover New Words
             </>
           )}
         </button>
       </div>
     </motion.div>
 
-      {!getApiKey() && <div className="mb-8"><MissingApiKeyWarning /></div>}
+      {!getApiKey(profile) && <div className="mb-8"><MissingApiKeyWarning /></div>}
 
       <motion.form 
         initial={{ opacity: 0, y: 20 }}
@@ -3173,7 +3145,7 @@ const Settings = ({ vocab }: { vocab: Vocabulary[] }) => {
     return () => mediaQuery.removeEventListener('change', listener);
   }, [theme]);
 
-  const hasApiKey = !!getApiKey();
+  const hasApiKey = !!getApiKey(profile);
 
   const avatars = ['🦊', '🐱', '🐶', '🐼', '🐨', '🦁', '🐯', '🐸', '🐵', '🦉'];
 
