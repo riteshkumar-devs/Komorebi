@@ -128,7 +128,7 @@ async function startServer() {
         default: {
           // For Gemini, we can still use the SDK on frontend or proxy it here
           // If we proxy it here, we use the REST API
-          const url = `https://generativelanguage.googleapis.com/v1beta/models/${model || "google/gemini-2.0-flash-001"}:generateContent?key=${key}`;
+          const url = `https://generativelanguage.googleapis.com/v1beta/models/${model || "gemini-2.0-flash"}:generateContent?key=${key}`;
           
           // Handle multimodal contents if needed
           let parts = [];

@@ -283,6 +283,12 @@ const getApiKey = (profile?: UserProfile | null, purpose: AIPurpose = 'general')
   return { key: trimmedEnvKey, provider: 'gemini' as const };
 };
 
+const getSafeModel = (provider?: 'openrouter' | 'gemini') => {
+  return provider === 'openrouter'
+    ? 'google/gemini-2.0-flash-001'
+    : 'gemini-2.0-flash';
+};
+
 const getAI = (profile?: UserProfile | null, purpose: AIPurpose = 'general') => {
   const keyInfo = getApiKey(profile, purpose);
   
@@ -1027,7 +1033,7 @@ const Dashboard = ({ vocabCount, vocab, logout }: { vocabCount: number, vocab: V
         if (!ai) throw new Error("AI not found");
 
         const response = await ai.models.generateContent({
-          model: "gemini-3-flash-preview",
+          model: getSafeModel(getApiKey(profile)?.provider),
           contents: "Generate a short, inspiring Japanese proverb or quote about learning or persistence. Return it in JSON format with 'text' (Japanese) and 'translation' (English) fields. Do not include markdown formatting.",
           config: { responseMimeType: "application/json" }
         });
@@ -1622,7 +1628,7 @@ const Translator = () => {
       }
 
       const response = await ai.models.generateContent({
-        model: "gemini-3-flash-preview",
+        model: getSafeModel(getApiKey(profile, 'translation')?.provider),
         contents: `Translate the following text. If it is in Japanese, translate it to English. If it is in English, translate it to Japanese.
         Text: "${text}"
         Provide ONLY the translation. If it's Japanese, also include the Romaji in parentheses.`,
@@ -2588,7 +2594,7 @@ const JapanHub = () => {
       if (!ai) throw new Error("API Key not found.");
 
       const response = await ai.models.generateContent({
-        model: "gemini-3-flash-preview",
+        model: getSafeModel(getApiKey(profile, 'general')?.provider),
         contents: section.query,
         config: {
           tools: [{ googleSearch: {} }],
@@ -2875,7 +2881,7 @@ const Dictionary = () => {
       const existingJp = discoveredWords.map(w => w.jp).slice(-50); // Send last 50 to save tokens but avoid recent repeats
 
       const response = await ai.models.generateContent({
-        model: "gemini-3-flash-preview",
+        model: getSafeModel(getApiKey(profile, 'translation')?.provider),
         contents: `Provide a list of 20 common and useful Japanese words for beginners. 
         Make sure these words are DIFFERENT from these already discovered ones: ${existingJp.join(', ')}.
         Avoid basic ones like 'Konnichiwa' or 'Arigatou'.
@@ -2937,7 +2943,7 @@ const Dictionary = () => {
       if (!ai) throw new Error("API Key not found. Please add GEMINI_API_KEY to your secrets.");
 
       const response = await ai.models.generateContent({
-        model: "gemini-3-flash-preview",
+        model: getSafeModel(getApiKey(profile, 'translation')?.provider),
         contents: `Act as a professional Japanese-English dictionary. Provide a concise, structured definition for "${searchTerm}". 
         Include:
         1. Kanji/Kana
@@ -3700,7 +3706,7 @@ const Settings = ({ vocab }: { vocab: Vocabulary[] }) => {
       if (keyInfo.provider === 'gemini') {
         const ai = new GoogleGenAI({ apiKey: keyInfo.key });
         const response = await ai.models.generateContent({
-          model: 'gemini-3-flash-preview',
+          model: getSafeModel(keyInfo.provider as any),
           contents: "Respond with exactly the word 'OK'.",
           config: {
             systemInstruction: "You are a helpful assistant testing a connection."
@@ -3718,7 +3724,7 @@ const Settings = ({ vocab }: { vocab: Vocabulary[] }) => {
             provider: keyInfo.provider,
             key: keyInfo.key,
             baseUrl: keyInfo.baseUrl,
-            model: keyInfo.provider === 'openrouter' ? 'google/gemini-2.0-flash-001' : 'gemini-3-flash-preview',
+            model: getSafeModel(keyInfo.provider as any),
             contents: "Respond with exactly the word 'OK'.",
             systemInstruction: "You are a helpful assistant testing a connection."
           })
@@ -4831,7 +4837,7 @@ const Chatbot = () => {
       if (!ai) throw new Error("AI Key not found.");
 
       const chat = ai.chats.create({
-        model: "gemini-3-flash-preview",
+        model: getSafeModel(getApiKey(profile, 'sensei')?.provider),
         config: {
           systemInstruction: "You are Sensei AI, a professional Japanese language tutor. Keep your responses very short, concise, and direct (max 2-3 sentences). Always provide examples in Japanese with furigana and English translations. ALWAYS provide Romaji for any Japanese text. Be encouraging but brief.",
         },
@@ -4850,7 +4856,7 @@ const Chatbot = () => {
             ai = getAI(profile, 'sensei');
             if (ai) {
               const newChat = ai.chats.create({
-                model: "gemini-3-flash-preview",
+                model: getSafeModel(getApiKey(profile, 'sensei')?.provider),
                 config: {
                   systemInstruction: "You are Sensei AI, a professional Japanese language tutor. Keep your responses very short, concise, and direct (max 2-3 sentences). Always provide examples in Japanese with furigana and English translations. ALWAYS provide Romaji for any Japanese text. Be encouraging but brief.",
                 },
