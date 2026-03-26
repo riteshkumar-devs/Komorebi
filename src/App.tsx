@@ -84,7 +84,12 @@ import {
   Sun,
   Moon,
   Monitor,
-  Scan
+  Scan,
+  CloudSun,
+  Coins,
+  Newspaper,
+  Camera,
+  Image as ImageIcon
 } from 'lucide-react';
 import { GoogleGenAI, Modality } from "@google/genai";
 import ReactMarkdown from 'react-markdown';
@@ -1189,11 +1194,11 @@ const Dashboard = ({ vocabCount, vocab, logout }: { vocabCount: number, vocab: V
           }}
           whileHover={{ y: -5 }}
           onClick={() => play(wordOfTheDay.japanese)}
-          className="bg-white p-6 rounded-[2.5rem] border border-stone-100 shadow-sm flex flex-col justify-center items-center text-center cursor-pointer group"
+          className="bg-white dark:bg-[#1c1917] p-6 rounded-[2.5rem] border border-stone-100 dark:border-stone-800 shadow-sm flex flex-col justify-center items-center text-center cursor-pointer group"
         >
-          <span className="text-[8px] font-bold uppercase tracking-widest text-stone-400 mb-4">Word of the Day</span>
-          <h3 className="text-3xl font-serif text-stone-900 mb-1 group-hover:text-stone-600 transition-colors">{wordOfTheDay.japanese}</h3>
-          <p className="text-[10px] text-stone-400 font-mono uppercase tracking-widest">{wordOfTheDay.romaji}</p>
+          <span className="text-[8px] font-bold uppercase tracking-widest text-stone-400 dark:text-stone-500 mb-4">Word of the Day</span>
+          <h3 className="text-3xl font-serif text-stone-900 dark:text-stone-100 mb-1 group-hover:text-stone-600 dark:group-hover:text-stone-300 transition-colors">{wordOfTheDay.japanese}</h3>
+          <p className="text-[10px] text-stone-400 dark:text-stone-500 font-mono uppercase tracking-widest">{wordOfTheDay.romaji}</p>
         </motion.div>
 
         {/* Streak Card */}
@@ -1203,14 +1208,14 @@ const Dashboard = ({ vocabCount, vocab, logout }: { vocabCount: number, vocab: V
             visible: { opacity: 1, y: 0 }
           }}
           whileHover={{ y: -5 }}
-          className="bg-white p-6 rounded-[2.5rem] border border-stone-100 shadow-sm flex flex-col justify-center items-center text-center cursor-pointer group"
+          className="bg-white dark:bg-[#1c1917] p-6 rounded-[2.5rem] border border-stone-100 dark:border-stone-800 shadow-sm flex flex-col justify-center items-center text-center cursor-pointer group"
         >
           <div className="relative">
             <Flame className="w-10 h-10 text-orange-500 fill-orange-500 group-hover:scale-110 transition-transform duration-500" />
-            <div className="absolute -top-1 -right-1 w-4 h-4 bg-orange-100 rounded-full animate-ping opacity-20" />
+            <div className="absolute -top-1 -right-1 w-4 h-4 bg-orange-100 dark:bg-orange-900/20 rounded-full animate-ping opacity-20" />
           </div>
-          <h3 className="text-2xl font-bold text-stone-900 mt-2">{profile?.streakCount || 0}</h3>
-          <p className="text-[8px] font-bold uppercase tracking-widest text-stone-400">Day Streak</p>
+          <h3 className="text-2xl font-bold text-stone-900 dark:text-stone-100 mt-2">{profile?.streakCount || 0}</h3>
+          <p className="text-[8px] font-bold uppercase tracking-widest text-stone-400 dark:text-stone-500">Day Streak</p>
         </motion.div>
 
         {/* Rank Card */}
@@ -1220,22 +1225,22 @@ const Dashboard = ({ vocabCount, vocab, logout }: { vocabCount: number, vocab: V
             visible: { opacity: 1, y: 0 }
           }}
           whileHover={{ y: -5 }}
-          className="bg-[#fdf3e7] p-6 rounded-[2.5rem] border border-[#f5e6d3] shadow-sm flex flex-col justify-between"
+          className="bg-[#fdf3e7] dark:bg-[#292524] p-6 rounded-[2.5rem] border border-[#f5e6d3] dark:border-stone-800 shadow-sm flex flex-col justify-between"
         >
           <div className="text-center">
-            <h3 className="text-sm font-bold text-stone-900 mb-1">Rank: {profile?.rank || 'E5'}</h3>
-            <p className="text-[8px] text-stone-500 font-serif italic mb-4">Test your skills to level up</p>
+            <h3 className="text-sm font-bold text-stone-900 dark:text-stone-100 mb-1">Rank: {profile?.rank || 'E5'}</h3>
+            <p className="text-[8px] text-stone-500 dark:text-stone-400 font-serif italic mb-4">Test your skills to level up</p>
           </div>
           <div className="flex flex-col gap-2">
             <button 
               onClick={() => (window as any).setActiveTab('rankTest')}
-              className="w-full py-2 bg-white text-stone-900 rounded-xl text-[10px] font-bold uppercase tracking-widest shadow-sm hover:bg-stone-50 transition-all"
+              className="w-full py-2 bg-white dark:bg-stone-800 text-stone-900 dark:text-stone-100 rounded-xl text-[10px] font-bold uppercase tracking-widest shadow-sm hover:bg-stone-50 dark:hover:bg-stone-700 transition-all"
             >
               Know More
             </button>
             <button 
               onClick={() => (window as any).setActiveTab('quiz')}
-              className="w-full py-2 bg-stone-900 text-white rounded-xl text-[10px] font-bold uppercase tracking-widest shadow-sm hover:bg-stone-800 transition-all"
+              className="w-full py-2 bg-stone-900 dark:bg-stone-100 text-white dark:text-stone-900 rounded-xl text-[10px] font-bold uppercase tracking-widest shadow-sm hover:bg-stone-800 dark:hover:bg-stone-200 transition-all"
             >
               Practice
             </button>
@@ -1268,15 +1273,15 @@ const Dashboard = ({ vocabCount, vocab, logout }: { vocabCount: number, vocab: V
           }}
           whileHover={{ y: -5 }}
           onClick={() => (window as any).setActiveTab('game')}
-          className="bg-white p-6 rounded-[2.5rem] border border-stone-100 shadow-sm flex flex-col items-center justify-center relative overflow-hidden cursor-pointer group text-center"
+          className="bg-white dark:bg-[#1c1917] p-6 rounded-[2.5rem] border border-stone-100 dark:border-stone-800 shadow-sm flex flex-col items-center justify-center relative overflow-hidden cursor-pointer group text-center"
         >
-          <h3 className="text-lg font-bold text-stone-900 relative z-10">Games</h3>
+          <h3 className="text-lg font-bold text-stone-900 dark:text-stone-100 relative z-10">Games</h3>
           <div className="mt-4 relative z-10">
-            <div className="w-16 h-16 bg-stone-50 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform duration-500">
-              <Gamepad2 className="w-8 h-8 text-stone-400" />
+            <div className="w-16 h-16 bg-stone-50 dark:bg-stone-800 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform duration-500">
+              <Gamepad2 className="w-8 h-8 text-stone-400 dark:text-stone-500" />
             </div>
           </div>
-          <div className="absolute -bottom-4 -right-4 w-24 h-24 bg-stone-50 rounded-full opacity-50" />
+          <div className="absolute -bottom-4 -right-4 w-24 h-24 bg-stone-50 dark:bg-stone-800 rounded-full opacity-50" />
         </motion.div>
 
         {/* Sensei Chat Card */}
@@ -1303,10 +1308,10 @@ const Dashboard = ({ vocabCount, vocab, logout }: { vocabCount: number, vocab: V
           }}
           whileHover={{ y: -5 }}
           onClick={() => (window as any).setActiveTab('flashcards')}
-          className="bg-white p-6 rounded-[2.5rem] border border-stone-100 shadow-sm flex flex-col justify-center items-center text-center cursor-pointer group"
+          className="bg-white dark:bg-[#1c1917] p-6 rounded-[2.5rem] border border-stone-100 dark:border-stone-800 shadow-sm flex flex-col justify-center items-center text-center cursor-pointer group"
         >
-          <Layers className="w-6 h-6 text-stone-400 mb-2" />
-          <h3 className="text-xs font-bold text-stone-900">Review</h3>
+          <Layers className="w-6 h-6 text-stone-400 dark:text-stone-500 mb-2" />
+          <h3 className="text-xs font-bold text-stone-900 dark:text-stone-100">Review</h3>
         </motion.div>
 
         <motion.div 
@@ -1316,10 +1321,38 @@ const Dashboard = ({ vocabCount, vocab, logout }: { vocabCount: number, vocab: V
           }}
           whileHover={{ y: -5 }}
           onClick={() => (window as any).setActiveTab('dictionary')}
-          className="bg-white p-6 rounded-[2.5rem] border border-stone-100 shadow-sm flex flex-col justify-center items-center text-center cursor-pointer group"
+          className="bg-white dark:bg-[#1c1917] p-6 rounded-[2.5rem] border border-stone-100 dark:border-stone-800 shadow-sm flex flex-col justify-center items-center text-center cursor-pointer group"
         >
-          <Search className="w-6 h-6 text-stone-400 mb-2" />
-          <h3 className="text-xs font-bold text-stone-900">Dictionary</h3>
+          <Search className="w-6 h-6 text-stone-400 dark:text-stone-500 mb-2" />
+          <h3 className="text-xs font-bold text-stone-900 dark:text-stone-100">Dictionary</h3>
+        </motion.div>
+
+        {/* Japan Hub Card */}
+        <motion.div 
+          variants={{
+            hidden: { opacity: 0, y: 20 },
+            visible: { opacity: 1, y: 0 }
+          }}
+          whileHover={{ y: -5 }}
+          onClick={() => (window as any).setActiveTab('japanHub')}
+          className="bg-[#f5f2ed] dark:bg-[#292524] p-6 rounded-[2.5rem] border border-stone-100 dark:border-stone-800 shadow-sm flex flex-col justify-center items-center text-center cursor-pointer group"
+        >
+          <CloudSun className="w-6 h-6 text-stone-400 mb-2" />
+          <h3 className="text-xs font-bold text-stone-900 dark:text-stone-100">Japan Hub</h3>
+        </motion.div>
+
+        {/* Image Sensei Card */}
+        <motion.div 
+          variants={{
+            hidden: { opacity: 0, y: 20 },
+            visible: { opacity: 1, y: 0 }
+          }}
+          whileHover={{ y: -5 }}
+          onClick={() => (window as any).setActiveTab('imageAnalyzer')}
+          className="bg-white dark:bg-[#1c1917] p-6 rounded-[2.5rem] border border-stone-100 dark:border-stone-800 shadow-sm flex flex-col justify-center items-center text-center cursor-pointer group"
+        >
+          <Camera className="w-6 h-6 text-stone-400 mb-2" />
+          <h3 className="text-xs font-bold text-stone-900 dark:text-stone-100">Image Sensei</h3>
         </motion.div>
       </motion.div>
     </div>
@@ -1814,7 +1847,8 @@ const DrawingCanvas = ({
       canvas.height = rect.height * dpr;
       context.scale(dpr, dpr);
       
-      context.strokeStyle = '#1c1917';
+      const isDark = document.documentElement.classList.contains('dark');
+      context.strokeStyle = isDark ? '#f5f2ed' : '#1c1917';
       context.lineWidth = 6;
       context.lineCap = 'round';
       context.lineJoin = 'round';
@@ -1902,10 +1936,10 @@ const DrawingCanvas = ({
 
   return (
     <div className="space-y-4">
-      <div className="relative bg-white rounded-[2.5rem] border-2 border-stone-100 shadow-inner overflow-hidden aspect-square max-w-[320px] mx-auto touch-none">
+      <div className="relative bg-white dark:bg-stone-800 rounded-[2.5rem] border-2 border-stone-100 dark:border-stone-700 shadow-inner overflow-hidden aspect-square max-w-[320px] mx-auto touch-none">
         {showGhost && (
-          <div className="absolute inset-0 flex items-center justify-center opacity-[0.05] pointer-events-none select-none">
-            <span className="text-[14rem] font-serif">{target}</span>
+          <div className="absolute inset-0 flex items-center justify-center opacity-[0.05] dark:opacity-[0.2] pointer-events-none select-none">
+            <span className="text-[14rem] font-serif text-stone-900 dark:text-stone-100">{target}</span>
           </div>
         )}
         <canvas 
@@ -1923,7 +1957,7 @@ const DrawingCanvas = ({
       <div className="flex justify-center">
         <button 
           onClick={clearCanvas}
-          className="flex items-center gap-2 px-6 py-2 bg-stone-100 text-stone-600 rounded-full font-bold text-xs hover:bg-stone-200 transition-all active:scale-95"
+          className="flex items-center gap-2 px-6 py-2 bg-stone-100 dark:bg-stone-800 text-stone-600 dark:text-stone-400 rounded-full font-bold text-xs hover:bg-stone-200 dark:hover:bg-stone-700 transition-all active:scale-95"
         >
           <Eraser className="w-4 h-4" />
           Clear Canvas
@@ -1980,28 +2014,28 @@ const WritingPractice = () => {
       <div className="max-w-4xl mx-auto space-y-8">
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-2xl font-editorial italic text-stone-900 mb-0.5">Writing Test</h2>
-            <p className="text-stone-500 font-serif italic text-xs">Select the characters you want to be tested on.</p>
+            <h2 className="text-2xl font-editorial italic text-stone-900 dark:text-stone-100 mb-0.5">Writing Test</h2>
+            <p className="text-stone-500 dark:text-stone-400 font-serif italic text-xs">Select the characters you want to be tested on.</p>
           </div>
           <button 
             onClick={() => setTestMode(false)}
-            className="text-xs font-bold text-stone-400 hover:text-stone-900 uppercase tracking-widest"
+            className="text-xs font-bold text-stone-400 hover:text-stone-900 dark:hover:text-stone-100 uppercase tracking-widest"
           >
             Back to Practice
           </button>
         </div>
 
-        <div className="bg-white p-8 rounded-[3rem] border border-stone-100 shadow-sm space-y-8">
-          <div className="flex gap-4 border-b border-stone-50 pb-4">
+        <div className="bg-white dark:bg-stone-900 p-8 rounded-[3rem] border border-stone-100 dark:border-stone-800 shadow-sm space-y-8">
+          <div className="flex gap-4 border-b border-stone-50 dark:border-stone-800 pb-4">
             <button 
               onClick={() => setType('hiragana')}
-              className={cn("text-xs font-bold uppercase tracking-widest transition-all", type === 'hiragana' ? "text-stone-900" : "text-stone-300")}
+              className={cn("text-xs font-bold uppercase tracking-widest transition-all", type === 'hiragana' ? "text-stone-900 dark:text-stone-100" : "text-stone-300 dark:text-stone-600")}
             >
               Hiragana
             </button>
             <button 
               onClick={() => setType('katakana')}
-              className={cn("text-xs font-bold uppercase tracking-widest transition-all", type === 'katakana' ? "text-stone-900" : "text-stone-300")}
+              className={cn("text-xs font-bold uppercase tracking-widest transition-all", type === 'katakana' ? "text-stone-900 dark:text-stone-100" : "text-stone-300 dark:text-stone-600")}
             >
               Katakana
             </button>
@@ -2021,8 +2055,8 @@ const WritingPractice = () => {
                 className={cn(
                   "aspect-square flex items-center justify-center rounded-xl border-2 transition-all",
                   testSelection.includes(k.kana)
-                    ? "border-stone-900 bg-stone-900 text-white shadow-md"
-                    : "border-stone-50 bg-stone-50 text-stone-400 hover:border-stone-200"
+                    ? "border-stone-900 dark:border-stone-100 bg-stone-900 dark:bg-stone-100 text-white dark:text-stone-900 shadow-md"
+                    : "border-stone-50 dark:border-stone-800 bg-stone-50 dark:bg-stone-800 text-stone-400 dark:text-stone-500 hover:border-stone-200 dark:hover:border-stone-700"
                 )}
               >
                 <span className="text-xl font-serif">{k.kana}</span>
@@ -2030,27 +2064,27 @@ const WritingPractice = () => {
             ))}
           </div>
 
-          <div className="flex flex-col sm:flex-row justify-between items-center gap-6 pt-4 border-t border-stone-50">
-            <div className="text-xs font-serif italic text-stone-500">
+          <div className="flex flex-col sm:flex-row justify-between items-center gap-6 pt-4 border-t border-stone-50 dark:border-stone-800">
+            <div className="text-xs font-serif italic text-stone-500 dark:text-stone-400">
               {testSelection.length} characters selected
             </div>
             <div className="flex flex-wrap justify-center gap-3">
               <button 
                 onClick={() => setTestSelection(data.map(k => k.kana))}
-                className="px-4 py-2 text-stone-400 hover:text-stone-900 font-bold text-[10px] uppercase tracking-widest transition-all"
+                className="px-4 py-2 text-stone-400 hover:text-stone-900 dark:hover:text-stone-100 font-bold text-[10px] uppercase tracking-widest transition-all"
               >
                 Select All
               </button>
               <button 
                 onClick={() => setTestSelection([])}
-                className="px-4 py-2 text-stone-400 hover:text-stone-900 font-bold text-[10px] uppercase tracking-widest transition-all"
+                className="px-4 py-2 text-stone-400 hover:text-stone-900 dark:hover:text-stone-100 font-bold text-[10px] uppercase tracking-widest transition-all"
               >
                 Clear Selection
               </button>
               <button 
                 onClick={startTest}
                 disabled={testSelection.length === 0}
-                className="px-8 py-3 bg-stone-900 text-white rounded-full font-bold text-xs hover:bg-stone-800 transition-all shadow-xl shadow-stone-200 disabled:opacity-50"
+                className="px-8 py-3 bg-stone-900 dark:bg-stone-100 text-white dark:text-stone-900 rounded-full font-bold text-xs hover:bg-stone-800 dark:hover:bg-stone-200 transition-all shadow-xl shadow-stone-200 dark:shadow-none disabled:opacity-50"
               >
                 Start Test
               </button>
@@ -2080,10 +2114,10 @@ const WritingPractice = () => {
           </button>
         </div>
 
-        <div className="bg-white p-8 rounded-[3rem] border border-stone-100 shadow-sm text-center space-y-8">
+        <div className="bg-white dark:bg-stone-900 p-8 rounded-[3rem] border border-stone-100 dark:border-stone-800 shadow-sm text-center space-y-8">
           <div className="space-y-2">
-            <span className="text-stone-400 font-mono tracking-[0.3em] uppercase text-xs block">Write this:</span>
-            <span className="text-6xl font-mono text-stone-900 font-bold uppercase tracking-widest">{currentData?.romaji}</span>
+            <span className="text-stone-400 dark:text-stone-500 font-mono tracking-[0.3em] uppercase text-xs block">Write this:</span>
+            <span className="text-6xl font-mono text-stone-900 dark:text-stone-100 font-bold uppercase tracking-widest">{currentData?.romaji}</span>
           </div>
 
           <DrawingCanvas 
@@ -2096,7 +2130,7 @@ const WritingPractice = () => {
           <div className="flex justify-center pt-4">
             <button 
               onClick={nextTest}
-              className="px-12 py-4 bg-stone-900 text-white rounded-full font-bold text-sm hover:bg-stone-800 transition-all shadow-xl shadow-stone-200 flex items-center gap-3"
+              className="px-12 py-4 bg-stone-900 dark:bg-stone-100 text-white dark:text-stone-900 rounded-full font-bold text-sm hover:bg-stone-800 dark:hover:bg-stone-200 transition-all shadow-xl shadow-stone-200 dark:shadow-none flex items-center gap-3"
             >
               {currentTestIndex < testOrder.length - 1 ? 'Next Character' : 'Finish Test'}
               <ArrowRight className="w-4 h-4" />
@@ -2111,14 +2145,14 @@ const WritingPractice = () => {
     <div className="max-w-4xl mx-auto">
       <div className="mb-4 flex flex-col sm:flex-row sm:items-end justify-between gap-3">
         <div>
-          <h2 className="text-2xl font-editorial italic text-stone-900 mb-0.5">Writing Practice</h2>
-          <p className="text-stone-500 font-serif italic text-xs">Master the building blocks of Japanese.</p>
+          <h2 className="text-2xl font-editorial italic text-stone-900 dark:text-stone-100 mb-0.5">Writing Practice</h2>
+          <p className="text-stone-500 dark:text-stone-400 font-serif italic text-xs">Master the building blocks of Japanese.</p>
         </div>
         <div className="flex flex-wrap gap-2">
           <div className="relative">
             <button 
               onClick={() => setShowClearConfirm(!showClearConfirm)}
-              className="px-4 py-1.5 bg-stone-50 text-stone-400 hover:text-stone-900 rounded-full font-bold text-[10px] uppercase tracking-widest transition-all flex items-center gap-2"
+              className="px-4 py-1.5 bg-stone-50 dark:bg-stone-800 text-stone-400 hover:text-stone-900 dark:hover:text-stone-100 rounded-full font-bold text-[10px] uppercase tracking-widest transition-all flex items-center gap-2"
             >
               <Trash2 className="w-3 h-3" />
               Clear All
@@ -2128,27 +2162,27 @@ const WritingPractice = () => {
                 <motion.div 
                   initial={{ opacity: 0, scale: 0.9 }}
                   animate={{ opacity: 1, scale: 1 }}
-                  className="bg-white p-8 rounded-[2.5rem] shadow-2xl border border-stone-100 max-w-xs w-full space-y-6 text-center"
+                  className="bg-white dark:bg-stone-900 p-8 rounded-[2.5rem] shadow-2xl border border-stone-100 dark:border-stone-800 max-w-xs w-full space-y-6 text-center"
                 >
-                  <div className="w-16 h-16 bg-red-50 rounded-2xl flex items-center justify-center mx-auto">
-                    <Trash2 className="w-8 h-8 text-red-500" />
+                  <div className="w-16 h-16 bg-red-50 dark:bg-red-900/20 rounded-2xl flex items-center justify-center mx-auto">
+                    <Trash2 className="w-8 h-8 text-red-500 dark:text-red-400" />
                   </div>
                   <div className="space-y-2">
-                    <h3 className="text-xl font-editorial italic text-stone-900">Clear All Progress?</h3>
-                    <p className="text-sm text-stone-500 font-serif italic leading-relaxed">
+                    <h3 className="text-xl font-editorial italic text-stone-900 dark:text-stone-100">Clear All Progress?</h3>
+                    <p className="text-sm text-stone-500 dark:text-stone-400 font-serif italic leading-relaxed">
                       This will permanently delete all your writing practice drawings. This action cannot be undone.
                     </p>
                   </div>
                   <div className="flex gap-3">
                     <button 
                       onClick={() => setShowClearConfirm(false)}
-                      className="flex-1 py-3 bg-stone-100 text-stone-600 rounded-xl text-xs font-bold uppercase tracking-widest hover:bg-stone-200 transition-all"
+                      className="flex-1 py-3 bg-stone-100 dark:bg-stone-800 text-stone-600 dark:text-stone-400 rounded-xl text-xs font-bold uppercase tracking-widest hover:bg-stone-200 dark:hover:bg-stone-700 transition-all"
                     >
                       Cancel
                     </button>
                     <button 
                       onClick={clearAllDrawings}
-                      className="flex-1 py-3 bg-red-500 text-white rounded-xl text-xs font-bold uppercase tracking-widest hover:bg-red-600 transition-all shadow-lg shadow-red-100"
+                      className="flex-1 py-3 bg-red-500 text-white rounded-xl text-xs font-bold uppercase tracking-widest hover:bg-red-600 transition-all shadow-lg shadow-red-100 dark:shadow-none"
                     >
                       Clear
                     </button>
@@ -2158,12 +2192,12 @@ const WritingPractice = () => {
             )}
           </div>
           
-          <div className="flex bg-white p-0.5 rounded-full border border-stone-100 shadow-sm">
+          <div className="flex bg-white dark:bg-stone-900 p-0.5 rounded-full border border-stone-100 dark:border-stone-800 shadow-sm">
             <button 
               onClick={() => { setType('hiragana'); setSelected(hiragana[0]); }}
               className={cn(
                 "px-4 py-1.5 rounded-full font-bold text-xs transition-all whitespace-nowrap",
-                type === 'hiragana' ? "bg-stone-900 text-white shadow-md" : "text-stone-400 hover:text-stone-600"
+                type === 'hiragana' ? "bg-stone-900 dark:bg-stone-100 text-white dark:text-stone-900 shadow-md" : "text-stone-400 dark:text-stone-500 hover:text-stone-600 dark:hover:text-stone-300"
               )}
             >
               Hiragana
@@ -2172,19 +2206,19 @@ const WritingPractice = () => {
               onClick={() => { setType('katakana'); setSelected(katakana[0]); }}
               className={cn(
                 "px-4 py-1.5 rounded-full font-bold text-xs transition-all whitespace-nowrap",
-                type === 'katakana' ? "bg-stone-900 text-white shadow-md" : "text-stone-400 hover:text-stone-600"
+                type === 'katakana' ? "bg-stone-900 dark:bg-stone-100 text-white dark:text-stone-900 shadow-md" : "text-stone-400 dark:text-stone-500 hover:text-stone-600 dark:hover:text-stone-300"
               )}
             >
               Katakana
             </button>
           </div>
           
-          <div className="flex bg-white p-0.5 rounded-full border border-stone-100 shadow-sm">
+          <div className="flex bg-white dark:bg-stone-900 p-0.5 rounded-full border border-stone-100 dark:border-stone-800 shadow-sm">
             <button 
               onClick={() => setPracticeMode(!practiceMode)}
               className={cn(
                 "px-4 py-1.5 rounded-full font-bold text-xs transition-all whitespace-nowrap flex items-center gap-2",
-                practiceMode ? "bg-emerald-600 text-white shadow-md" : "text-stone-400 hover:text-stone-600"
+                practiceMode ? "bg-emerald-600 text-white shadow-md" : "text-stone-400 dark:text-stone-500 hover:text-stone-600 dark:hover:text-stone-300"
               )}
             >
               <Pencil className="w-3 h-3" />
@@ -2192,7 +2226,7 @@ const WritingPractice = () => {
             </button>
             <button 
               onClick={() => setTestMode(true)}
-              className="px-4 py-1.5 rounded-full font-bold text-xs text-stone-400 hover:text-stone-900 transition-all whitespace-nowrap flex items-center gap-2"
+              className="px-4 py-1.5 rounded-full font-bold text-xs text-stone-400 dark:text-stone-500 hover:text-stone-900 dark:hover:text-stone-100 transition-all whitespace-nowrap flex items-center gap-2"
             >
               <CheckCircle2 className="w-3 h-3" />
               Test
@@ -2201,7 +2235,7 @@ const WritingPractice = () => {
               onClick={() => setAutoClear(!autoClear)}
               className={cn(
                 "px-4 py-1.5 rounded-full font-bold text-xs transition-all whitespace-nowrap flex items-center gap-2",
-                !autoClear ? "bg-amber-600 text-white shadow-md" : "text-stone-400 hover:text-stone-600"
+                !autoClear ? "bg-amber-600 text-white shadow-md" : "text-stone-400 dark:text-stone-500 hover:text-stone-600 dark:hover:text-stone-300"
               )}
             >
               <RotateCcw className="w-3 h-3" />
@@ -2212,7 +2246,7 @@ const WritingPractice = () => {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
-        <div className="lg:col-span-3 bg-white p-4 rounded-[2rem] shadow-sm border border-stone-50">
+        <div className="lg:col-span-3 bg-white dark:bg-stone-900 p-4 rounded-[2rem] shadow-sm border border-stone-50 dark:border-stone-800">
           <div className="grid grid-cols-6 sm:grid-cols-8 gap-1.5 max-h-[300px] overflow-y-auto pr-1 custom-scrollbar">
             {data.map((k) => (
               <button
@@ -2221,8 +2255,8 @@ const WritingPractice = () => {
                 className={cn(
                   "aspect-square flex flex-col items-center justify-center rounded-lg transition-all border",
                   selected.kana === k.kana 
-                    ? "bg-stone-900 border-stone-900 text-white shadow-md" 
-                    : "bg-stone-50 border-transparent text-stone-400 hover:bg-stone-100 hover:text-stone-900"
+                    ? "bg-stone-900 dark:bg-stone-100 border-stone-900 dark:border-stone-100 text-white dark:text-stone-900 shadow-md" 
+                    : "bg-stone-50 dark:bg-stone-800 border-transparent text-stone-400 dark:text-stone-500 hover:bg-stone-100 dark:hover:bg-stone-700 hover:text-stone-900 dark:hover:text-stone-100"
                 )}
               >
                 <span className="text-lg font-serif">{k.kana}</span>
@@ -2233,12 +2267,12 @@ const WritingPractice = () => {
         </div>
 
         <div className="lg:col-span-2 space-y-4">
-          <div className="bg-white p-4 rounded-[2rem] shadow-sm border border-stone-50 text-center relative overflow-hidden">
+          <div className="bg-white dark:bg-stone-900 p-4 rounded-[2rem] shadow-sm border border-stone-50 dark:border-stone-800 text-center relative overflow-hidden">
             <div className="absolute top-3 right-3">
               <button 
                 onClick={() => play(selected.kana)}
                 disabled={ttsLoading}
-                className="p-1.5 bg-stone-50 rounded-full text-stone-400 hover:text-stone-900 transition-all"
+                className="p-1.5 bg-stone-50 dark:bg-stone-800 rounded-full text-stone-400 dark:text-stone-500 hover:text-stone-900 dark:hover:text-stone-100 transition-all"
               >
                 <Volume2 className={cn("w-3.5 h-3.5", ttsLoading && "animate-pulse")} />
               </button>
@@ -2247,13 +2281,13 @@ const WritingPractice = () => {
             <div className="min-h-[80px] flex flex-col items-center justify-center">
               {!practiceMode ? (
                 <>
-                  <span className="text-6xl font-serif text-stone-900 block mb-0.5">{selected.kana}</span>
-                  <span className="text-stone-400 font-mono tracking-[0.3em] uppercase text-[10px]">{selected.romaji}</span>
+                  <span className="text-6xl font-serif text-stone-900 dark:text-stone-100 block mb-0.5">{selected.kana}</span>
+                  <span className="text-stone-400 dark:text-stone-500 font-mono tracking-[0.3em] uppercase text-[10px]">{selected.romaji}</span>
                 </>
               ) : (
                 <>
-                  <span className="text-stone-400 font-mono tracking-[0.3em] uppercase text-xs mb-2">Write this:</span>
-                  <span className="text-4xl font-mono text-stone-900 font-bold uppercase tracking-widest">{selected.romaji}</span>
+                  <span className="text-stone-400 dark:text-stone-500 font-mono tracking-[0.3em] uppercase text-xs mb-2">Write this:</span>
+                  <span className="text-4xl font-mono text-stone-900 dark:text-stone-100 font-bold uppercase tracking-widest">{selected.romaji}</span>
                 </>
               )}
             </div>
@@ -2531,6 +2565,252 @@ const VocabEntry = ({ vocab }: { vocab: Vocabulary[] }) => {
   );
 };
 
+const JapanHub = () => {
+  const { profile } = useContext(AuthContext);
+  const [loading, setLoading] = useState(false);
+  const [data, setData] = useState<any>(null);
+  const [activeSection, setActiveSection] = useState<'weather' | 'currency' | 'news' | 'best'>('weather');
+
+  const sections = [
+    { id: 'weather', label: 'Weather', icon: CloudSun, query: 'Current weather in major Japanese cities (Tokyo, Osaka, Sapporo, Fukuoka)' },
+    { id: 'currency', label: 'Currency', icon: Coins, query: 'Latest Japanese Yen (JPY) exchange rate news and trends' },
+    { id: 'news', label: 'Latest News', icon: Newspaper, query: 'Top news headlines from Japan today' },
+    { id: 'best', label: 'Best of Japan', icon: Sparkles, query: 'Recent cultural highlights, festivals, or achievements in Japan' },
+  ];
+
+  const fetchData = async (sectionId: string) => {
+    const section = sections.find(s => s.id === sectionId);
+    if (!section) return;
+
+    setLoading(true);
+    try {
+      const ai = getAI(profile, 'general');
+      if (!ai) throw new Error("API Key not found.");
+
+      const response = await ai.models.generateContent({
+        model: "gemini-3-flash-preview",
+        contents: section.query,
+        config: {
+          tools: [{ googleSearch: {} }],
+        },
+      });
+
+      const text = response.text || "No information found.";
+      const sources = response.candidates?.[0]?.groundingMetadata?.groundingChunks?.map((chunk: any) => chunk.web).filter(Boolean) || [];
+
+      setData({ text, sources });
+    } catch (error) {
+      console.error("Japan Hub Error:", error);
+      setData({ text: "Failed to fetch information. Please check your connection or API key.", sources: [] });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchData(activeSection);
+  }, [activeSection]);
+
+  return (
+    <div className="max-w-4xl mx-auto p-4 md:p-8">
+      <div className="mb-12">
+        <h2 className="text-4xl font-editorial italic text-stone-900 dark:text-stone-100 mb-2">Japan Hub</h2>
+        <p className="text-stone-500 dark:text-stone-400 font-serif">Real-time insights and updates from the Land of the Rising Sun.</p>
+      </div>
+
+      <div className="flex flex-wrap gap-2 mb-8">
+        {sections.map((section) => (
+          <button
+            key={section.id}
+            onClick={() => setActiveSection(section.id as any)}
+            className={cn(
+              "flex items-center gap-2 px-6 py-3 rounded-full font-bold text-xs uppercase tracking-widest transition-all",
+              activeSection === section.id 
+                ? "bg-stone-900 dark:bg-stone-100 text-white dark:text-stone-900 shadow-xl shadow-stone-200 dark:shadow-none" 
+                : "bg-white dark:bg-stone-900 text-stone-400 dark:text-stone-500 hover:bg-stone-50 dark:hover:bg-stone-800"
+            )}
+          >
+            <section.icon className="w-4 h-4" />
+            {section.label}
+          </button>
+        ))}
+      </div>
+
+      <div className="bg-white dark:bg-stone-900 rounded-[2.5rem] p-8 md:p-12 shadow-sm border border-stone-100 dark:border-stone-800 min-h-[400px] relative overflow-hidden">
+        {loading ? (
+          <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/80 dark:bg-stone-900/80 backdrop-blur-sm z-10">
+            <Loader2 className="w-12 h-12 text-stone-900 dark:text-stone-100 animate-spin mb-4" />
+            <p className="text-stone-500 dark:text-stone-400 font-serif italic">Consulting the archives...</p>
+          </div>
+        ) : data ? (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="space-y-8"
+          >
+            <div className="prose prose-stone max-w-none dark:prose-invert">
+              <ReactMarkdown>{data.text}</ReactMarkdown>
+            </div>
+
+            {data.sources.length > 0 && (
+              <div className="pt-8 border-t border-stone-100 dark:border-stone-800">
+                <h4 className="text-[10px] font-bold uppercase tracking-widest text-stone-400 dark:text-stone-500 mb-4">Sources</h4>
+                <div className="flex flex-wrap gap-3">
+                  {data.sources.map((source: any, i: number) => (
+                    <a 
+                      key={i}
+                      href={source.uri} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="text-[10px] text-stone-500 dark:text-stone-400 hover:text-stone-900 dark:hover:text-stone-100 underline underline-offset-4 decoration-stone-200 dark:decoration-stone-700"
+                    >
+                      {source.title || "Source"}
+                    </a>
+                  ))}
+                </div>
+              </div>
+            )}
+          </motion.div>
+        ) : (
+          <div className="flex flex-col items-center justify-center h-full text-stone-300 dark:text-stone-700">
+            <Bot className="w-16 h-16 mb-4 opacity-20" />
+            <p className="font-serif italic">Select a section to explore.</p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+const ImageAnalyzer = () => {
+  const { profile } = useContext(AuthContext);
+  const [image, setImage] = useState<string | null>(null);
+  const [analyzing, setAnalyzing] = useState(false);
+  const [result, setResult] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImage(reader.result as string);
+        setResult(null);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const analyzeImage = async () => {
+    if (!image) return;
+
+    setAnalyzing(true);
+    try {
+      const ai = getAI(profile, 'general');
+      if (!ai) throw new Error("API Key not found.");
+
+      const base64Data = image.split(',')[1];
+      const mimeType = image.split(';')[0].split(':')[1];
+
+      const response = await ai.models.generateContent({
+        model: "gemini-3.1-pro-preview",
+        contents: {
+          parts: [
+            { inlineData: { data: base64Data, mimeType } },
+            { text: "Analyze this image. If it contains Japanese text, translate it and explain the meaning. If it's a scene from Japan, identify it. Provide a detailed cultural or linguistic breakdown." }
+          ]
+        }
+      });
+
+      setResult(response.text || "No analysis generated.");
+    } catch (error) {
+      console.error("Image Analysis Error:", error);
+      setResult("Failed to analyze image. Ensure you have a valid Gemini API key.");
+    } finally {
+      setAnalyzing(false);
+    }
+  };
+
+  return (
+    <div className="max-w-4xl mx-auto p-4 md:p-8">
+      <div className="mb-12">
+        <h2 className="text-4xl font-editorial italic text-stone-900 dark:text-stone-100 mb-2">Image Sensei</h2>
+        <p className="text-stone-500 dark:text-stone-400 font-serif">Upload photos of Japanese text, signs, or scenes for instant analysis.</p>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+        <div className="space-y-6">
+          <div 
+            onClick={() => fileInputRef.current?.click()}
+            className={cn(
+              "aspect-square rounded-[3rem] border-4 border-dashed border-stone-100 dark:border-stone-800 bg-white dark:bg-stone-900 flex flex-col items-center justify-center cursor-pointer hover:border-stone-200 dark:hover:border-stone-700 transition-all overflow-hidden relative group",
+              image && "border-none"
+            )}
+          >
+            {image ? (
+              <>
+                <img src={image} alt="To analyze" className="w-full h-full object-cover" />
+                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                  <p className="text-white font-bold text-xs uppercase tracking-widest">Change Image</p>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="w-16 h-16 bg-stone-50 dark:bg-stone-800 rounded-full flex items-center justify-center mb-4">
+                  <Camera className="w-8 h-8 text-stone-300 dark:text-stone-600" />
+                </div>
+                <p className="text-stone-400 dark:text-stone-500 font-serif italic">Click to upload or drag & drop</p>
+              </>
+            )}
+            <input 
+              type="file" 
+              ref={fileInputRef} 
+              onChange={handleImageUpload} 
+              accept="image/*" 
+              className="hidden" 
+            />
+          </div>
+
+          <button
+            onClick={analyzeImage}
+            disabled={!image || analyzing}
+            className="w-full py-6 bg-stone-900 dark:bg-stone-100 text-white dark:text-stone-900 rounded-[2rem] font-bold text-lg hover:bg-stone-800 dark:hover:bg-stone-200 transition-all disabled:opacity-50 flex items-center justify-center gap-3 shadow-xl shadow-stone-200 dark:shadow-none"
+          >
+            {analyzing ? (
+              <>
+                <Loader2 className="w-6 h-6 animate-spin" />
+                Analyzing...
+              </>
+            ) : (
+              <>
+                <Brain className="w-6 h-6" />
+                Analyze with Sensei
+              </>
+            )}
+          </button>
+        </div>
+
+        <div className="bg-white dark:bg-stone-900 rounded-[3rem] p-8 md:p-10 shadow-sm border border-stone-100 dark:border-stone-800 min-h-[400px]">
+          {result ? (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="prose prose-stone max-w-none dark:prose-invert"
+            >
+              <ReactMarkdown>{result}</ReactMarkdown>
+            </motion.div>
+          ) : (
+            <div className="flex flex-col items-center justify-center h-full text-stone-300 dark:text-stone-700 text-center">
+              <ImageIcon className="w-16 h-16 mb-4 opacity-20" />
+              <p className="font-serif italic">Analysis results will appear here.</p>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const Dictionary = () => {
   const { profile, setProfile, user, isDemo, discoveredWords, setDiscoveredWords } = useContext(AuthContext);
   const [query, setQuery] = useState('');
@@ -2738,12 +3018,12 @@ const Dictionary = () => {
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Search in Japanese or English..."
-          className="w-full p-6 pl-16 bg-white border-2 border-stone-100 rounded-[2rem] shadow-sm focus:border-stone-900 transition-all text-lg outline-none font-serif italic"
+          className="w-full p-6 pl-16 bg-white dark:bg-stone-800 border-2 border-stone-100 dark:border-stone-700 rounded-[2rem] shadow-sm focus:border-stone-900 dark:focus:border-stone-100 transition-all text-lg outline-none font-serif italic text-stone-900 dark:text-stone-100 placeholder:text-stone-300 dark:placeholder:text-stone-600"
         />
         <button 
           type="submit"
           disabled={loading || !query}
-          className="absolute right-3 top-1/2 -translate-y-1/2 px-6 py-3 bg-stone-900 text-white rounded-full font-bold hover:bg-stone-800 transition-colors disabled:opacity-50 hover:scale-105 active:scale-95"
+          className="absolute right-3 top-1/2 -translate-y-1/2 px-6 py-3 bg-stone-900 dark:bg-stone-100 text-white dark:text-stone-900 rounded-full font-bold hover:bg-stone-800 dark:hover:bg-stone-200 transition-colors disabled:opacity-50 hover:scale-105 active:scale-95"
         >
           {loading ? "Searching..." : "Search"}
         </button>
@@ -6530,7 +6810,7 @@ export default function App() {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [isDemo, setIsDemo] = useState(localStorage.getItem('komorebi_demo') === 'true');
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'vocab' | 'vocabList' | 'quiz' | 'dictionary' | 'flashcards' | 'translator' | 'kana' | 'phrasebook' | 'settings' | 'game' | 'chatbot' | 'notebook' | 'invaders' | 'wordsearch' | 'shop' | 'room' | 'rankTest' | 'stats'>(() => {
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'vocab' | 'vocabList' | 'quiz' | 'dictionary' | 'flashcards' | 'translator' | 'kana' | 'phrasebook' | 'settings' | 'game' | 'chatbot' | 'notebook' | 'invaders' | 'wordsearch' | 'shop' | 'room' | 'rankTest' | 'stats' | 'japanHub' | 'imageAnalyzer'>(() => {
     return (localStorage.getItem('komorebi_active_tab') as any) || 'dashboard';
   });
 
@@ -6999,11 +7279,11 @@ const NamePrompt = ({ onSave }: { onSave: (name: string) => void }) => {
       <motion.div 
         initial={{ opacity: 0, scale: 0.9, y: 20 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
-        className="relative w-full max-w-md bg-white rounded-[3rem] shadow-2xl p-10 text-center"
+        className="relative w-full max-w-md bg-white dark:bg-stone-900 rounded-[3rem] shadow-2xl p-10 text-center border border-stone-100 dark:border-stone-800"
       >
-        <div className="w-20 h-20 bg-stone-900 rounded-3xl flex items-center justify-center text-white text-3xl font-bold mx-auto mb-8 shadow-xl shadow-stone-200">木</div>
-        <h2 className="text-3xl font-editorial italic text-stone-900 mb-2">Welcome to Komorebi</h2>
-        <p className="text-stone-500 font-serif italic mb-8">What should we call you on your journey?</p>
+        <div className="w-20 h-20 bg-stone-900 dark:bg-stone-100 rounded-3xl flex items-center justify-center text-white dark:text-stone-900 text-3xl font-bold mx-auto mb-8 shadow-xl shadow-stone-200 dark:shadow-none">木</div>
+        <h2 className="text-3xl font-editorial italic text-stone-900 dark:text-stone-100 mb-2">Welcome to Komorebi</h2>
+        <p className="text-stone-500 dark:text-stone-400 font-serif italic mb-8">What should we call you on your journey?</p>
         
         <form onSubmit={(e) => { e.preventDefault(); if (name.trim()) onSave(name.trim()); }} className="space-y-4">
           <input 
@@ -7011,12 +7291,12 @@ const NamePrompt = ({ onSave }: { onSave: (name: string) => void }) => {
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="Enter your name..."
-            className="w-full p-5 bg-stone-50 border-none rounded-2xl text-center text-xl font-medium focus:ring-2 focus:ring-stone-200 transition-all outline-none"
+            className="w-full p-5 bg-stone-50 dark:bg-stone-800 border-none rounded-2xl text-center text-xl font-medium text-stone-900 dark:text-stone-100 focus:ring-2 focus:ring-stone-200 dark:focus:ring-stone-700 transition-all outline-none placeholder:text-stone-300 dark:placeholder:text-stone-600"
           />
           <button 
             type="submit"
             disabled={!name.trim()}
-            className="w-full py-5 bg-stone-900 text-white rounded-full font-bold hover:bg-stone-800 transition-all shadow-xl shadow-stone-200 disabled:opacity-50"
+            className="w-full py-5 bg-stone-900 dark:bg-stone-100 text-white dark:text-stone-900 rounded-full font-bold hover:bg-stone-800 dark:hover:bg-stone-200 transition-all shadow-xl shadow-stone-200 dark:shadow-none disabled:opacity-50"
           >
             Start Learning
           </button>
@@ -7140,6 +7420,8 @@ const AppContent = ({ activeTab, setActiveTab, todayVocabCount, vocab, logout, s
                 { id: 'rankTest', icon: Trophy, label: 'Rank Test' },
                 { id: 'achievements', icon: Award, label: 'Achievements' },
                 { id: 'game', icon: Gamepad2, label: 'Games' },
+                { id: 'japanHub', icon: CloudSun, label: 'Japan Hub' },
+                { id: 'imageAnalyzer', icon: Camera, label: 'Image Sensei' },
                 { id: 'dictionary', icon: BookOpen, label: 'Dictionary' },
                 { id: 'translator', icon: Languages, label: 'Translate' },
                 { id: 'phrasebook', icon: MessageSquare, label: 'Phrases' },
@@ -7189,7 +7471,7 @@ const AppContent = ({ activeTab, setActiveTab, todayVocabCount, vocab, logout, s
           </aside>
 
       {/* Mobile Bottom Navigation */}
-      <nav className="md:hidden fixed bottom-6 left-6 right-6 bg-white border border-stone-100 px-2 py-3 flex justify-around items-center z-[100] shadow-2xl rounded-[2.5rem]">
+      <nav className="md:hidden fixed bottom-6 left-6 right-6 bg-white dark:bg-stone-900 border border-stone-100 dark:border-stone-800 px-2 py-3 flex justify-around items-center z-[100] shadow-2xl rounded-[2.5rem]">
         {[
           { id: 'dashboard', icon: Layout, label: 'Home' },
           { id: 'kana', icon: Calendar, label: 'Writing' },
@@ -7211,7 +7493,7 @@ const AppContent = ({ activeTab, setActiveTab, todayVocabCount, vocab, logout, s
               "flex flex-col items-center gap-1 transition-all relative",
               item.isCentral 
                 ? "bg-[#f2a93b] text-white p-4 rounded-full -mt-12 shadow-xl shadow-orange-200" 
-                : (activeTab === item.id ? "text-stone-900" : "text-stone-300")
+                : (activeTab === item.id ? "text-stone-900 dark:text-stone-100" : "text-stone-300 dark:text-stone-700")
             )}
           >
             <item.icon className={cn(item.isCentral ? "w-6 h-6" : "w-5 h-5")} />
@@ -7229,18 +7511,18 @@ const AppContent = ({ activeTab, setActiveTab, todayVocabCount, vocab, logout, s
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setShowMoreMenu(false)}
-              className="absolute inset-0 bg-stone-900/40 backdrop-blur-sm"
+              className="absolute inset-0 bg-stone-900/40 dark:bg-black/60 backdrop-blur-sm"
             />
             <motion.div 
               initial={{ y: "100%" }}
               animate={{ y: 0 }}
               exit={{ y: "100%" }}
               transition={{ type: "spring", damping: 25, stiffness: 200 }}
-              className="relative bg-white rounded-t-[3rem] p-8 pb-12 shadow-2xl space-y-6"
+              className="relative bg-white dark:bg-stone-900 rounded-t-[3rem] p-8 pb-12 shadow-2xl space-y-6"
             >
               <div className="flex items-center justify-between mb-2">
-                <h3 className="text-xl font-editorial italic text-stone-900">More Options</h3>
-                <button onClick={() => setShowMoreMenu(false)} className="p-2 text-stone-400">
+                <h3 className="text-xl font-editorial italic text-stone-900 dark:text-stone-100">More Options</h3>
+                <button onClick={() => setShowMoreMenu(false)} className="p-2 text-stone-400 dark:text-stone-500">
                   <XCircle className="w-6 h-6" />
                 </button>
               </div>
@@ -7256,6 +7538,8 @@ const AppContent = ({ activeTab, setActiveTab, todayVocabCount, vocab, logout, s
                   { id: 'rankTest', icon: Trophy, label: 'Rank Test' },
                   { id: 'achievements', icon: Award, label: 'Achievements' },
                   { id: 'game', icon: Gamepad2, label: 'Games' },
+                  { id: 'japanHub', icon: CloudSun, label: 'Japan' },
+                  { id: 'imageAnalyzer', icon: Camera, label: 'Sensei' },
                   { id: 'dictionary', icon: Search, label: 'Dict' },
                   { id: 'translator', icon: Languages, label: 'Translate' },
                   { id: 'phrasebook', icon: Book, label: 'Phrases' },
@@ -7282,7 +7566,9 @@ const AppContent = ({ activeTab, setActiveTab, todayVocabCount, vocab, logout, s
                     }}
                     className={cn(
                       "flex flex-col items-center gap-2 p-4 rounded-2xl transition-all",
-                      activeTab === item.id ? "bg-stone-900 text-white" : "bg-stone-50 text-stone-500 hover:bg-stone-100"
+                      activeTab === item.id 
+                        ? "bg-stone-900 dark:bg-stone-100 text-white dark:text-stone-900" 
+                        : "bg-stone-50 dark:bg-stone-800 text-stone-500 dark:text-stone-400 hover:bg-stone-100 dark:hover:bg-stone-700"
                     )}
                   >
                     <item.icon className="w-5 h-5" />
@@ -7331,6 +7617,8 @@ const AppContent = ({ activeTab, setActiveTab, todayVocabCount, vocab, logout, s
                   {activeTab === 'invaders' && <KanaInvaders onBack={() => setActiveTab('game')} />}
                   {activeTab === 'wordsearch' && <WordSearch onBack={() => setActiveTab('game')} />}
                   {activeTab === 'chatbot' && <Chatbot />}
+                  {activeTab === 'japanHub' && <JapanHub />}
+                  {activeTab === 'imageAnalyzer' && <ImageAnalyzer />}
                   {activeTab === 'notebook' && <Notebook />}
                   {activeTab === 'achievements' && <Achievements />}
                   {activeTab === 'rankTest' && <RankTest vocab={vocab} />}
