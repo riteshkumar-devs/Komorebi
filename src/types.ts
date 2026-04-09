@@ -44,6 +44,10 @@ export interface UserProfile {
   quoteCache?: { text: string; translation: string }[];
   quoteStats?: { lastDate: string; count: number };
   theme?: 'light' | 'dark' | 'system';
+  dictionarySearchesToday?: number;
+  gameTimeToday?: number; // in seconds
+  claimedRewards?: string[];
+  customPhrases?: { jp: string; ro: string; en: string; category: string }[];
 }
 
 export interface Note {

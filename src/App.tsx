@@ -77,6 +77,7 @@ import {
   BarChart2,
   User as UserIcon,
   Pin,
+  Lock,
   Send,
   Award,
   ArrowRight,
@@ -89,7 +90,13 @@ import {
   Coins,
   Newspaper,
   Camera,
-  Image as ImageIcon
+  Image as ImageIcon,
+  Trees,
+  Flower2,
+  Headphones,
+  Upload,
+  Bookmark,
+  Bell
 } from 'lucide-react';
 import { GoogleGenAI, Modality } from "@google/genai";
 import ReactMarkdown from 'react-markdown';
@@ -105,28 +112,38 @@ function cn(...inputs: ClassValue[]) {
 }
 
 // --- Achievements System ---
+const ACHIEVEMENT_CATEGORIES = [
+  { id: 'milestones', title: 'Milestones', icon: '🏆' },
+  { id: 'streaks', title: 'Streaks', icon: '🔥' },
+  { id: 'vocabulary', title: 'Vocabulary', icon: '📚' },
+  { id: 'ranks', title: 'Ranks', icon: '⚔️' },
+  { id: 'social', title: 'Social', icon: '💬' },
+];
+
 const ACHIEVEMENTS = [
-  { id: 'first_word', title: 'First Steps', description: 'Add your first vocabulary word.', icon: '🌱' },
-  { id: 'streak_3', title: 'Getting Serious', description: 'Maintain a 3-day streak.', icon: '🔥' },
-  { id: 'streak_7', title: 'Dedicated Learner', description: 'Maintain a 7-day streak.', icon: '✨' },
-  { id: 'streak_30', title: 'Language Master', description: 'Maintain a 30-day streak.', icon: '👑' },
-  { id: 'vocab_50', title: 'Word Collector', description: 'Learn 50 words.', icon: '📚' },
-  { id: 'vocab_100', title: 'Linguist', description: 'Learn 100 words.', icon: '🖋️' },
-  { id: 'vocab_500', title: 'Scholar', description: 'Learn 500 words.', icon: '🎓' },
-  { id: 'rank_d', title: 'D-Rank Hunter', description: 'Reach D-Rank.', icon: '⚔️' },
-  { id: 'rank_c', title: 'C-Rank Hunter', description: 'Reach C-Rank.', icon: '🛡️' },
-  { id: 'rank_b', title: 'B-Rank Hunter', description: 'Reach B-Rank.', icon: '⚡' },
-  { id: 'rank_a', title: 'A-Rank Hunter', description: 'Reach A-Rank.', icon: '🔥' },
-  { id: 'rank_s', title: 'S-Rank Hunter', description: 'Reach S-Rank.', icon: '🌑' },
-  { id: 'quiz_perfect', title: 'Perfect Score', description: 'Get 100% on a quiz.', icon: '💯' },
-  { id: 'kana_master', title: 'Kana Master', description: 'Complete all Hiragana and Katakana practice.', icon: '🎌' },
-  { id: 'chat_10', title: 'Talkative', description: 'Have 10 conversations with Sensei.', icon: '💬' },
+  { id: 'first_word', category: 'milestones', title: 'First Steps', description: 'Add your first vocabulary word.', icon: '🌱', reward: 50 },
+  { id: 'streak_3', category: 'streaks', title: 'Getting Serious', description: 'Maintain a 3-day streak.', icon: '🔥', reward: 100 },
+  { id: 'streak_7', category: 'streaks', title: 'Dedicated Learner', description: 'Maintain a 7-day streak.', icon: '✨', reward: 250 },
+  { id: 'streak_30', category: 'streaks', title: 'Language Master', description: 'Maintain a 30-day streak.', icon: '👑', reward: 1000 },
+  { id: 'vocab_50', category: 'vocabulary', title: 'Word Collector', description: 'Learn 50 words.', icon: '📚', reward: 500 },
+  { id: 'vocab_100', category: 'vocabulary', title: 'Linguist', description: 'Learn 100 words.', icon: '🖋️', reward: 1000 },
+  { id: 'vocab_500', category: 'vocabulary', title: 'Scholar', description: 'Learn 500 words.', icon: '🎓', reward: 2500 },
+  { id: 'rank_d', category: 'ranks', title: 'D-Rank Hunter', description: 'Reach D-Rank.', icon: '⚔️', reward: 300 },
+  { id: 'rank_c', category: 'ranks', title: 'C-Rank Hunter', description: 'Reach C-Rank.', icon: '🛡️', reward: 600 },
+  { id: 'rank_b', category: 'ranks', title: 'B-Rank Hunter', description: 'Reach B-Rank.', icon: '⚡', reward: 1200 },
+  { id: 'rank_a', category: 'ranks', title: 'A-Rank Hunter', description: 'Reach A-Rank.', icon: '🔥', reward: 2500 },
+  { id: 'rank_s', category: 'ranks', title: 'S-Rank Hunter', description: 'Reach S-Rank.', icon: '🌑', reward: 5000 },
+  { id: 'quiz_perfect', category: 'milestones', title: 'Perfect Score', description: 'Get 100% on a quiz.', icon: '💯', reward: 200 },
+  { id: 'kana_master', category: 'milestones', title: 'Kana Master', description: 'Complete all Hiragana and Katakana practice.', icon: '🎌', reward: 500 },
+  { id: 'chat_10', category: 'social', title: 'Talkative', description: 'Have 10 conversations with Sensei.', icon: '💬', reward: 150 },
   // ... adding more to reach 50+
   ...Array.from({ length: 35 }).map((_, i) => ({
     id: `milestone_${i + 1}`,
+    category: 'milestones',
     title: `Milestone ${i + 1}`,
     description: `Complete milestone ${i + 1} of your journey.`,
-    icon: '🏆'
+    icon: '🏆',
+    reward: 50
   }))
 ];
 
@@ -948,8 +965,11 @@ const Login = () => {
 };
 
 const Achievements = () => {
-  const { profile, user, isDemo } = useContext(AuthContext);
+  const { profile, user, isDemo, setProfile } = useContext(AuthContext);
   const [pinned, setPinned] = useState<string[]>(profile?.pinnedAchievements || []);
+  const [activeCategory, setActiveCategory] = useState('all');
+  const [claiming, setClaiming] = useState<string | null>(null);
+  const [selectedAchievement, setSelectedAchievement] = useState<any | null>(null);
 
   const handlePin = async (id: string) => {
     let newPinned = [...pinned];
@@ -973,59 +993,234 @@ const Achievements = () => {
     }
   };
 
+  const handleClaimReward = async (ach: any) => {
+    if (!profile || claiming) return;
+    const claimed = profile.claimedRewards || [];
+    if (claimed.includes(ach.id)) return;
+
+    setClaiming(ach.id);
+    try {
+      const newClaimed = [...claimed, ach.id];
+      const newXp = (profile.xp || 0) + (ach.reward || 0);
+      
+      const updates = {
+        claimedRewards: newClaimed,
+        xp: newXp
+      };
+
+      if (isDemo) {
+        const p = JSON.parse(localStorage.getItem('komorebi_profile') || '{}');
+        const updatedProfile = { ...p, ...updates };
+        localStorage.setItem('komorebi_profile', JSON.stringify(updatedProfile));
+        setProfile(updatedProfile as any);
+      } else if (user) {
+        await updateDoc(doc(db, 'users', user.uid), updates);
+      }
+    } catch (error) {
+      console.error("Error claiming reward:", error);
+    } finally {
+      setClaiming(null);
+    }
+  };
+
   const unlocked = profile?.achievements || [];
+  const claimed = profile?.claimedRewards || [];
+  const filteredAchievements = activeCategory === 'all' 
+    ? ACHIEVEMENTS 
+    : ACHIEVEMENTS.filter(a => a.category === activeCategory);
 
   return (
-    <div className="max-w-4xl mx-auto space-y-10 pb-24">
-      <div className="flex items-center justify-between">
+    <div className="max-w-5xl mx-auto space-y-10 pb-24">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div>
-          <h2 className="text-4xl font-editorial italic text-stone-900 mb-2">Achievements</h2>
-          <p className="text-stone-500 font-serif italic">Your journey through the language, immortalized.</p>
+          <h2 className="text-4xl font-editorial italic text-stone-900 dark:text-stone-100 mb-2">Achievements</h2>
+          <p className="text-stone-500 dark:text-stone-400 font-serif italic">Your journey through the language, immortalized.</p>
         </div>
-        <div className="text-right">
-          <div className="text-[10px] font-bold text-stone-400 uppercase tracking-widest mb-1">Pinned</div>
-          <div className="text-2xl font-serif text-stone-900">{pinned.length} / 10</div>
+        <div className="flex items-center gap-4 bg-white dark:bg-stone-900 p-4 rounded-3xl border border-stone-100 dark:border-stone-800 shadow-sm">
+          <div className="text-center px-4 border-r border-stone-100 dark:border-stone-800">
+            <div className="text-[10px] font-bold text-stone-400 uppercase tracking-widest mb-1">Unlocked</div>
+            <div className="text-2xl font-serif text-stone-900 dark:text-stone-100">{unlocked.length}</div>
+          </div>
+          <div className="text-center px-4">
+            <div className="text-[10px] font-bold text-stone-400 uppercase tracking-widest mb-1">XP Earned</div>
+            <div className="text-2xl font-serif text-amber-600">{claimed.reduce((acc, id) => acc + (ACHIEVEMENTS.find(a => a.id === id)?.reward || 0), 0)}</div>
+          </div>
         </div>
       </div>
 
+      {/* Category Tabs */}
+      <div className="flex flex-wrap gap-2">
+        <button
+          onClick={() => setActiveCategory('all')}
+          className={cn(
+            "px-6 py-2.5 rounded-full text-xs font-bold transition-all",
+            activeCategory === 'all' 
+              ? "bg-stone-900 text-white shadow-lg" 
+              : "bg-white dark:bg-stone-900 text-stone-400 hover:text-stone-900 dark:hover:text-stone-100 border border-stone-100 dark:border-stone-800"
+          )}
+        >
+          All
+        </button>
+        {ACHIEVEMENT_CATEGORIES.map(cat => (
+          <button
+            key={cat.id}
+            onClick={() => setActiveCategory(cat.id)}
+            className={cn(
+              "px-6 py-2.5 rounded-full text-xs font-bold flex items-center gap-2 transition-all",
+              activeCategory === cat.id 
+                ? "bg-stone-900 text-white shadow-lg" 
+                : "bg-white dark:bg-stone-900 text-stone-400 hover:text-stone-900 dark:hover:text-stone-100 border border-stone-100 dark:border-stone-800"
+            )}
+          >
+            <span>{cat.icon}</span>
+            <span>{cat.title}</span>
+          </button>
+        ))}
+      </div>
+
       <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
-        {ACHIEVEMENTS.map((ach) => {
+        {filteredAchievements.map((ach) => {
           const isUnlocked = unlocked.includes(ach.id);
           const isPinned = pinned.includes(ach.id);
+          const isClaimed = claimed.includes(ach.id);
 
           return (
-            <motion.button
+            <motion.div
               key={ach.id}
               whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-              onClick={() => isUnlocked && handlePin(ach.id)}
+              onClick={() => setSelectedAchievement(ach)}
               className={cn(
-                "p-6 rounded-[2.5rem] border transition-all flex flex-col items-center text-center gap-3 relative group",
+                "p-6 rounded-[2.5rem] border transition-all flex flex-col items-center text-center gap-3 relative group overflow-hidden cursor-pointer",
                 isUnlocked 
                   ? isPinned 
                     ? "bg-stone-900 border-stone-900 text-white shadow-xl shadow-stone-200"
-                    : "bg-white border-stone-100 text-stone-900 hover:border-stone-900"
-                  : "bg-stone-50 border-stone-50 text-stone-300 grayscale cursor-not-allowed"
+                    : "bg-white dark:bg-stone-900 border-stone-100 dark:border-stone-800 text-stone-900 dark:text-stone-100 hover:border-stone-900 dark:hover:border-stone-100"
+                  : "bg-stone-50 dark:bg-stone-900/50 border-stone-50 dark:border-stone-800 text-stone-300 dark:text-stone-700 grayscale cursor-not-allowed"
               )}
             >
               <div className="text-4xl mb-2">{ach.icon}</div>
               <div className="text-[10px] font-bold uppercase tracking-widest">{ach.title}</div>
               <div className="text-[8px] font-serif italic opacity-60 line-clamp-2">{ach.description}</div>
               
-              {isUnlocked && !isPinned && (
-                <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <Pin className="w-3 h-3 text-stone-400" />
+              {isUnlocked && (
+                <div className="mt-2 w-full space-y-2">
+                  <div className="text-[9px] font-bold text-amber-600">+{ach.reward} XP</div>
+                  {!isClaimed ? (
+                    <button 
+                      onClick={(e) => { e.stopPropagation(); handleClaimReward(ach); }}
+                      disabled={claiming === ach.id}
+                      className="w-full py-1.5 bg-amber-500 text-white rounded-xl text-[9px] font-bold uppercase tracking-widest hover:bg-amber-600 transition-all"
+                    >
+                      {claiming === ach.id ? '...' : 'Claim'}
+                    </button>
+                  ) : (
+                    <div className="text-[9px] font-bold text-stone-400 italic">Claimed</div>
+                  )}
                 </div>
               )}
-              {isPinned && (
-                <div className="absolute top-3 right-3">
-                  <Pin className="w-3 h-3 text-amber-400 fill-amber-400" />
+
+              {isUnlocked && (
+                <button 
+                  onClick={() => handlePin(ach.id)}
+                  className="absolute top-3 right-3 p-1 hover:bg-stone-100 dark:hover:bg-stone-800 rounded-full transition-all"
+                >
+                  <Pin className={cn("w-3 h-3", isPinned ? "text-amber-400 fill-amber-400" : "text-stone-300")} />
+                </button>
+              )}
+
+              {!isUnlocked && (
+                <div className="absolute inset-0 bg-stone-900/5 dark:bg-black/20 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                  <div className="p-2 bg-white/80 dark:bg-stone-800/80 rounded-full backdrop-blur-sm">
+                    <Lock className="w-4 h-4 text-stone-400" />
+                  </div>
                 </div>
               )}
-            </motion.button>
+            </motion.div>
           );
         })}
       </div>
+
+      {/* Achievement Detail Modal */}
+      <AnimatePresence>
+        {selectedAchievement && (
+          <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setSelectedAchievement(null)}
+              className="absolute inset-0 bg-stone-900/40 backdrop-blur-sm"
+            />
+            <motion.div 
+              initial={{ scale: 0.9, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.9, opacity: 0, y: 20 }}
+              className="relative bg-white dark:bg-stone-900 w-full max-w-md rounded-[3rem] p-8 shadow-2xl overflow-hidden"
+            >
+              <div className="absolute top-0 left-0 w-full h-32 bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-900/20 dark:to-orange-900/20 -z-10" />
+              
+              <div className="flex flex-col items-center text-center space-y-6">
+                <div className="text-7xl animate-bounce-slow">{selectedAchievement.icon}</div>
+                
+                <div className="space-y-2">
+                  <h3 className="text-2xl font-editorial italic text-stone-900 dark:text-stone-100">{selectedAchievement.title}</h3>
+                  <div className="px-4 py-1 bg-stone-100 dark:bg-stone-800 rounded-full text-[10px] font-bold text-stone-500 uppercase tracking-widest">
+                    {selectedAchievement.category}
+                  </div>
+                </div>
+
+                <div className="p-6 bg-stone-50 dark:bg-stone-800/50 rounded-3xl border border-stone-100 dark:border-stone-800 w-full">
+                  <p className="text-sm font-serif italic text-stone-600 dark:text-stone-400 mb-4">
+                    "{selectedAchievement.description}"
+                  </p>
+                  <div className="flex items-center justify-center gap-4 pt-4 border-t border-stone-100 dark:border-stone-800">
+                    <div className="text-center">
+                      <div className="text-[10px] font-bold text-stone-400 uppercase tracking-widest mb-1">Reward</div>
+                      <div className="text-xl font-bold text-amber-600">+{selectedAchievement.reward} XP</div>
+                    </div>
+                    <div className="w-px h-8 bg-stone-200 dark:bg-stone-800" />
+                    <div className="text-center">
+                      <div className="text-[10px] font-bold text-stone-400 uppercase tracking-widest mb-1">Status</div>
+                      <div className={cn(
+                        "text-xl font-bold",
+                        unlocked.includes(selectedAchievement.id) ? "text-teal-500" : "text-stone-300"
+                      )}>
+                        {unlocked.includes(selectedAchievement.id) ? 'Unlocked' : 'Locked'}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="w-full space-y-4">
+                  <div className="p-4 bg-stone-100 dark:bg-stone-800 rounded-2xl text-left">
+                    <p className="text-[10px] font-bold text-stone-400 uppercase tracking-widest mb-2">How to unlock</p>
+                    <p className="text-sm text-stone-900 dark:text-stone-100 font-medium leading-relaxed">
+                      {selectedAchievement.description}
+                    </p>
+                  </div>
+                  
+                  {unlocked.includes(selectedAchievement.id) && !claimed.includes(selectedAchievement.id) && (
+                    <button 
+                      onClick={(e) => { e.stopPropagation(); handleClaimReward(selectedAchievement); }}
+                      disabled={claiming === selectedAchievement.id}
+                      className="w-full py-4 bg-amber-500 text-white rounded-2xl font-bold uppercase tracking-widest shadow-lg shadow-amber-200 hover:bg-amber-600 transition-all"
+                    >
+                      {claiming === selectedAchievement.id ? 'Claiming...' : 'Claim Reward'}
+                    </button>
+                  )}
+
+                  <button 
+                    onClick={() => setSelectedAchievement(null)}
+                    className="w-full py-4 bg-stone-900 text-white rounded-2xl font-bold uppercase tracking-widest hover:bg-stone-800 transition-all"
+                  >
+                    Close
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };
@@ -1132,9 +1327,23 @@ const Dashboard = ({ vocabCount, vocab, logout }: { vocabCount: number, vocab: V
   const [quote, setQuote] = useState<{ text: string; translation: string } | null>(null);
   const [loadingQuote, setLoadingQuote] = useState(false);
   const streak = profile?.streakCount || 0;
-  const goalMet = profile?.dailyGoalMet || false;
-  const progress = Math.min((vocabCount / 5) * 100, 100);
+  const level = Math.floor((profile?.xp || 0) / 100) + 1;
   const { play, loading: ttsLoading } = useTTSContext();
+
+  const [currentTime, setCurrentTime] = useState(new Date());
+
+  useEffect(() => {
+    const timer = setInterval(() => setCurrentTime(new Date()), 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  // Mission tracking
+  const missions = [
+    { id: 1, label: `Learn ${profile?.dailyGoal || 5} words`, completed: vocabCount >= (profile?.dailyGoal || 5), icon: BookOpen },
+    { id: 2, label: 'Ask from dictionary 3 words', completed: (profile?.dictionarySearchesToday || 0) >= 3, icon: Search },
+    { id: 3, label: 'Play game/flashcards 5 mins', completed: (profile?.gameTimeToday || 0) >= 300, icon: Gamepad2 },
+  ];
+  const completedMissions = missions.filter(m => m.completed).length;
 
   useEffect(() => {
     const fetchQuote = async () => {
@@ -1144,10 +1353,8 @@ const Dashboard = ({ vocabCount, vocab, logout }: { vocabCount: number, vocab: V
       const stats = profile.quoteStats || { lastDate: '', count: 0 };
       const cache = profile.quoteCache || [];
 
-      // If it's a new day, reset count
       let currentCount = stats.lastDate === today ? stats.count : 0;
 
-      // If we've reached the limit (15), use cache
       if (currentCount >= 15) {
         if (cache.length > 0) {
           const randomQuote = cache[Math.floor(Math.random() * cache.length)];
@@ -1173,9 +1380,7 @@ const Dashboard = ({ vocabCount, vocab, logout }: { vocabCount: number, vocab: V
         const data = JSON.parse(response.text || '{}');
         if (data.text && data.translation) {
           setQuote(data);
-          
-          // Update cache and stats
-          const newCache = [...cache, data].slice(-50); // Keep last 50
+          const newCache = [...cache, data].slice(-50);
           const updates = {
             quoteCache: newCache,
             quoteStats: { lastDate: today, count: currentCount + 1 }
@@ -1184,11 +1389,7 @@ const Dashboard = ({ vocabCount, vocab, logout }: { vocabCount: number, vocab: V
           if (!isDemo && profile) {
             await updateDoc(doc(db, 'users', profile.uid), updates);
           } else if (profile) {
-            // Handle demo mode persistence
-            const updatedProfile = {
-              ...profile,
-              ...updates
-            };
+            const updatedProfile = { ...profile, ...updates };
             setProfile(updatedProfile);
             localStorage.setItem('komorebi_profile', JSON.stringify(updatedProfile));
           }
@@ -1212,7 +1413,6 @@ const Dashboard = ({ vocabCount, vocab, logout }: { vocabCount: number, vocab: V
 
   const getStableWordOfTheDay = () => {
     if (vocab.length === 0) return { japanese: "学習", romaji: "Gakushuu", meaning: "Study / Learning" };
-    // Use current date as seed
     const today = new Date();
     const seed = today.getFullYear() * 10000 + (today.getMonth() + 1) * 100 + today.getDate();
     const index = seed % vocab.length;
@@ -1222,277 +1422,249 @@ const Dashboard = ({ vocabCount, vocab, logout }: { vocabCount: number, vocab: V
   const wordOfTheDay = getStableWordOfTheDay();
 
   return (
-    <div className="relative space-y-8 pb-24">
-      {/* Top Section: Greeting */}
-      <div className="flex items-center justify-between">
-        <div className="flex flex-col">
-          <h1 className="text-2xl font-editorial italic text-stone-900 dark:text-stone-100">
-            Okaeri, {profile?.displayName?.split(' ')[0] || 'Learner'}
-          </h1>
-          <p className="text-stone-400 dark:text-stone-500 text-xs font-serif italic">Ready for today's session?</p>
-        </div>
-        <div className="flex items-center gap-2 bg-amber-50 dark:bg-amber-900/20 px-4 py-2 rounded-2xl border border-amber-100 dark:border-amber-800 shadow-sm">
-          <Flame className="w-4 h-4 text-amber-500 fill-amber-500" />
-          <span className="text-sm font-bold text-amber-900 dark:text-amber-100">{streak}</span>
-        </div>
-      </div>
-
-      {/* Hero Card */}
+    <div className="relative space-y-8 pb-24 px-4 pt-4">
+      {/* Today's Mission Card */}
       <motion.div 
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="bg-[#1a4d5e] p-8 rounded-[3rem] shadow-2xl shadow-stone-900/20 text-white flex items-center justify-between relative overflow-hidden"
+        className="bg-gradient-to-br from-[#1a4d5e] to-[#2c6e81] p-6 rounded-[2.5rem] shadow-xl text-white relative overflow-hidden"
       >
-        <div className="relative z-10 space-y-6">
-          <h2 className="text-2xl font-bold leading-tight max-w-[200px]">
-            Your today's plan is almost done
-          </h2>
+        <div className="flex justify-between items-start relative z-10">
+          <div className="space-y-4 flex-1">
+            <div className="space-y-1">
+              <h2 className="text-xl font-bold">Today's Mission</h2>
+              <p className="text-white/70 text-xs">Complete 3 small steps today</p>
+            </div>
+            
+            <div className="space-y-3">
+              {missions.map(mission => (
+                <div key={mission.id} className="flex items-center gap-3">
+                  <div className={`w-5 h-5 rounded-md flex items-center justify-center border ${mission.completed ? 'bg-white/20 border-white/40' : 'border-white/20'}`}>
+                    {mission.completed && <Check className="w-3 h-3 text-white" />}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <mission.icon className="w-4 h-4 text-white/60" />
+                    <span className={`text-sm ${mission.completed ? 'text-white/60 line-through' : 'text-white'}`}>{mission.label}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="flex flex-col items-center gap-4">
+            <div className="relative w-24 h-24">
+              <svg className="w-full h-full transform -rotate-90">
+                <circle
+                  cx="48"
+                  cy="48"
+                  r="40"
+                  stroke="currentColor"
+                  strokeWidth="8"
+                  fill="transparent"
+                  className="text-white/10"
+                />
+                <motion.circle
+                  cx="48"
+                  cy="48"
+                  r="40"
+                  stroke="currentColor"
+                  strokeWidth="8"
+                  fill="transparent"
+                  strokeDasharray={251.32}
+                  initial={{ strokeDashoffset: 251.32 }}
+                  animate={{ strokeDashoffset: 251.32 - (251.32 * completedMissions) / 3 }}
+                  className="text-white/40"
+                  strokeLinecap="round"
+                />
+              </svg>
+              <div className="absolute inset-0 flex items-center justify-center">
+                <span className="text-xl font-bold">{completedMissions} / 3</span>
+              </div>
+            </div>
+            <button 
+              onClick={() => (window as any).setActiveTab('vocab')}
+              className="bg-[#f2a93b] text-stone-900 px-6 py-2.5 rounded-2xl font-bold text-sm shadow-lg hover:bg-[#e59a2e] transition-all"
+            >
+              Continue
+            </button>
+          </div>
+        </div>
+        
+        {/* Background Decoration */}
+        <div className="absolute -bottom-10 -left-10 w-40 h-40 bg-white/5 rounded-full blur-3xl" />
+        <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full blur-2xl" />
+      </motion.div>
+
+      {/* Quote Section */}
+      <div className="text-center space-y-2 py-2">
+        <h3 className="text-xl font-japanese text-stone-900 dark:text-stone-100">
+          {quote?.text || "継続は力なり"}
+        </h3>
+        <p className="text-stone-500 dark:text-stone-400 text-sm font-serif italic">
+          {quote?.translation || "Continuity is power."}
+        </p>
+        <div className="flex justify-center">
+          <button className="flex items-center gap-1 text-[10px] font-bold text-stone-400 uppercase tracking-widest border border-stone-200 dark:border-stone-800 px-3 py-1 rounded-full">
+            <Bookmark className="w-3 h-3" />
+            Save
+          </button>
+        </div>
+      </div>
+
+      {/* Grid Section */}
+      <div className="grid grid-cols-2 gap-4">
+        {/* Word of the Day */}
+        <div className="col-span-1 bg-white dark:bg-stone-900 p-5 rounded-[2rem] border border-stone-100 dark:border-stone-800 shadow-sm space-y-4">
+          <p className="text-[10px] font-bold text-stone-400 uppercase tracking-wider">Word of the Day</p>
+          <div className="flex items-center gap-3">
+            <span className="text-4xl font-japanese text-stone-900 dark:text-stone-100">{wordOfTheDay.japanese}</span>
+            <div className="flex flex-col">
+              <span className="text-xs font-bold text-stone-900 dark:text-stone-100">{wordOfTheDay.romaji}</span>
+              <span className="text-[10px] text-stone-500">{wordOfTheDay.meaning}</span>
+            </div>
+          </div>
           <button 
-            onClick={() => (window as any).setActiveTab('vocab')}
-            className="bg-[#f2a93b] text-stone-900 px-6 py-3 rounded-2xl font-bold text-sm shadow-lg hover:bg-[#e59a2e] transition-all"
+            onClick={() => {
+              localStorage.setItem('komorebi_search_query', wordOfTheDay.japanese);
+              (window as any).setActiveTab('dictionary');
+            }}
+            className="w-full bg-[#f2a93b]/10 text-[#f2a93b] py-2 rounded-xl text-xs font-bold hover:bg-[#f2a93b]/20 transition-colors"
           >
-            Add Word
+            Learn
           </button>
         </div>
 
-        <div className="relative z-10 flex flex-col items-center">
-          <div className="relative w-28 h-28">
-            <svg className="w-full h-full transform -rotate-90">
-              <circle
-                cx="56"
-                cy="56"
-                r="48"
-                stroke="currentColor"
-                strokeWidth="12"
-                fill="transparent"
-                className="text-white/10"
-              />
-              <motion.circle
-                cx="56"
-                cy="56"
-                r="48"
-                stroke="currentColor"
-                strokeWidth="12"
-                fill="transparent"
-                strokeDasharray={301.59}
-                initial={{ strokeDashoffset: 301.59 }}
-                animate={{ strokeDashoffset: 301.59 - (301.59 * progress) / 100 }}
-                className="text-[#f2a93b]"
-                strokeLinecap="round"
-              />
-            </svg>
-            <div className="absolute inset-0 flex items-center justify-center">
-              <span className="text-xl font-bold">{Math.round(progress)}%</span>
-            </div>
+        {/* Rank Card */}
+        <div className="col-span-1 bg-[#fff8f0] dark:bg-stone-900 p-5 rounded-[2rem] border border-[#ffe8cc] dark:border-stone-800 shadow-sm space-y-4">
+          <div className="space-y-1">
+            <h4 className="text-sm font-bold text-stone-900 dark:text-stone-100">Your Rank: {profile?.rank || 'E5'}</h4>
+            <p className="text-[10px] text-stone-500 italic">Take today's test to level up</p>
+          </div>
+          <button 
+            onClick={() => (window as any).setActiveTab('rankTest')}
+            className="w-full bg-white dark:bg-stone-800 text-stone-900 dark:text-white py-2 rounded-xl text-xs font-bold border border-stone-200 dark:border-stone-700 shadow-sm"
+          >
+            START TEST
+          </button>
+        </div>
+
+        {/* Big Library Button */}
+        <button 
+          onClick={() => (window as any).setActiveTab('vocabList')}
+          className="col-span-1 bg-white dark:bg-stone-900 p-5 rounded-[2rem] border border-stone-100 dark:border-stone-800 shadow-sm flex flex-col items-center justify-center gap-3 hover:bg-stone-50 dark:hover:bg-stone-800 transition-all group"
+        >
+          <div className="w-12 h-12 bg-stone-50 dark:bg-stone-800 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform">
+            <Library className="w-6 h-6 text-stone-600 dark:text-stone-400" />
+          </div>
+          <span className="text-sm font-bold text-stone-900 dark:text-stone-100">My Library</span>
+        </button>
+
+        {/* Chat with Sensei Card */}
+        <div className="col-span-1 bg-white dark:bg-stone-900 rounded-[2rem] border border-stone-100 dark:border-stone-800 shadow-sm overflow-hidden flex flex-col">
+          <div className="h-24 bg-stone-100 dark:bg-stone-800 relative overflow-hidden">
+            <img 
+              src="https://picsum.photos/seed/anime-sensei-girl/400/300" 
+              alt="Sensei" 
+              className="w-full h-full object-cover opacity-90"
+              referrerPolicy="no-referrer"
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-white dark:from-stone-900 to-transparent" />
+          </div>
+          <div className="p-4 pt-0 space-y-2 relative z-10 -mt-4">
+            <h4 className="text-xs font-bold text-stone-900 dark:text-stone-100">Sensei Chat</h4>
+            <p className="text-[9px] text-stone-500 leading-tight">Ask anything to your AI Sensei</p>
+            <button 
+              onClick={() => (window as any).setActiveTab('chatbot')}
+              className="w-full bg-stone-50 dark:bg-stone-800 text-stone-900 dark:text-white py-1.5 rounded-lg text-[10px] font-bold border border-stone-100 dark:border-stone-700 shadow-sm"
+            >
+              OPEN CHAT
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Bottom Streak Tracker */}
+      <div className="bg-white dark:bg-stone-900 p-4 md:p-6 rounded-[2.5rem] border border-stone-100 dark:border-stone-800 shadow-sm space-y-6 overflow-hidden">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="space-y-1">
+            <h4 className="text-xs font-bold text-stone-900 dark:text-stone-100 uppercase tracking-wider">Weekly Activity</h4>
+            <p className="text-[9px] text-stone-400">Your consistency this week</p>
+          </div>
+          <div className="flex items-center gap-2 md:gap-3 overflow-x-auto pb-2 sm:pb-0 no-scrollbar">
+            {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((day, i) => {
+              const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+              const todayIndex = (new Date().getDay() + 6) % 7; // Adjust to Mon-Sun
+              const isToday = i === todayIndex;
+              const isPast = i < todayIndex;
+              
+              return (
+                <div key={day} className="flex flex-col items-center gap-1.5">
+                  <div className={cn(
+                    "w-3 h-3 rounded-full transition-all duration-500",
+                    isToday ? "bg-orange-500 ring-4 ring-orange-100 dark:ring-orange-900/30 scale-110" : 
+                    isPast ? "bg-teal-500" : "bg-stone-100 dark:bg-stone-800"
+                  )} />
+                  <span className={cn(
+                    "text-[8px] font-bold uppercase tracking-tighter",
+                    isToday ? "text-orange-500" : "text-stone-400"
+                  )}>{day}</span>
+                </div>
+              );
+            })}
           </div>
         </div>
 
-        {/* Background Decoration */}
-        <div className="absolute -bottom-10 -left-10 w-40 h-40 bg-white/5 rounded-full blur-3xl" />
-      </motion.div>
-
-      {/* AI Quote Section */}
-      <div className="text-center px-4">
-        {loadingQuote ? (
-          <div className="h-12 flex items-center justify-center">
-            <div className="w-4 h-4 border-2 border-stone-200 dark:border-stone-700 border-t-stone-900 dark:border-t-stone-100 rounded-full animate-spin" />
+        <div className="flex flex-col md:flex-row md:items-center justify-between pt-4 gap-6 border-t border-stone-50 dark:border-stone-800">
+          <div className="flex justify-around md:justify-start gap-4 md:gap-6">
+            {[
+              { label: 'Translate', icon: Languages, tab: 'translator', color: 'text-blue-500' },
+              { label: 'Revise', icon: Layers, tab: 'flashcards', color: 'text-purple-500' },
+              { label: 'Writing', icon: Pencil, tab: 'kana', color: 'text-teal-500' },
+            ].map(tool => (
+              <button 
+                key={tool.label}
+                onClick={() => (window as any).setActiveTab(tool.tab)}
+                className="flex flex-col items-center gap-2 group"
+              >
+                <div className="w-10 h-10 md:w-12 md:h-12 bg-stone-50 dark:bg-stone-800 rounded-2xl flex items-center justify-center border border-stone-100 dark:border-stone-700 shadow-sm group-hover:scale-110 transition-all">
+                  <tool.icon className={cn("w-4 h-4 md:w-5 md:h-5", tool.color)} />
+                </div>
+                <span className="text-[8px] md:text-[9px] font-bold text-stone-500 group-hover:text-stone-900 dark:group-hover:text-stone-100">{tool.label}</span>
+              </button>
+            ))}
           </div>
-        ) : quote ? (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="space-y-1"
-          >
-            <p className="text-stone-900 dark:text-stone-100 font-serif text-lg italic">"{quote.text}"</p>
-            <p className="text-stone-400 dark:text-stone-500 text-[10px] uppercase tracking-widest">{quote.translation}</p>
-          </motion.div>
-        ) : null}
-      </div>
-
-      {/* Bento Grid */}
-      <motion.div 
-        initial="hidden"
-        animate="visible"
-        variants={{
-          hidden: { opacity: 0 },
-          visible: {
-            opacity: 1,
-            transition: {
-              staggerChildren: 0.1
-            }
-          }
-        }}
-        className="grid grid-cols-2 gap-4"
-      >
-        {/* Word of the Day */}
-        <motion.div 
-          variants={{
-            hidden: { opacity: 0, y: 20 },
-            visible: { opacity: 1, y: 0 }
-          }}
-          whileHover={{ y: -5 }}
-          onClick={() => play(wordOfTheDay.japanese)}
-          className="bg-white dark:bg-[#1c1917] p-6 rounded-[2.5rem] border border-stone-100 dark:border-stone-800 shadow-sm flex flex-col justify-center items-center text-center cursor-pointer group"
-        >
-          <span className="text-[8px] font-bold uppercase tracking-widest text-stone-400 dark:text-stone-500 mb-4">Word of the Day</span>
-          <h3 className="text-3xl font-serif text-stone-900 dark:text-stone-100 mb-1 group-hover:text-stone-600 dark:group-hover:text-stone-300 transition-colors">{wordOfTheDay.japanese}</h3>
-          <p className="text-[10px] text-stone-400 dark:text-stone-500 font-mono uppercase tracking-widest">{wordOfTheDay.romaji}</p>
-        </motion.div>
-
-        {/* Streak Card */}
-        <motion.div 
-          variants={{
-            hidden: { opacity: 0, y: 20 },
-            visible: { opacity: 1, y: 0 }
-          }}
-          whileHover={{ y: -5 }}
-          className="bg-white dark:bg-[#1c1917] p-6 rounded-[2.5rem] border border-stone-100 dark:border-stone-800 shadow-sm flex flex-col justify-center items-center text-center cursor-pointer group"
-        >
-          <div className="relative">
-            <Flame className="w-10 h-10 text-orange-500 fill-orange-500 group-hover:scale-110 transition-transform duration-500" />
-            <div className="absolute -top-1 -right-1 w-4 h-4 bg-orange-100 dark:bg-orange-900/20 rounded-full animate-ping opacity-20" />
-          </div>
-          <h3 className="text-2xl font-bold text-stone-900 dark:text-stone-100 mt-2">{profile?.streakCount || 0}</h3>
-          <p className="text-[8px] font-bold uppercase tracking-widest text-stone-400 dark:text-stone-500">Day Streak</p>
-        </motion.div>
-
-        {/* Rank Card */}
-        <motion.div 
-          variants={{
-            hidden: { opacity: 0, y: 20 },
-            visible: { opacity: 1, y: 0 }
-          }}
-          whileHover={{ y: -5 }}
-          className="bg-[#fdf3e7] dark:bg-[#292524] p-6 rounded-[2.5rem] border border-[#f5e6d3] dark:border-stone-800 shadow-sm flex flex-col justify-between"
-        >
-          <div className="text-center">
-            <h3 className="text-sm font-bold text-stone-900 dark:text-stone-100 mb-1">Rank: {profile?.rank || 'E5'}</h3>
-            <p className="text-[8px] text-stone-500 dark:text-stone-400 font-serif italic mb-4">Test your skills to level up</p>
-          </div>
-          <div className="flex flex-col gap-2">
-            <button 
-              onClick={() => (window as any).setActiveTab('rankTest')}
-              className="w-full py-2 bg-white dark:bg-stone-800 text-stone-900 dark:text-stone-100 rounded-xl text-[10px] font-bold uppercase tracking-widest shadow-sm hover:bg-stone-50 dark:hover:bg-stone-700 transition-all"
-            >
-              Know More
-            </button>
-            <button 
-              onClick={() => (window as any).setActiveTab('quiz')}
-              className="w-full py-2 bg-stone-900 dark:bg-stone-100 text-white dark:text-stone-900 rounded-xl text-[10px] font-bold uppercase tracking-widest shadow-sm hover:bg-stone-800 dark:hover:bg-stone-200 transition-all"
-            >
-              Practice
-            </button>
-          </div>
-        </motion.div>
-
-        {/* Your Vocabulary Card */}
-        <motion.div 
-          variants={{
-            hidden: { opacity: 0, y: 20 },
-            visible: { opacity: 1, y: 0 }
-          }}
-          whileHover={{ y: -5 }}
-          onClick={() => (window as any).setActiveTab('vocabList')}
-          className="bg-[#1a4d5e] p-6 rounded-[2.5rem] shadow-lg flex flex-col justify-center items-center text-center cursor-pointer group"
-        >
-          <h3 className="text-lg font-bold text-white leading-tight group-hover:scale-105 transition-transform">
-            Your Vocabulary
-          </h3>
-          <div className="mt-4 w-12 h-12 bg-white/10 rounded-full flex items-center justify-center">
-            <Library className="w-6 h-6 text-white" />
-          </div>
-        </motion.div>
-
-        {/* Games Card */}
-        <motion.div 
-          variants={{
-            hidden: { opacity: 0, y: 20 },
-            visible: { opacity: 1, y: 0 }
-          }}
-          whileHover={{ y: -5 }}
-          onClick={() => (window as any).setActiveTab('game')}
-          className="bg-white dark:bg-[#1c1917] p-6 rounded-[2.5rem] border border-stone-100 dark:border-stone-800 shadow-sm flex flex-col items-center justify-center relative overflow-hidden cursor-pointer group text-center"
-        >
-          <h3 className="text-lg font-bold text-stone-900 dark:text-stone-100 relative z-10">Games</h3>
-          <div className="mt-4 relative z-10">
-            <div className="w-16 h-16 bg-stone-50 dark:bg-stone-800 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform duration-500">
-              <Gamepad2 className="w-8 h-8 text-stone-400 dark:text-stone-500" />
+          
+          <div className="flex flex-col sm:flex-row items-center md:items-end gap-4 md:gap-2">
+            <div className="flex items-center gap-3">
+              <div className="hidden sm:flex flex-col items-end">
+                <div className="text-xl font-mono font-bold text-stone-900 dark:text-stone-100 tracking-tighter">
+                  {format(currentTime, 'HH:mm:ss')}
+                </div>
+                <div className="text-[8px] font-bold text-stone-400 uppercase tracking-widest">
+                  {format(currentTime, 'EEEE, MMM do')}
+                </div>
+              </div>
+              <div className="hidden sm:block w-px h-8 bg-stone-200 dark:bg-stone-800" />
+              <div className="flex items-center gap-2">
+                <div className="flex flex-col items-end">
+                  <p className="text-[10px] font-bold text-stone-900 dark:text-stone-100">
+                    {streak} Day Streak
+                  </p>
+                  <p className="text-[8px] text-stone-400 uppercase tracking-widest">Current Progress</p>
+                </div>
+                <div className="w-10 h-10 bg-orange-50 dark:bg-orange-900/20 rounded-full flex items-center justify-center border border-orange-100 dark:border-orange-800">
+                  <Flame className="w-5 h-5 text-orange-500 fill-orange-500" />
+                </div>
+              </div>
+            </div>
+            <div className="w-full sm:w-auto p-2 bg-pink-50/50 dark:bg-pink-900/10 rounded-xl border border-pink-100/50 dark:border-pink-900/20 text-center sm:text-right">
+              <p className="text-[9px] text-pink-600 dark:text-pink-400 font-medium">
+                Next: <span className="font-bold italic">Sakura reward</span> 🌸
+              </p>
             </div>
           </div>
-          <div className="absolute -bottom-4 -right-4 w-24 h-24 bg-stone-50 dark:bg-stone-800 rounded-full opacity-50" />
-        </motion.div>
-
-        {/* Sensei Chat Card */}
-        <motion.div 
-          variants={{
-            hidden: { opacity: 0, y: 20 },
-            visible: { opacity: 1, y: 0 }
-          }}
-          whileHover={{ y: -5 }}
-          onClick={() => (window as any).setActiveTab('chatbot')}
-          className="bg-[#075e54] p-6 rounded-[2.5rem] shadow-lg flex flex-col justify-center items-center text-center cursor-pointer group"
-        >
-          <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center mb-2">
-            <Bot className="w-6 h-6 text-white" />
-          </div>
-          <h3 className="text-xs font-bold text-white">Sensei Chat</h3>
-        </motion.div>
-
-        {/* Review & Dictionary */}
-        <motion.div 
-          variants={{
-            hidden: { opacity: 0, y: 20 },
-            visible: { opacity: 1, y: 0 }
-          }}
-          whileHover={{ y: -5 }}
-          onClick={() => (window as any).setActiveTab('flashcards')}
-          className="bg-white dark:bg-[#1c1917] p-6 rounded-[2.5rem] border border-stone-100 dark:border-stone-800 shadow-sm flex flex-col justify-center items-center text-center cursor-pointer group"
-        >
-          <Layers className="w-6 h-6 text-stone-400 dark:text-stone-500 mb-2" />
-          <h3 className="text-xs font-bold text-stone-900 dark:text-stone-100">Review</h3>
-        </motion.div>
-
-        <motion.div 
-          variants={{
-            hidden: { opacity: 0, y: 20 },
-            visible: { opacity: 1, y: 0 }
-          }}
-          whileHover={{ y: -5 }}
-          onClick={() => (window as any).setActiveTab('dictionary')}
-          className="bg-white dark:bg-[#1c1917] p-6 rounded-[2.5rem] border border-stone-100 dark:border-stone-800 shadow-sm flex flex-col justify-center items-center text-center cursor-pointer group"
-        >
-          <Search className="w-6 h-6 text-stone-400 dark:text-stone-500 mb-2" />
-          <h3 className="text-xs font-bold text-stone-900 dark:text-stone-100">Dictionary</h3>
-        </motion.div>
-
-        {/* Overview Japan Card */}
-        <motion.div 
-          variants={{
-            hidden: { opacity: 0, y: 20 },
-            visible: { opacity: 1, y: 0 }
-          }}
-          whileHover={{ y: -5 }}
-          onClick={() => (window as any).setActiveTab('japanHub')}
-          className="bg-[#f5f2ed] dark:bg-[#292524] p-6 rounded-[2.5rem] border border-stone-100 dark:border-stone-800 shadow-sm flex flex-col justify-center items-center text-center cursor-pointer group"
-        >
-          <CloudSun className="w-6 h-6 text-stone-400 mb-2" />
-          <h3 className="text-xs font-bold text-stone-900 dark:text-stone-100">Overview Japan</h3>
-        </motion.div>
-
-        {/* Image Sensei Card */}
-        <motion.div 
-          variants={{
-            hidden: { opacity: 0, y: 20 },
-            visible: { opacity: 1, y: 0 }
-          }}
-          whileHover={{ y: -5 }}
-          onClick={() => (window as any).setActiveTab('imageAnalyzer')}
-          className="bg-white dark:bg-[#1c1917] p-6 rounded-[2.5rem] border border-stone-100 dark:border-stone-800 shadow-sm flex flex-col justify-center items-center text-center cursor-pointer group"
-        >
-          <Camera className="w-6 h-6 text-stone-400 mb-2" />
-          <h3 className="text-xs font-bold text-stone-900 dark:text-stone-100">Image Sensei</h3>
-        </motion.div>
-      </motion.div>
+        </div>
+      </div>
     </div>
   );
 };
@@ -2968,6 +3140,18 @@ const Dictionary = () => {
   const [result, setResult] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [showCommon, setShowCommon] = useState(true);
+
+  useEffect(() => {
+    const pendingSearch = localStorage.getItem('komorebi_search_query');
+    if (pendingSearch) {
+      setQuery(pendingSearch);
+      localStorage.removeItem('komorebi_search_query');
+      // Trigger search after a short delay to ensure component is ready
+      setTimeout(() => {
+        handleSearch();
+      }, 100);
+    }
+  }, []);
   const [discovering, setDiscovering] = useState(false);
   const [savingWord, setSavingWord] = useState<string | null>(null);
   const { play, loading: ttsLoading } = useTTSContext();
@@ -3582,6 +3766,17 @@ const Settings = ({ vocab }: { vocab: Vocabulary[] }) => {
 
   const avatars = ['🦊', '🐱', '🐶', '🐼', '🐨', '🦁', '🐯', '🐸', '🐵', '🦉'];
 
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setAvatar(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   const handleUpdateApiSettings = async (updates: Partial<UserProfile['apiSettings']>) => {
     try {
       const currentSettings = profile?.apiSettings || { mode: 'universal', universalKeys: profile?.apiKeys || [] };
@@ -3928,13 +4123,134 @@ const Settings = ({ vocab }: { vocab: Vocabulary[] }) => {
   };
 
   return (
-    <div className="max-w-2xl mx-auto space-y-10 pb-12">
-      <div>
-        <h2 className="text-4xl font-editorial italic text-stone-900 dark:text-stone-100 mb-2">Settings</h2>
-        <p className="text-stone-500 dark:text-stone-400 font-serif italic">Personalize your learning experience.</p>
-      </div>
+    <div className="max-w-2xl mx-auto space-y-10 pb-12 px-4">
+      <div className="space-y-10">
+        {/* Profile Settings */}
+        <section className="space-y-6">
+          <div className="flex items-center justify-between px-2">
+            <h3 className="text-sm font-bold uppercase tracking-widest text-stone-400 dark:text-stone-500">Profile Settings</h3>
+          </div>
+          
+          <div className="p-6 bg-white dark:bg-stone-900 rounded-[2.5rem] border border-stone-100 dark:border-stone-800 shadow-sm space-y-6">
+            <div className="space-y-6">
+              <div className="flex flex-col items-center gap-4">
+                <div className="relative group">
+                  <div className="w-24 h-24 rounded-full border-4 border-white dark:border-stone-800 shadow-xl overflow-hidden bg-stone-100 dark:bg-stone-800 flex items-center justify-center">
+                    {avatar.startsWith('data:image') ? (
+                      <img src={avatar} alt="Avatar" className="w-full h-full object-cover" />
+                    ) : (
+                      <span className="text-4xl">{avatar}</span>
+                    )}
+                  </div>
+                  <label className="absolute bottom-0 right-0 p-2 bg-stone-900 dark:bg-stone-100 text-white dark:text-stone-900 rounded-full shadow-lg cursor-pointer hover:scale-110 transition-all">
+                    <Camera className="w-4 h-4" />
+                    <input type="file" accept="image/*" onChange={handleImageUpload} className="hidden" />
+                  </label>
+                </div>
+                <div className="flex flex-wrap justify-center gap-2">
+                  {avatars.map(a => (
+                    <button
+                      key={a}
+                      onClick={() => setAvatar(a)}
+                      className={cn(
+                        "w-10 h-10 rounded-full flex items-center justify-center text-xl transition-all",
+                        avatar === a ? "bg-stone-900 dark:bg-stone-100 text-white dark:text-stone-900 scale-110" : "bg-stone-50 dark:bg-stone-800 hover:bg-stone-100 dark:hover:bg-stone-700"
+                      )}
+                    >
+                      {a}
+                    </button>
+                  ))}
+                </div>
+              </div>
 
-      <div className="space-y-6">
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-bold text-stone-400 uppercase tracking-widest px-1">Display Name</label>
+                  <input
+                    type="text"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    placeholder="Your Name"
+                    className="w-full p-4 bg-stone-50 dark:bg-stone-800 rounded-2xl border border-stone-100 dark:border-stone-800 text-stone-900 dark:text-stone-100 outline-none focus:ring-2 focus:ring-[#f2a93b]/20 transition-all"
+                  />
+                </div>
+
+              <div className="space-y-2">
+                <div className="flex justify-between px-1">
+                  <label className="text-[10px] font-bold text-stone-400 uppercase tracking-widest">Daily Word Goal</label>
+                  <span className="text-xs font-bold text-[#f2a93b]">{dailyGoal} words</span>
+                </div>
+                <input
+                  type="range"
+                  min="1"
+                  max="50"
+                  value={dailyGoal}
+                  onChange={(e) => setDailyGoal(Number(e.target.value))}
+                  className="w-full h-2 bg-stone-100 dark:bg-stone-800 rounded-lg appearance-none cursor-pointer accent-[#f2a93b]"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-[10px] font-bold text-stone-400 uppercase tracking-widest px-1">App Theme</label>
+                <div className="grid grid-cols-3 gap-3">
+                  {[
+                    { id: 'light', label: 'Light', icon: Sun },
+                    { id: 'dark', label: 'Dark', icon: Moon },
+                    { id: 'system', label: 'System', icon: Monitor },
+                  ].map(t => (
+                    <button
+                      key={t.id}
+                      onClick={() => setTheme(t.id as any)}
+                      className={cn(
+                        "flex flex-col items-center gap-2 p-3 rounded-2xl border transition-all",
+                        theme === t.id 
+                          ? "bg-[#f2a93b]/10 border-[#f2a93b] text-[#f2a93b]" 
+                          : "bg-stone-50 dark:bg-stone-800 border-stone-100 dark:border-stone-800 text-stone-400"
+                      )}
+                    >
+                      <t.icon className="w-4 h-4" />
+                      <span className="text-[10px] font-bold uppercase tracking-widest">{t.label}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between p-4 bg-stone-50 dark:bg-stone-800 rounded-2xl border border-stone-100 dark:border-stone-800">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-white dark:bg-stone-900 rounded-xl">
+                  <Bell className="w-4 h-4 text-stone-400" />
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-xs font-bold text-stone-900 dark:text-stone-100">Notifications</span>
+                  <span className="text-[10px] text-stone-500">Daily reminders and alerts</span>
+                </div>
+              </div>
+              <button
+                onClick={() => setNotificationsEnabled(!notificationsEnabled)}
+                className={cn(
+                  "w-10 h-5 rounded-full transition-colors relative",
+                  notificationsEnabled ? "bg-[#f2a93b]" : "bg-stone-300 dark:bg-stone-700"
+                )}
+              >
+                <div className={cn(
+                  "absolute top-1 w-3 h-3 bg-white rounded-full transition-all",
+                  notificationsEnabled ? "left-6" : "left-1"
+                )} />
+              </button>
+            </div>
+
+            <button
+              onClick={handleSaveProfile}
+              disabled={saving}
+              className="w-full bg-stone-900 dark:bg-stone-100 text-white dark:text-stone-900 py-4 rounded-2xl font-bold text-sm shadow-xl hover:scale-[1.02] transition-all disabled:opacity-50"
+            >
+              {saving ? 'Saving...' : 'Save Profile Changes'}
+            </button>
+          </div>
+        </div>
+      </section>
+
         <section className="space-y-6">
           <h3 className="text-sm font-bold uppercase tracking-widest text-stone-400 dark:text-stone-500">AI & API Settings</h3>
           <div className="p-4 md:p-6 bg-stone-50 dark:bg-stone-800/50 rounded-[2rem] border border-stone-100 dark:border-stone-800 space-y-6">
@@ -3996,73 +4312,96 @@ const Settings = ({ vocab }: { vocab: Vocabulary[] }) => {
                 </div>
                 <div className="space-y-4">
                   {(profile?.apiSettings?.structuredKeys?.universal || (profile?.apiSettings?.universalKeys || profile?.apiKeys || ['']).map(k => ({ key: k, provider: 'gemini' }))).map((keyObj: any, idx: number) => (
-                    <div key={idx} className="space-y-2 p-3 md:p-4 bg-white dark:bg-stone-900 rounded-2xl border border-stone-100 dark:border-stone-800">
-                      <div className="flex items-center gap-2">
-                        <select 
-                          value={keyObj.provider}
-                          onChange={(e) => handleKeyChange('universal', idx, 'provider', e.target.value)}
-                          className="w-20 md:w-24 p-2 bg-stone-50 dark:bg-stone-800 rounded-xl text-[9px] md:text-[10px] font-bold uppercase tracking-widest border border-stone-100 dark:border-stone-800 outline-none shrink-0"
-                        >
-                          <option value="gemini">Gemini</option>
-                          <option value="openai">OpenAI</option>
-                          <option value="anthropic">Anthropic</option>
-                          <option value="openrouter">OpenRouter</option>
-                          <option value="huggingface">Hugging Face</option>
-                          <option value="groq">Groq</option>
-                          <option value="mistral">Mistral</option>
-                          <option value="cohere">Cohere</option>
-                          <option value="deepseek">DeepSeek</option>
-                          <option value="together">Together AI</option>
-                          <option value="perplexity">Perplexity</option>
-                          <option value="xai">xAI (Grok)</option>
-                          <option value="ollama">Ollama</option>
-                          <option value="custom">Custom...</option>
-                        </select>
-                        {/* Model Selector */}
-                        {AI_MODELS[keyObj.provider.toLowerCase()] && (
+                    <div className="space-y-4 p-4 bg-stone-50 dark:bg-stone-800/50 rounded-2xl border border-stone-100 dark:border-stone-800">
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-1">
+                          <label className="text-[9px] font-bold text-stone-400 uppercase tracking-widest px-1">Provider</label>
                           <select 
-                            value={keyObj.model || AI_MODELS[keyObj.provider.toLowerCase()][0].id}
-                            onChange={(e) => handleKeyChange('universal', idx, 'model', e.target.value)}
-                            className="w-24 md:w-32 p-2 bg-stone-50 dark:bg-stone-800 rounded-xl text-[9px] md:text-[10px] font-bold uppercase tracking-widest border border-stone-100 dark:border-stone-800 outline-none shrink-0"
+                            value={keyObj.provider}
+                            onChange={(e) => handleKeyChange('universal', idx, 'provider', e.target.value)}
+                            className="w-full p-2.5 bg-white dark:bg-stone-900 rounded-xl text-[10px] font-bold uppercase tracking-widest border border-stone-100 dark:border-stone-800 outline-none"
                           >
-                            {AI_MODELS[keyObj.provider.toLowerCase()].map((m: any) => (
-                              <option key={m.id} value={m.id}>{m.name}</option>
-                            ))}
+                            <option value="gemini">Gemini</option>
+                            <option value="openai">OpenAI</option>
+                            <option value="anthropic">Anthropic</option>
+                            <option value="openrouter">OpenRouter</option>
+                            <option value="huggingface">Hugging Face</option>
+                            <option value="groq">Groq</option>
+                            <option value="mistral">Mistral</option>
+                            <option value="cohere">Cohere</option>
+                            <option value="deepseek">DeepSeek</option>
+                            <option value="together">Together AI</option>
+                            <option value="perplexity">Perplexity</option>
+                            <option value="xai">xAI (Grok)</option>
+                            <option value="ollama">Ollama</option>
+                            <option value="custom">Custom...</option>
                           </select>
+                        </div>
+                        {AI_MODELS[keyObj.provider.toLowerCase()] && (
+                          <div className="space-y-1">
+                            <label className="text-[9px] font-bold text-stone-400 uppercase tracking-widest px-1">Model</label>
+                            <select 
+                              value={keyObj.model || AI_MODELS[keyObj.provider.toLowerCase()][0].id}
+                              onChange={(e) => handleKeyChange('universal', idx, 'model', e.target.value)}
+                              className="w-full p-2.5 bg-white dark:bg-stone-900 rounded-xl text-[10px] font-bold uppercase tracking-widest border border-stone-100 dark:border-stone-800 outline-none"
+                            >
+                              {AI_MODELS[keyObj.provider.toLowerCase()].map((m: any) => (
+                                <option key={m.id} value={m.id}>{m.name}</option>
+                              ))}
+                            </select>
+                          </div>
                         )}
-                        <input 
-                          type="password"
-                          value={keyObj.key}
-                          onChange={(e) => handleKeyChange('universal', idx, 'key', e.target.value)}
-                          className="flex-1 min-w-0 p-2 bg-stone-50 dark:bg-stone-800 rounded-xl text-xs font-mono border border-stone-100 dark:border-stone-800 text-stone-900 dark:text-stone-100 outline-none"
-                          placeholder="API Key..."
-                        />
-                        <button 
-                          onClick={() => handleTestAI({ key: keyObj.key, provider: keyObj.provider, baseUrl: keyObj.baseUrl, customProvider: keyObj.customProvider })}
-                          className="p-1 text-stone-400 hover:text-stone-600 shrink-0"
-                          title="Test this key"
-                        >
-                          <PlayCircle className="w-4 h-4" />
-                        </button>
-                        <button onClick={() => handleRemoveKey('universal', idx)} className="p-1 text-red-400 hover:text-red-600 shrink-0"><XCircle className="w-4 h-4" /></button>
                       </div>
+                      
+                      <div className="space-y-1">
+                        <label className="text-[9px] font-bold text-stone-400 uppercase tracking-widest px-1">API Key</label>
+                        <div className="flex items-center gap-2">
+                          <input 
+                            type="password"
+                            value={keyObj.key}
+                            onChange={(e) => handleKeyChange('universal', idx, 'key', e.target.value)}
+                            className="flex-1 p-2.5 bg-white dark:bg-stone-900 rounded-xl text-xs font-mono border border-stone-100 dark:border-stone-800 text-stone-900 dark:text-stone-100 outline-none"
+                            placeholder="Enter API Key here..."
+                          />
+                          <button 
+                            onClick={() => handleTestAI({ key: keyObj.key, provider: keyObj.provider, baseUrl: keyObj.baseUrl, customProvider: keyObj.customProvider })}
+                            className="p-2 bg-white dark:bg-stone-900 rounded-xl border border-stone-100 dark:border-stone-800 text-stone-400 hover:text-stone-600 shrink-0"
+                            title="Test this key"
+                          >
+                            <PlayCircle className="w-4 h-4" />
+                          </button>
+                          <button 
+                            onClick={() => handleRemoveKey('universal', idx)} 
+                            className="p-2 bg-white dark:bg-stone-900 rounded-xl border border-stone-100 dark:border-stone-800 text-red-400 hover:text-red-600 shrink-0"
+                          >
+                            <XCircle className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+
                       {keyObj.provider === 'custom' && (
-                        <input 
-                          type="text"
-                          value={keyObj.customProvider || ''}
-                          onChange={(e) => handleKeyChange('universal', idx, 'customProvider', e.target.value)}
-                          className="w-full p-2 bg-stone-50 dark:bg-stone-800 rounded-xl text-[10px] font-mono border border-stone-100 dark:border-stone-800 text-stone-900 dark:text-stone-100 outline-none"
-                          placeholder="Provider Name (e.g. TogetherAI)..."
-                        />
+                        <div className="space-y-1">
+                          <label className="text-[9px] font-bold text-stone-400 uppercase tracking-widest px-1">Provider Name</label>
+                          <input 
+                            type="text"
+                            value={keyObj.customProvider || ''}
+                            onChange={(e) => handleKeyChange('universal', idx, 'customProvider', e.target.value)}
+                            className="w-full p-2.5 bg-white dark:bg-stone-900 rounded-xl text-[10px] font-mono border border-stone-100 dark:border-stone-800 text-stone-900 dark:text-stone-100 outline-none"
+                            placeholder="e.g. TogetherAI"
+                          />
+                        </div>
                       )}
                       {keyObj.provider !== 'gemini' && (
-                        <input 
-                          type="text"
-                          value={keyObj.baseUrl || ''}
-                          onChange={(e) => handleKeyChange('universal', idx, 'baseUrl', e.target.value)}
-                          className="w-full p-2 bg-stone-50 dark:bg-stone-800 rounded-xl text-[10px] font-mono border border-stone-100 dark:border-stone-800 text-stone-900 dark:text-stone-100 outline-none"
-                          placeholder="Base URL (optional)..."
-                        />
+                        <div className="space-y-1">
+                          <label className="text-[9px] font-bold text-stone-400 uppercase tracking-widest px-1">Base URL (Optional)</label>
+                          <input 
+                            type="text"
+                            value={keyObj.baseUrl || ''}
+                            onChange={(e) => handleKeyChange('universal', idx, 'baseUrl', e.target.value)}
+                            className="w-full p-2.5 bg-white dark:bg-stone-900 rounded-xl text-[10px] font-mono border border-stone-100 dark:border-stone-800 text-stone-900 dark:text-stone-100 outline-none"
+                            placeholder="https://api.example.com/v1"
+                          />
+                        </div>
                       )}
                     </div>
                   ))}
@@ -4081,74 +4420,67 @@ const Settings = ({ vocab }: { vocab: Vocabulary[] }) => {
                   </div>
                   <div className="space-y-4">
                     {(profile?.apiSettings?.structuredKeys?.translation || (profile?.apiSettings?.translationKeys || ['']).map(k => ({ key: k, provider: 'gemini' }))).map((keyObj: any, idx: number) => (
-                      <div key={idx} className="space-y-2 p-3 md:p-4 bg-white dark:bg-stone-900 rounded-2xl border border-stone-100 dark:border-stone-800">
-                        <div className="flex items-center gap-2">
-                          <select 
-                            value={keyObj.provider}
-                            onChange={(e) => handleKeyChange('translation', idx, 'provider', e.target.value)}
-                            className="w-20 md:w-24 p-2 bg-stone-50 dark:bg-stone-800 rounded-xl text-[9px] md:text-[10px] font-bold uppercase tracking-widest border border-stone-100 dark:border-stone-800 outline-none shrink-0"
-                          >
-                            <option value="gemini">Gemini</option>
-                            <option value="openai">OpenAI</option>
-                            <option value="anthropic">Anthropic</option>
-                            <option value="openrouter">OpenRouter</option>
-                            <option value="huggingface">Hugging Face</option>
-                            <option value="groq">Groq</option>
-                            <option value="mistral">Mistral</option>
-                            <option value="cohere">Cohere</option>
-                            <option value="deepseek">DeepSeek</option>
-                            <option value="together">Together AI</option>
-                            <option value="perplexity">Perplexity</option>
-                            <option value="xai">xAI (Grok)</option>
-                            <option value="ollama">Ollama</option>
-                            <option value="custom">Custom...</option>
-                          </select>
-                          {/* Model Selector */}
-                          {AI_MODELS[keyObj.provider.toLowerCase()] && (
+                      <div key={idx} className="space-y-4 p-4 bg-stone-50 dark:bg-stone-800/50 rounded-2xl border border-stone-100 dark:border-stone-800">
+                        <div className="grid grid-cols-2 gap-3">
+                          <div className="space-y-1">
+                            <label className="text-[9px] font-bold text-stone-400 uppercase tracking-widest px-1">Provider</label>
                             <select 
-                              value={keyObj.model || AI_MODELS[keyObj.provider.toLowerCase()][0].id}
-                              onChange={(e) => handleKeyChange('translation', idx, 'model', e.target.value)}
-                              className="w-24 md:w-32 p-2 bg-stone-50 dark:bg-stone-800 rounded-xl text-[9px] md:text-[10px] font-bold uppercase tracking-widest border border-stone-100 dark:border-stone-800 outline-none shrink-0"
+                              value={keyObj.provider}
+                              onChange={(e) => handleKeyChange('translation', idx, 'provider', e.target.value)}
+                              className="w-full p-2.5 bg-white dark:bg-stone-900 rounded-xl text-[10px] font-bold uppercase tracking-widest border border-stone-100 dark:border-stone-800 outline-none"
                             >
-                              {AI_MODELS[keyObj.provider.toLowerCase()].map((m: any) => (
-                                <option key={m.id} value={m.id}>{m.name}</option>
-                              ))}
+                              <option value="gemini">Gemini</option>
+                              <option value="openai">OpenAI</option>
+                              <option value="anthropic">Anthropic</option>
+                              <option value="openrouter">OpenRouter</option>
+                              <option value="huggingface">Hugging Face</option>
+                              <option value="groq">Groq</option>
+                              <option value="mistral">Mistral</option>
+                              <option value="cohere">Cohere</option>
+                              <option value="deepseek">DeepSeek</option>
+                              <option value="together">Together AI</option>
+                              <option value="perplexity">Perplexity</option>
+                              <option value="xai">xAI (Grok)</option>
+                              <option value="ollama">Ollama</option>
+                              <option value="custom">Custom...</option>
                             </select>
+                          </div>
+                          {AI_MODELS[keyObj.provider.toLowerCase()] && (
+                            <div className="space-y-1">
+                              <label className="text-[9px] font-bold text-stone-400 uppercase tracking-widest px-1">Model</label>
+                              <select 
+                                value={keyObj.model || AI_MODELS[keyObj.provider.toLowerCase()][0].id}
+                                onChange={(e) => handleKeyChange('translation', idx, 'model', e.target.value)}
+                                className="w-full p-2.5 bg-white dark:bg-stone-900 rounded-xl text-[10px] font-bold uppercase tracking-widest border border-stone-100 dark:border-stone-800 outline-none"
+                              >
+                                {AI_MODELS[keyObj.provider.toLowerCase()].map((m: any) => (
+                                  <option key={m.id} value={m.id}>{m.name}</option>
+                                ))}
+                              </select>
+                            </div>
                           )}
-                          <input 
-                            type="password"
-                            value={keyObj.key}
-                            onChange={(e) => handleKeyChange('translation', idx, 'key', e.target.value)}
-                            className="flex-1 min-w-0 p-2 bg-stone-50 dark:bg-stone-800 rounded-xl text-xs font-mono border border-stone-100 dark:border-stone-800 text-stone-900 dark:text-stone-100 outline-none"
-                            placeholder="API Key..."
-                          />
-                          <button 
-                            onClick={() => handleTestAI({ key: keyObj.key, provider: keyObj.provider, baseUrl: keyObj.baseUrl, customProvider: keyObj.customProvider })}
-                            className="p-1 text-stone-400 hover:text-stone-600 shrink-0"
-                            title="Test this key"
-                          >
-                            <PlayCircle className="w-4 h-4" />
-                          </button>
-                          <button onClick={() => handleRemoveKey('translation', idx)} className="p-1 text-red-400 hover:text-red-600 shrink-0"><XCircle className="w-4 h-4" /></button>
                         </div>
-                        {keyObj.provider === 'custom' && (
-                          <input 
-                            type="text"
-                            value={keyObj.customProvider || ''}
-                            onChange={(e) => handleKeyChange('translation', idx, 'customProvider', e.target.value)}
-                            className="w-full p-2 bg-stone-50 dark:bg-stone-800 rounded-xl text-[10px] font-mono border border-stone-100 dark:border-stone-800 text-stone-900 dark:text-stone-100 outline-none"
-                            placeholder="Provider Name (e.g. TogetherAI)..."
-                          />
-                        )}
-                        {keyObj.provider !== 'gemini' && (
-                          <input 
-                            type="text"
-                            value={keyObj.baseUrl || ''}
-                            onChange={(e) => handleKeyChange('translation', idx, 'baseUrl', e.target.value)}
-                            className="w-full p-2 bg-stone-50 dark:bg-stone-800 rounded-xl text-[10px] font-mono border border-stone-100 dark:border-stone-800 text-stone-900 dark:text-stone-100 outline-none"
-                            placeholder="Base URL (optional)..."
-                          />
-                        )}
+                        
+                        <div className="space-y-1">
+                          <label className="text-[9px] font-bold text-stone-400 uppercase tracking-widest px-1">API Key</label>
+                          <div className="flex items-center gap-2">
+                            <input 
+                              type="password"
+                              value={keyObj.key}
+                              onChange={(e) => handleKeyChange('translation', idx, 'key', e.target.value)}
+                              className="flex-1 p-2.5 bg-white dark:bg-stone-900 rounded-xl text-xs font-mono border border-stone-100 dark:border-stone-800 text-stone-900 dark:text-stone-100 outline-none"
+                              placeholder="Enter API Key here..."
+                            />
+                            <button 
+                              onClick={() => handleTestAI({ key: keyObj.key, provider: keyObj.provider, baseUrl: keyObj.baseUrl, customProvider: keyObj.customProvider })}
+                              className="p-2 bg-white dark:bg-stone-900 rounded-xl border border-stone-100 dark:border-stone-800 text-stone-400 hover:text-stone-600 shrink-0"
+                              title="Test this key"
+                            >
+                              <PlayCircle className="w-4 h-4" />
+                            </button>
+                            <button onClick={() => handleRemoveKey('translation', idx)} className="p-2 bg-white dark:bg-stone-900 rounded-xl border border-stone-100 dark:border-stone-800 text-red-400 hover:text-red-600 shrink-0"><XCircle className="w-4 h-4" /></button>
+                          </div>
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -4162,74 +4494,67 @@ const Settings = ({ vocab }: { vocab: Vocabulary[] }) => {
                   </div>
                   <div className="space-y-4">
                     {(profile?.apiSettings?.structuredKeys?.sensei || (profile?.apiSettings?.senseiKeys || ['']).map(k => ({ key: k, provider: 'gemini' }))).map((keyObj: any, idx: number) => (
-                      <div key={idx} className="space-y-2 p-3 md:p-4 bg-white dark:bg-stone-900 rounded-2xl border border-stone-100 dark:border-stone-800">
-                        <div className="flex items-center gap-2">
-                          <select 
-                            value={keyObj.provider}
-                            onChange={(e) => handleKeyChange('sensei', idx, 'provider', e.target.value)}
-                            className="w-20 md:w-24 p-2 bg-stone-50 dark:bg-stone-800 rounded-xl text-[9px] md:text-[10px] font-bold uppercase tracking-widest border border-stone-100 dark:border-stone-800 outline-none shrink-0"
-                          >
-                            <option value="gemini">Gemini</option>
-                            <option value="openai">OpenAI</option>
-                            <option value="anthropic">Anthropic</option>
-                            <option value="openrouter">OpenRouter</option>
-                            <option value="huggingface">Hugging Face</option>
-                            <option value="groq">Groq</option>
-                            <option value="mistral">Mistral</option>
-                            <option value="cohere">Cohere</option>
-                            <option value="deepseek">DeepSeek</option>
-                            <option value="together">Together AI</option>
-                            <option value="perplexity">Perplexity</option>
-                            <option value="xai">xAI (Grok)</option>
-                            <option value="ollama">Ollama</option>
-                            <option value="custom">Custom...</option>
-                          </select>
-                          {/* Model Selector */}
-                          {AI_MODELS[keyObj.provider.toLowerCase()] && (
+                      <div key={idx} className="space-y-4 p-4 bg-stone-50 dark:bg-stone-800/50 rounded-2xl border border-stone-100 dark:border-stone-800">
+                        <div className="grid grid-cols-2 gap-3">
+                          <div className="space-y-1">
+                            <label className="text-[9px] font-bold text-stone-400 uppercase tracking-widest px-1">Provider</label>
                             <select 
-                              value={keyObj.model || AI_MODELS[keyObj.provider.toLowerCase()][0].id}
-                              onChange={(e) => handleKeyChange('sensei', idx, 'model', e.target.value)}
-                              className="w-24 md:w-32 p-2 bg-stone-50 dark:bg-stone-800 rounded-xl text-[9px] md:text-[10px] font-bold uppercase tracking-widest border border-stone-100 dark:border-stone-800 outline-none shrink-0"
+                              value={keyObj.provider}
+                              onChange={(e) => handleKeyChange('sensei', idx, 'provider', e.target.value)}
+                              className="w-full p-2.5 bg-white dark:bg-stone-900 rounded-xl text-[10px] font-bold uppercase tracking-widest border border-stone-100 dark:border-stone-800 outline-none"
                             >
-                              {AI_MODELS[keyObj.provider.toLowerCase()].map((m: any) => (
-                                <option key={m.id} value={m.id}>{m.name}</option>
-                              ))}
+                              <option value="gemini">Gemini</option>
+                              <option value="openai">OpenAI</option>
+                              <option value="anthropic">Anthropic</option>
+                              <option value="openrouter">OpenRouter</option>
+                              <option value="huggingface">Hugging Face</option>
+                              <option value="groq">Groq</option>
+                              <option value="mistral">Mistral</option>
+                              <option value="cohere">Cohere</option>
+                              <option value="deepseek">DeepSeek</option>
+                              <option value="together">Together AI</option>
+                              <option value="perplexity">Perplexity</option>
+                              <option value="xai">xAI (Grok)</option>
+                              <option value="ollama">Ollama</option>
+                              <option value="custom">Custom...</option>
                             </select>
+                          </div>
+                          {AI_MODELS[keyObj.provider.toLowerCase()] && (
+                            <div className="space-y-1">
+                              <label className="text-[9px] font-bold text-stone-400 uppercase tracking-widest px-1">Model</label>
+                              <select 
+                                value={keyObj.model || AI_MODELS[keyObj.provider.toLowerCase()][0].id}
+                                onChange={(e) => handleKeyChange('sensei', idx, 'model', e.target.value)}
+                                className="w-full p-2.5 bg-white dark:bg-stone-900 rounded-xl text-[10px] font-bold uppercase tracking-widest border border-stone-100 dark:border-stone-800 outline-none"
+                              >
+                                {AI_MODELS[keyObj.provider.toLowerCase()].map((m: any) => (
+                                  <option key={m.id} value={m.id}>{m.name}</option>
+                                ))}
+                              </select>
+                            </div>
                           )}
-                          <input 
-                            type="password"
-                            value={keyObj.key}
-                            onChange={(e) => handleKeyChange('sensei', idx, 'key', e.target.value)}
-                            className="flex-1 min-w-0 p-2 bg-stone-50 dark:bg-stone-800 rounded-xl text-xs font-mono border border-stone-100 dark:border-stone-800 text-stone-900 dark:text-stone-100 outline-none"
-                            placeholder="API Key..."
-                          />
-                          <button 
-                            onClick={() => handleTestAI({ key: keyObj.key, provider: keyObj.provider, baseUrl: keyObj.baseUrl, customProvider: keyObj.customProvider })}
-                            className="p-1 text-stone-400 hover:text-stone-600 shrink-0"
-                            title="Test this key"
-                          >
-                            <PlayCircle className="w-4 h-4" />
-                          </button>
-                          <button onClick={() => handleRemoveKey('sensei', idx)} className="p-1 text-red-400 hover:text-red-600 shrink-0"><XCircle className="w-4 h-4" /></button>
                         </div>
-                        {keyObj.provider === 'custom' && (
-                          <input 
-                            type="text"
-                            value={keyObj.customProvider || ''}
-                            onChange={(e) => handleKeyChange('sensei', idx, 'customProvider', e.target.value)}
-                            className="w-full p-2 bg-stone-50 dark:bg-stone-800 rounded-xl text-[10px] font-mono border border-stone-100 dark:border-stone-800 text-stone-900 dark:text-stone-100 outline-none"
-                            placeholder="Provider Name (e.g. TogetherAI)..."
-                          />
-                        )}
-                        {keyObj.provider !== 'gemini' && (
-                          <input 
-                            type="text"
-                            value={keyObj.baseUrl || ''}
-                            onChange={(e) => handleKeyChange('sensei', idx, 'baseUrl', e.target.value)}
-                            className="w-full p-2 bg-stone-50 dark:bg-stone-800 rounded-xl text-[10px] font-mono border border-stone-100 dark:border-stone-800 text-stone-900 dark:text-stone-100 outline-none"
-                            placeholder="Base URL (optional)..."
-                          />
-                        )}
+                        
+                        <div className="space-y-1">
+                          <label className="text-[9px] font-bold text-stone-400 uppercase tracking-widest px-1">API Key</label>
+                          <div className="flex items-center gap-2">
+                            <input 
+                              type="password"
+                              value={keyObj.key}
+                              onChange={(e) => handleKeyChange('sensei', idx, 'key', e.target.value)}
+                              className="flex-1 p-2.5 bg-white dark:bg-stone-900 rounded-xl text-xs font-mono border border-stone-100 dark:border-stone-800 text-stone-900 dark:text-stone-100 outline-none"
+                              placeholder="Enter API Key here..."
+                            />
+                            <button 
+                              onClick={() => handleTestAI({ key: keyObj.key, provider: keyObj.provider, baseUrl: keyObj.baseUrl, customProvider: keyObj.customProvider })}
+                              className="p-2 bg-white dark:bg-stone-900 rounded-xl border border-stone-100 dark:border-stone-800 text-stone-400 hover:text-stone-600 shrink-0"
+                              title="Test this key"
+                            >
+                              <PlayCircle className="w-4 h-4" />
+                            </button>
+                            <button onClick={() => handleRemoveKey('sensei', idx)} className="p-2 bg-white dark:bg-stone-900 rounded-xl border border-stone-100 dark:border-stone-800 text-red-400 hover:text-red-600 shrink-0"><XCircle className="w-4 h-4" /></button>
+                          </div>
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -4243,74 +4568,67 @@ const Settings = ({ vocab }: { vocab: Vocabulary[] }) => {
                   </div>
                   <div className="space-y-4">
                     {(profile?.apiSettings?.structuredKeys?.dictionary || (profile?.apiSettings?.dictionaryKeys || ['']).map(k => ({ key: k, provider: 'gemini' }))).map((keyObj: any, idx: number) => (
-                      <div key={idx} className="space-y-2 p-3 md:p-4 bg-white dark:bg-stone-900 rounded-2xl border border-stone-100 dark:border-stone-800">
-                        <div className="flex items-center gap-2">
-                          <select 
-                            value={keyObj.provider}
-                            onChange={(e) => handleKeyChange('dictionary', idx, 'provider', e.target.value)}
-                            className="w-20 md:w-24 p-2 bg-stone-50 dark:bg-stone-800 rounded-xl text-[9px] md:text-[10px] font-bold uppercase tracking-widest border border-stone-100 dark:border-stone-800 outline-none shrink-0"
-                          >
-                            <option value="gemini">Gemini</option>
-                            <option value="openai">OpenAI</option>
-                            <option value="anthropic">Anthropic</option>
-                            <option value="openrouter">OpenRouter</option>
-                            <option value="huggingface">Hugging Face</option>
-                            <option value="groq">Groq</option>
-                            <option value="mistral">Mistral</option>
-                            <option value="cohere">Cohere</option>
-                            <option value="deepseek">DeepSeek</option>
-                            <option value="together">Together AI</option>
-                            <option value="perplexity">Perplexity</option>
-                            <option value="xai">xAI (Grok)</option>
-                            <option value="ollama">Ollama</option>
-                            <option value="custom">Custom...</option>
-                          </select>
-                          {/* Model Selector */}
-                          {AI_MODELS[keyObj.provider.toLowerCase()] && (
+                      <div key={idx} className="space-y-4 p-4 bg-stone-50 dark:bg-stone-800/50 rounded-2xl border border-stone-100 dark:border-stone-800">
+                        <div className="grid grid-cols-2 gap-3">
+                          <div className="space-y-1">
+                            <label className="text-[9px] font-bold text-stone-400 uppercase tracking-widest px-1">Provider</label>
                             <select 
-                              value={keyObj.model || AI_MODELS[keyObj.provider.toLowerCase()][0].id}
-                              onChange={(e) => handleKeyChange('dictionary', idx, 'model', e.target.value)}
-                              className="w-24 md:w-32 p-2 bg-stone-50 dark:bg-stone-800 rounded-xl text-[9px] md:text-[10px] font-bold uppercase tracking-widest border border-stone-100 dark:border-stone-800 outline-none shrink-0"
+                              value={keyObj.provider}
+                              onChange={(e) => handleKeyChange('dictionary', idx, 'provider', e.target.value)}
+                              className="w-full p-2.5 bg-white dark:bg-stone-900 rounded-xl text-[10px] font-bold uppercase tracking-widest border border-stone-100 dark:border-stone-800 outline-none"
                             >
-                              {AI_MODELS[keyObj.provider.toLowerCase()].map((m: any) => (
-                                <option key={m.id} value={m.id}>{m.name}</option>
-                              ))}
+                              <option value="gemini">Gemini</option>
+                              <option value="openai">OpenAI</option>
+                              <option value="anthropic">Anthropic</option>
+                              <option value="openrouter">OpenRouter</option>
+                              <option value="huggingface">Hugging Face</option>
+                              <option value="groq">Groq</option>
+                              <option value="mistral">Mistral</option>
+                              <option value="cohere">Cohere</option>
+                              <option value="deepseek">DeepSeek</option>
+                              <option value="together">Together AI</option>
+                              <option value="perplexity">Perplexity</option>
+                              <option value="xai">xAI (Grok)</option>
+                              <option value="ollama">Ollama</option>
+                              <option value="custom">Custom...</option>
                             </select>
+                          </div>
+                          {AI_MODELS[keyObj.provider.toLowerCase()] && (
+                            <div className="space-y-1">
+                              <label className="text-[9px] font-bold text-stone-400 uppercase tracking-widest px-1">Model</label>
+                              <select 
+                                value={keyObj.model || AI_MODELS[keyObj.provider.toLowerCase()][0].id}
+                                onChange={(e) => handleKeyChange('dictionary', idx, 'model', e.target.value)}
+                                className="w-full p-2.5 bg-white dark:bg-stone-900 rounded-xl text-[10px] font-bold uppercase tracking-widest border border-stone-100 dark:border-stone-800 outline-none"
+                              >
+                                {AI_MODELS[keyObj.provider.toLowerCase()].map((m: any) => (
+                                  <option key={m.id} value={m.id}>{m.name}</option>
+                                ))}
+                              </select>
+                            </div>
                           )}
-                          <input 
-                            type="password"
-                            value={keyObj.key}
-                            onChange={(e) => handleKeyChange('dictionary', idx, 'key', e.target.value)}
-                            className="flex-1 min-w-0 p-2 bg-stone-50 dark:bg-stone-800 rounded-xl text-xs font-mono border border-stone-100 dark:border-stone-800 text-stone-900 dark:text-stone-100 outline-none"
-                            placeholder="API Key..."
-                          />
-                          <button 
-                            onClick={() => handleTestAI({ key: keyObj.key, provider: keyObj.provider, baseUrl: keyObj.baseUrl, customProvider: keyObj.customProvider })}
-                            className="p-1 text-stone-400 hover:text-stone-600 shrink-0"
-                            title="Test this key"
-                          >
-                            <PlayCircle className="w-4 h-4" />
-                          </button>
-                          <button onClick={() => handleRemoveKey('dictionary', idx)} className="p-1 text-red-400 hover:text-red-600 shrink-0"><XCircle className="w-4 h-4" /></button>
                         </div>
-                        {keyObj.provider === 'custom' && (
-                          <input 
-                            type="text"
-                            value={keyObj.customProvider || ''}
-                            onChange={(e) => handleKeyChange('dictionary', idx, 'customProvider', e.target.value)}
-                            className="w-full p-2 bg-stone-50 dark:bg-stone-800 rounded-xl text-[10px] font-mono border border-stone-100 dark:border-stone-800 text-stone-900 dark:text-stone-100 outline-none"
-                            placeholder="Provider Name (e.g. TogetherAI)..."
-                          />
-                        )}
-                        {keyObj.provider !== 'gemini' && (
-                          <input 
-                            type="text"
-                            value={keyObj.baseUrl || ''}
-                            onChange={(e) => handleKeyChange('dictionary', idx, 'baseUrl', e.target.value)}
-                            className="w-full p-2 bg-stone-50 dark:bg-stone-800 rounded-xl text-[10px] font-mono border border-stone-100 dark:border-stone-800 text-stone-900 dark:text-stone-100 outline-none"
-                            placeholder="Base URL (optional)..."
-                          />
-                        )}
+                        
+                        <div className="space-y-1">
+                          <label className="text-[9px] font-bold text-stone-400 uppercase tracking-widest px-1">API Key</label>
+                          <div className="flex items-center gap-2">
+                            <input 
+                              type="password"
+                              value={keyObj.key}
+                              onChange={(e) => handleKeyChange('dictionary', idx, 'key', e.target.value)}
+                              className="flex-1 p-2.5 bg-white dark:bg-stone-900 rounded-xl text-xs font-mono border border-stone-100 dark:border-stone-800 text-stone-900 dark:text-stone-100 outline-none"
+                              placeholder="Enter API Key here..."
+                            />
+                            <button 
+                              onClick={() => handleTestAI({ key: keyObj.key, provider: keyObj.provider, baseUrl: keyObj.baseUrl, customProvider: keyObj.customProvider })}
+                              className="p-2 bg-white dark:bg-stone-900 rounded-xl border border-stone-100 dark:border-stone-800 text-stone-400 hover:text-stone-600 shrink-0"
+                              title="Test this key"
+                            >
+                              <PlayCircle className="w-4 h-4" />
+                            </button>
+                            <button onClick={() => handleRemoveKey('dictionary', idx)} className="p-2 bg-white dark:bg-stone-900 rounded-xl border border-stone-100 dark:border-stone-800 text-red-400 hover:text-red-600 shrink-0"><XCircle className="w-4 h-4" /></button>
+                          </div>
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -4358,210 +4676,10 @@ const Settings = ({ vocab }: { vocab: Vocabulary[] }) => {
           </div>
         </section>
 
-        <section className="space-y-6">
-          <h3 className="text-sm font-bold uppercase tracking-widest text-stone-400 dark:text-stone-500">Profile</h3>
-          
-          <div className="space-y-6">
-            <div className="flex items-center gap-6 p-4 bg-stone-50 dark:bg-stone-800/50 rounded-3xl border border-stone-100 dark:border-stone-800">
-              <div className="w-20 h-20 bg-white dark:bg-stone-900 rounded-2xl flex items-center justify-center text-4xl shadow-sm border border-stone-100 dark:border-stone-800">
-                {avatar}
-              </div>
-              <div className="flex-1 space-y-1">
-                <div className="text-[10px] font-bold text-stone-400 dark:text-stone-500 uppercase tracking-widest">Current Identity</div>
-                <div className="text-xl font-editorial italic text-stone-900 dark:text-stone-100">{name || 'Learner'}</div>
-                <div className="flex items-center gap-3">
-                  <div className="text-[10px] font-bold text-amber-600 bg-amber-50 dark:bg-amber-900/20 px-2 py-0.5 rounded-full border border-amber-100 dark:border-amber-800">Rank {profile?.rank || 'E5'}</div>
-                  <div className="text-[10px] font-bold text-emerald-600 bg-emerald-50 dark:bg-emerald-900/20 px-2 py-0.5 rounded-full border border-emerald-100 dark:border-emerald-800">{profile?.streakCount || 0} Day Streak</div>
-                </div>
-                <div className="text-[10px] text-stone-400 dark:text-stone-500 font-serif italic">{vocab.length} words mastered</div>
-              </div>
-            </div>
-
-            <div className="space-y-3">
-              <label className="text-xs font-mono text-stone-400 dark:text-stone-500 uppercase tracking-widest">Choose Avatar</label>
-              <div className="flex flex-wrap gap-2">
-                {avatars.map(a => (
-                  <button
-                    key={a}
-                    onClick={() => setAvatar(a)}
-                    className={cn(
-                      "w-10 h-10 flex items-center justify-center rounded-xl text-xl transition-all",
-                      avatar === a ? "bg-stone-900 dark:bg-stone-100 scale-110 shadow-lg" : "bg-stone-50 dark:bg-stone-800 hover:bg-stone-100 dark:hover:bg-stone-700"
-                    )}
-                  >
-                    {a}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-3">
-                <label className="text-xs font-mono text-stone-400 dark:text-stone-500 uppercase tracking-widest">Display Name</label>
-                <input 
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  className="w-full p-4 bg-stone-50 dark:bg-stone-900 text-stone-900 dark:text-stone-100 rounded-2xl border-2 border-transparent dark:border-stone-800 focus:border-stone-200 dark:focus:border-stone-700 focus:ring-2 focus:ring-stone-200 dark:focus:ring-stone-700 outline-none transition-all"
-                  placeholder="Enter your name..."
-                />
-              </div>
-
-              <div className="space-y-3">
-                <label className="text-xs font-mono text-stone-400 dark:text-stone-500 uppercase tracking-widest">Current Title</label>
-                <div className="w-full p-4 bg-stone-900 dark:bg-stone-950 text-amber-400 rounded-2xl text-sm font-bold border border-stone-800 dark:border-stone-900 shadow-inner flex items-center justify-between">
-                  {profile?.title || 'Novice Learner'}
-                  <Trophy className="w-4 h-4" />
-                </div>
-              </div>
-
-              <div className="space-y-3">
-                <label className="text-xs font-mono text-stone-400 dark:text-stone-500 uppercase tracking-widest">Rank</label>
-                <div className="w-full p-4 bg-stone-50 dark:bg-stone-800 rounded-2xl text-stone-900 dark:text-stone-100 text-sm font-bold border border-stone-100/50 dark:border-stone-700/50 flex items-center justify-between">
-                  {profile?.rank || 'E5'}
-                  <span className="text-[10px] text-stone-400 dark:text-stone-500 font-normal uppercase tracking-widest">Level</span>
-                </div>
-              </div>
-
-              <div className="space-y-3">
-                <label className="text-xs font-mono text-stone-400 dark:text-stone-500 uppercase tracking-widest">Words Learned</label>
-                <div className="w-full p-4 bg-stone-50 dark:bg-stone-800 rounded-2xl text-stone-900 dark:text-stone-100 text-sm font-bold border border-stone-100/50 dark:border-stone-700/50 flex items-center justify-between">
-                  {vocab.length}
-                  <Library className="w-4 h-4 text-stone-400 dark:text-stone-500" />
-                </div>
-              </div>
-
-              <div className="space-y-3">
-                <label className="text-xs font-mono text-stone-400 dark:text-stone-500 uppercase tracking-widest">Email Address</label>
-                <div className="w-full p-4 bg-stone-50 dark:bg-stone-800 rounded-2xl text-stone-400 dark:text-stone-500 text-sm font-medium border border-stone-100/50 dark:border-stone-700/50">
-                  {user?.email || 'Guest User'}
-                </div>
-              </div>
-
-              <div className="space-y-3">
-                <label className="text-xs font-mono text-stone-400 dark:text-stone-500 uppercase tracking-widest">Daily Goal (Words)</label>
-                <div className="flex gap-2">
-                  {[3, 5, 10, 20].map(goal => (
-                    <button
-                      key={goal}
-                      onClick={() => setDailyGoal(goal)}
-                      className={cn(
-                        "flex-1 py-3 rounded-xl font-bold text-xs transition-all",
-                        dailyGoal === goal ? "bg-stone-900 dark:bg-stone-100 text-white dark:text-stone-900" : "bg-stone-50 dark:bg-stone-800 text-stone-400 dark:text-stone-500 hover:bg-stone-100 dark:hover:bg-stone-700"
-                      )}
-                    >
-                      {goal}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div className="space-y-3">
-                <label className="text-xs font-mono text-stone-400 dark:text-stone-500 uppercase tracking-widest">Member Since</label>
-                <div className="w-full p-4 bg-stone-50 dark:bg-stone-800 rounded-2xl text-stone-400 dark:text-stone-500 text-sm font-medium border border-stone-100/50 dark:border-stone-700/50">
-                  {user?.metadata.creationTime ? new Date(user.metadata.creationTime).toLocaleDateString() : 'Today (Guest)'}
-                </div>
-              </div>
-            </div>
-
-            <div className="flex items-center justify-between p-6 bg-stone-50 dark:bg-stone-800 rounded-[2rem] border border-stone-100 dark:border-stone-800">
-              <div className="space-y-1">
-                <div className="text-sm font-bold text-stone-900 dark:text-stone-100">Streak Notifications</div>
-                <div className="text-xs text-stone-500 dark:text-stone-400 font-serif italic">Get alerted 4 hours before your streak expires.</div>
-              </div>
-              <button 
-                onClick={() => setNotificationsEnabled(!notificationsEnabled)}
-                className={cn(
-                  "w-12 h-6 rounded-full transition-all relative p-1",
-                  notificationsEnabled ? "bg-stone-900 dark:bg-stone-100" : "bg-stone-200 dark:bg-stone-700"
-                )}
-              >
-                <motion.div 
-                  animate={{ x: notificationsEnabled ? 24 : 0 }}
-                  className="w-4 h-4 bg-white dark:bg-stone-900 rounded-full shadow-sm"
-                />
-              </button>
-            </div>
-
-            <div className="space-y-4">
-              <label className="text-xs font-mono text-stone-400 dark:text-stone-500 uppercase tracking-widest">App Theme</label>
-              <div className="grid grid-cols-3 gap-3">
-                {[
-                  { id: 'light', label: 'Light', icon: Sun },
-                  { id: 'dark', label: 'Dark', icon: Moon },
-                  { id: 'system', label: 'System', icon: Monitor }
-                ].map((t) => (
-                  <button
-                    key={t.id}
-                    onClick={() => setTheme(t.id as any)}
-                    className={cn(
-                      "p-4 rounded-2xl border transition-all flex flex-col items-center gap-2",
-                      theme === t.id 
-                        ? "bg-stone-900 dark:bg-stone-100 text-white dark:text-stone-900 border-stone-900 dark:border-stone-100" 
-                        : "bg-stone-50 dark:bg-stone-800 text-stone-400 dark:text-stone-500 border-stone-100 dark:border-stone-800 hover:bg-stone-100 dark:hover:bg-stone-700"
-                    )}
-                  >
-                    <t.icon className="w-5 h-5" />
-                    <span className="text-[10px] font-bold uppercase tracking-widest">{t.label}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="pt-4">
-              <button 
-                onClick={handleSaveProfile}
-                disabled={saving || !name.trim()}
-                className="w-full py-4 bg-stone-900 text-white rounded-2xl font-bold disabled:opacity-50 hover:bg-stone-800 transition-all shadow-xl shadow-stone-200 flex items-center justify-center gap-2"
-              >
-                {saving ? (
-                  <>
-                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                    Saving...
-                  </>
-                ) : 'Save Profile Changes'}
-              </button>
-            </div>
-          </div>
-        </section>
-
-        <div className="h-px bg-stone-50" />
-
-        {user && !isDemo && (
-          <>
-            <section className="space-y-4">
-              <h3 className="text-sm font-bold uppercase tracking-widest text-stone-400">Account</h3>
-              <div className="space-y-4">
-                <div className="p-4 bg-stone-50 rounded-2xl flex items-center justify-between">
-                  <div>
-                    <div className="text-[10px] font-bold text-stone-400 uppercase tracking-widest">Logged in as</div>
-                    <div className="text-sm font-medium text-stone-900">{user.email}</div>
-                  </div>
-                  <div className="px-3 py-1 bg-white rounded-full border border-stone-100 text-[10px] font-bold text-stone-400 uppercase tracking-widest">
-                    {user.providerData[0]?.providerId === 'google.com' ? 'Google' : 'Email'}
-                  </div>
-                </div>
-                
-                <div className="p-4 bg-stone-50 rounded-2xl flex items-center justify-between border border-stone-100">
-                  <div>
-                    <div className="text-[10px] font-bold text-stone-400 uppercase tracking-widest">Data Migration</div>
-                    <p className="text-[10px] text-stone-500 font-serif italic">Missing your guest data? Migrate it manually.</p>
-                  </div>
-                  <button 
-                    onClick={handleManualMigration}
-                    disabled={migrating}
-                    className="px-4 py-2 bg-white text-stone-900 rounded-full font-bold text-[10px] uppercase tracking-widest border border-stone-200 hover:bg-stone-50 transition-all disabled:opacity-50"
-                  >
-                    {migrating ? "Migrating..." : "Migrate Now"}
-                  </button>
-                </div>
-              </div>
-            </section>
-            <div className="h-px bg-stone-50" />
-          </>
-        )}
+        <div className="h-px bg-stone-50 dark:bg-stone-800" />
 
         <section className="space-y-4">
-          <h3 className="text-sm font-bold uppercase tracking-widest text-stone-400">Voice Preferences</h3>
+          <h3 className="text-sm font-bold uppercase tracking-widest text-stone-400 dark:text-stone-500">Voice Preferences</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <button 
               onClick={() => setTTSMode('native')}
@@ -6877,10 +6995,14 @@ const TypingGame = ({ vocab, onBack }: { vocab: Vocabulary[]; onBack: () => void
 };
 
 const Phrasebook = () => {
+  const { profile, user, isDemo, setProfile } = useContext(AuthContext);
   const [activeCategory, setActiveCategory] = useState('Greetings');
+  const [isAdding, setIsAdding] = useState(false);
+  const [newPhrase, setNewPhrase] = useState({ jp: '', ro: '', en: '', category: 'Greetings' });
+  const [customCategory, setCustomCategory] = useState('');
   const { play, loading: ttsLoading } = useTTSContext();
 
-  const categories = {
+  const defaultCategories = {
     'Greetings': [
       { jp: "おはようございます", ro: "Ohayou gozaimasu", en: "Good morning" },
       { jp: "こんにちは", ro: "Konnichiwa", en: "Hello / Good afternoon" },
@@ -6903,21 +7025,150 @@ const Phrasebook = () => {
     ]
   };
 
+  const customPhrases = profile?.customPhrases || [];
+  const categories = { ...defaultCategories };
+  
+  customPhrases.forEach(p => {
+    if (!categories[p.category as keyof typeof categories]) {
+      (categories as any)[p.category] = [];
+    }
+    (categories as any)[p.category].push(p);
+  });
+
+  const handleAddPhrase = async () => {
+    if (!newPhrase.jp || !newPhrase.en) return;
+    
+    const category = newPhrase.category === 'Custom' ? customCategory : newPhrase.category;
+    if (!category) return;
+
+    const phraseToAdd = { ...newPhrase, category };
+    const updatedCustomPhrases = [...customPhrases, phraseToAdd];
+
+    try {
+      if (isDemo) {
+        const p = JSON.parse(localStorage.getItem('komorebi_profile') || '{}');
+        const updatedProfile = { ...p, customPhrases: updatedCustomPhrases };
+        localStorage.setItem('komorebi_profile', JSON.stringify(updatedProfile));
+        setProfile(updatedProfile as any);
+      } else if (user) {
+        await updateDoc(doc(db, 'users', user.uid), { customPhrases: updatedCustomPhrases });
+      }
+      setIsAdding(false);
+      setNewPhrase({ jp: '', ro: '', en: '', category: 'Greetings' });
+      setCustomCategory('');
+      setActiveCategory(category);
+    } catch (error) {
+      console.error("Error adding phrase:", error);
+    }
+  };
+
   return (
-    <div className="max-w-4xl mx-auto">
-      <div className="mb-10">
-        <h2 className="text-4xl font-editorial italic text-stone-900 mb-2">Essential Phrasebook</h2>
-        <p className="text-stone-500 font-serif italic">Quick access to common Japanese expressions for daily life.</p>
+    <div className="max-w-4xl mx-auto space-y-10">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+        <div>
+          <h2 className="text-4xl font-editorial italic text-stone-900 dark:text-stone-100 mb-2">Essential Phrasebook</h2>
+          <p className="text-stone-500 dark:text-stone-400 font-serif italic">Quick access to common Japanese expressions for daily life.</p>
+        </div>
+        <button 
+          onClick={() => setIsAdding(true)}
+          className="flex items-center gap-2 px-6 py-3 bg-stone-900 dark:bg-stone-100 text-white dark:text-stone-900 rounded-2xl font-bold text-sm shadow-lg hover:scale-105 transition-all"
+        >
+          <Plus className="w-4 h-4" />
+          Add Phrase
+        </button>
       </div>
 
-      <div className="flex gap-4 mb-8 overflow-x-auto pb-2 scrollbar-hide">
+      <AnimatePresence>
+        {isAdding && (
+          <motion.div 
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            className="p-8 bg-white dark:bg-stone-900 rounded-[2.5rem] border border-stone-100 dark:border-stone-800 shadow-xl space-y-6"
+          >
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-2">
+                <label className="text-[10px] font-bold text-stone-400 uppercase tracking-widest px-1">Japanese</label>
+                <input 
+                  type="text" 
+                  value={newPhrase.jp}
+                  onChange={e => setNewPhrase({...newPhrase, jp: e.target.value})}
+                  placeholder="こんにちは"
+                  className="w-full p-4 bg-stone-50 dark:bg-stone-800 rounded-2xl border border-stone-100 dark:border-stone-800 outline-none focus:ring-2 focus:ring-stone-200 transition-all"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-[10px] font-bold text-stone-400 uppercase tracking-widest px-1">Romaji</label>
+                <input 
+                  type="text" 
+                  value={newPhrase.ro}
+                  onChange={e => setNewPhrase({...newPhrase, ro: e.target.value})}
+                  placeholder="Konnichiwa"
+                  className="w-full p-4 bg-stone-50 dark:bg-stone-800 rounded-2xl border border-stone-100 dark:border-stone-800 outline-none focus:ring-2 focus:ring-stone-200 transition-all"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-[10px] font-bold text-stone-400 uppercase tracking-widest px-1">English</label>
+                <input 
+                  type="text" 
+                  value={newPhrase.en}
+                  onChange={e => setNewPhrase({...newPhrase, en: e.target.value})}
+                  placeholder="Hello"
+                  className="w-full p-4 bg-stone-50 dark:bg-stone-800 rounded-2xl border border-stone-100 dark:border-stone-800 outline-none focus:ring-2 focus:ring-stone-200 transition-all"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-[10px] font-bold text-stone-400 uppercase tracking-widest px-1">Category</label>
+                <select 
+                  value={newPhrase.category}
+                  onChange={e => setNewPhrase({...newPhrase, category: e.target.value})}
+                  className="w-full p-4 bg-stone-50 dark:bg-stone-800 rounded-2xl border border-stone-100 dark:border-stone-800 outline-none focus:ring-2 focus:ring-stone-200 transition-all"
+                >
+                  {Object.keys(categories).map(cat => <option key={cat} value={cat}>{cat}</option>)}
+                  <option value="Custom">+ New Category</option>
+                </select>
+              </div>
+              {newPhrase.category === 'Custom' && (
+                <div className="space-y-2 md:col-span-2">
+                  <label className="text-[10px] font-bold text-stone-400 uppercase tracking-widest px-1">Custom Category Name</label>
+                  <input 
+                    type="text" 
+                    value={customCategory}
+                    onChange={e => setCustomCategory(e.target.value)}
+                    placeholder="e.g. Shopping"
+                    className="w-full p-4 bg-stone-50 dark:bg-stone-800 rounded-2xl border border-stone-100 dark:border-stone-800 outline-none focus:ring-2 focus:ring-stone-200 transition-all"
+                  />
+                </div>
+              )}
+            </div>
+            <div className="flex gap-3">
+              <button 
+                onClick={handleAddPhrase}
+                className="flex-1 py-4 bg-stone-900 dark:bg-stone-100 text-white dark:text-stone-900 rounded-2xl font-bold shadow-lg"
+              >
+                Save Phrase
+              </button>
+              <button 
+                onClick={() => setIsAdding(false)}
+                className="px-8 py-4 bg-stone-100 dark:bg-stone-800 text-stone-500 rounded-2xl font-bold"
+              >
+                Cancel
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-hide">
         {Object.keys(categories).map(cat => (
           <button
             key={cat}
             onClick={() => setActiveCategory(cat)}
             className={cn(
               "px-8 py-3 rounded-full font-bold transition-all whitespace-nowrap",
-              activeCategory === cat ? "bg-stone-900 text-white shadow-lg" : "bg-white text-stone-500 hover:bg-stone-50 border border-stone-100"
+              activeCategory === cat 
+                ? "bg-stone-900 dark:bg-stone-100 text-white dark:text-stone-900 shadow-lg" 
+                : "bg-white dark:bg-stone-900 text-stone-500 hover:bg-stone-50 dark:hover:bg-stone-800 border border-stone-100 dark:border-stone-800"
             )}
           >
             {cat}
@@ -6926,23 +7177,23 @@ const Phrasebook = () => {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {categories[activeCategory as keyof typeof categories].map((phrase, i) => (
+        {categories[activeCategory as keyof typeof categories]?.map((phrase, i) => (
           <motion.div
             key={i}
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: i * 0.05 }}
-            className="bg-white p-8 rounded-[2.5rem] shadow-sm border border-stone-50 flex justify-between items-center group hover:border-stone-200 transition-all"
+            className="bg-white dark:bg-stone-900 p-8 rounded-[2.5rem] shadow-sm border border-stone-50 dark:border-stone-800 flex justify-between items-center group hover:border-stone-200 dark:hover:border-stone-700 transition-all"
           >
             <div className="space-y-2">
-              <div className="text-2xl font-serif text-stone-900">{phrase.jp}</div>
+              <div className="text-2xl font-serif text-stone-900 dark:text-stone-100">{phrase.jp}</div>
               <div className="text-xs font-mono text-stone-400 uppercase tracking-widest">{phrase.ro}</div>
-              <div className="text-stone-600 font-editorial italic">{phrase.en}</div>
+              <div className="text-stone-600 dark:text-stone-400 font-editorial italic">{phrase.en}</div>
             </div>
             <button
               onClick={() => play(phrase.jp)}
               disabled={ttsLoading}
-              className="p-4 bg-stone-50 rounded-full text-stone-300 group-hover:text-stone-900 group-hover:bg-stone-100 transition-all"
+              className="p-4 bg-stone-50 dark:bg-stone-800 rounded-full text-stone-300 group-hover:text-stone-900 dark:group-hover:text-stone-100 group-hover:bg-stone-100 dark:group-hover:bg-stone-700 transition-all"
             >
               <Volume2 className={cn("w-5 h-5", ttsLoading && "animate-pulse")} />
             </button>
@@ -7598,11 +7849,40 @@ const NamePrompt = ({ onSave }: { onSave: (name: string) => void }) => {
 };
 
 const AppContent = ({ activeTab, setActiveTab, todayVocabCount, vocab, logout, streakWarning }: any) => {
-  const { profile, user, isDemo } = useContext(AuthContext);
+  const { profile, user, isDemo, setProfile } = useContext(AuthContext);
   const { quotaExhausted } = useTTSContext();
   const [showMoreMenu, setShowMoreMenu] = useState(false);
+
+  useEffect(() => {
+    if (!profile || (!user && !isDemo)) return;
+
+    const gameTabs = ['invaders', 'wordsearch', 'flashcards', 'quiz', 'kanaMatch', 'wordScramble', 'speedQuiz', 'listeningHero', 'flashcardSprint', 'kanjiQuiz', 'particleMaster', 'sentenceBuilder'];
+    
+    if (gameTabs.includes(activeTab)) {
+      const interval = setInterval(async () => {
+        try {
+          const updates = { gameTimeToday: (profile?.gameTimeToday || 0) + 60 };
+          if (isDemo) {
+            const p = JSON.parse(localStorage.getItem('komorebi_profile') || '{}');
+            const updatedProfile = { ...p, ...updates };
+            localStorage.setItem('komorebi_profile', JSON.stringify(updatedProfile));
+            setProfile(updatedProfile);
+          } else if (user) {
+            await updateDoc(doc(db, 'users', user.uid), updates);
+          }
+        } catch (e) {
+          console.error("Error updating game time:", e);
+        }
+      }, 60000); // Every minute
+      return () => clearInterval(interval);
+    }
+  }, [activeTab, profile?.gameTimeToday, user, isDemo, setProfile]);
   
   const isNewUser = profile && (profile.displayName === 'Guest Learner' || !profile.displayName);
+
+  const unlocked = profile?.achievements || [];
+  const claimed = profile?.claimedRewards || [];
+  const hasUnclaimedRewards = unlocked.some(id => !claimed.includes(id));
 
   const handleSaveName = async (name: string) => {
     if (isDemo) {
@@ -7711,8 +7991,6 @@ const AppContent = ({ activeTab, setActiveTab, todayVocabCount, vocab, logout, s
                 { id: 'rankTest', icon: Trophy, label: 'Rank Test' },
                 { id: 'achievements', icon: Award, label: 'Achievements' },
                 { id: 'game', icon: Gamepad2, label: 'Games' },
-                { id: 'japanHub', icon: CloudSun, label: 'Japan Hub' },
-                { id: 'imageAnalyzer', icon: Camera, label: 'Image Sensei' },
                 { id: 'dictionary', icon: BookOpen, label: 'Dictionary' },
                 { id: 'translator', icon: Languages, label: 'Translate' },
                 { id: 'phrasebook', icon: MessageSquare, label: 'Phrases' },
@@ -7732,6 +8010,9 @@ const AppContent = ({ activeTab, setActiveTab, todayVocabCount, vocab, logout, s
                 >
                   <item.icon className={cn("w-4 h-4 transition-transform group-hover:scale-110", activeTab === item.id ? "text-white" : "text-stone-400 group-hover:text-stone-900")} />
                   <span className="font-medium text-xs tracking-wide">{item.label}</span>
+                  {item.id === 'achievements' && hasUnclaimedRewards && (
+                    <div className="absolute top-2 right-2 w-2 h-2 bg-amber-500 rounded-full ring-2 ring-white dark:ring-stone-900 animate-pulse" />
+                  )}
                   {activeTab === item.id && (
                     <motion.div 
                       layoutId="activeTabDesktop"
@@ -7743,15 +8024,8 @@ const AppContent = ({ activeTab, setActiveTab, todayVocabCount, vocab, logout, s
               ))}
             </nav>
 
-            <div className="p-4 border-t border-stone-50">
-              <button 
-                onClick={logout}
-                className="w-full flex items-center gap-3 p-3 text-stone-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all"
-              >
-                <LogOut className="w-4 h-4" />
-                <span className="font-medium text-xs">Logout</span>
-              </button>
-              <div className="mt-4 p-4 bg-amber-50/50 rounded-2xl border border-amber-100/50 flex items-center justify-between">
+            <div className="p-4 border-t border-stone-50 dark:border-stone-800">
+              <div className="p-4 bg-amber-50/50 rounded-2xl border border-amber-100/50 flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <Flame className="w-4 h-4 text-amber-500 fill-amber-500" />
                   <span className="text-[10px] font-bold text-amber-900 uppercase tracking-widest">Streak</span>
@@ -7829,8 +8103,6 @@ const AppContent = ({ activeTab, setActiveTab, todayVocabCount, vocab, logout, s
                   { id: 'rankTest', icon: Trophy, label: 'Rank Test' },
                   { id: 'achievements', icon: Award, label: 'Achievements' },
                   { id: 'game', icon: Gamepad2, label: 'Games' },
-                  { id: 'japanHub', icon: CloudSun, label: 'Japan' },
-                  { id: 'imageAnalyzer', icon: Camera, label: 'Sensei' },
                   { id: 'dictionary', icon: Search, label: 'Dict' },
                   { id: 'translator', icon: Languages, label: 'Translate' },
                   { id: 'phrasebook', icon: Book, label: 'Phrases' },
@@ -7856,7 +8128,7 @@ const AppContent = ({ activeTab, setActiveTab, todayVocabCount, vocab, logout, s
                       setShowMoreMenu(false);
                     }}
                     className={cn(
-                      "flex flex-col items-center gap-2 p-4 rounded-2xl transition-all",
+                      "flex flex-col items-center gap-2 p-4 rounded-2xl transition-all relative",
                       activeTab === item.id 
                         ? "bg-stone-900 dark:bg-stone-100 text-white dark:text-stone-900" 
                         : "bg-stone-50 dark:bg-stone-800 text-stone-500 dark:text-stone-400 hover:bg-stone-100 dark:hover:bg-stone-700"
@@ -7864,6 +8136,9 @@ const AppContent = ({ activeTab, setActiveTab, todayVocabCount, vocab, logout, s
                   >
                     <item.icon className="w-5 h-5" />
                     <span className="text-[10px] font-bold uppercase tracking-tighter">{item.label}</span>
+                    {item.id === 'achievements' && hasUnclaimedRewards && (
+                      <div className="absolute top-2 right-2 w-2.5 h-2.5 bg-amber-500 rounded-full ring-2 ring-white dark:ring-stone-900 animate-pulse" />
+                    )}
                   </motion.button>
                 ))}
               </motion.div>
@@ -7877,22 +8152,41 @@ const AppContent = ({ activeTab, setActiveTab, todayVocabCount, vocab, logout, s
             <div className="max-w-5xl mx-auto">
               {/* Header for Mobile */}
               <div className="md:hidden flex items-center justify-between mb-6">
-                <div className="flex items-center gap-2">
-                  <div className="w-7 h-7 bg-stone-900 rounded-lg flex items-center justify-center text-white font-bold text-xs">木</div>
-                  <span className="font-serif font-bold text-base tracking-tight">Komorebi</span>
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full border-2 border-white dark:border-stone-700 shadow-sm overflow-hidden bg-stone-100 dark:bg-stone-800 flex items-center justify-center shrink-0">
+                    {profile?.avatar?.startsWith('data:image') ? (
+                      <img src={profile.avatar} alt="Avatar" className="w-full h-full object-cover" />
+                    ) : (
+                      <span className="text-xl">{profile?.avatar || '🦊'}</span>
+                    )}
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="font-bold text-xs text-stone-900 dark:text-stone-100 truncate">{profile?.displayName || 'Learner'}</span>
+                    <span className="text-[10px] text-stone-400">Level {Math.floor((profile?.xp || 0) / 100) + 1}</span>
+                  </div>
                 </div>
-                <button onClick={logout} className="p-1.5 text-stone-400">
-                  <LogOut className="w-4 h-4" />
-                </button>
+                <div className="flex items-center gap-2">
+                  <div className="px-3 py-1 bg-amber-50 dark:bg-amber-900/20 rounded-full border border-amber-100 dark:border-amber-800 flex items-center gap-1.5">
+                    <Flame className="w-3 h-3 text-amber-500 fill-amber-500" />
+                    <span className="text-[10px] font-bold text-amber-900 dark:text-amber-100">{profile?.streakCount || 0}</span>
+                  </div>
+                  <button 
+                    onClick={() => setActiveTab('settings')} 
+                    className="p-2 text-stone-400 dark:text-stone-500 hover:text-stone-900 dark:hover:text-stone-100 transition-colors"
+                  >
+                    <SettingsIcon className="w-5 h-5" />
+                  </button>
+                </div>
               </div>
 
               <AnimatePresence mode="wait">
                 <motion.div
                   key={activeTab}
-                  initial={{ opacity: 0, x: 20, scale: 0.98 }}
-                  animate={{ opacity: 1, x: 0, scale: 1 }}
-                  exit={{ opacity: 0, x: -20, scale: 0.98 }}
-                  transition={{ duration: 0.4, ease: [0.23, 1, 0.32, 1] }}
+                  initial={{ opacity: 0, scale: 0.99 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.99 }}
+                  transition={{ duration: 0.3, ease: "easeOut" }}
+                  className="w-full"
                 >
                   {activeTab === 'dashboard' && <Dashboard vocabCount={todayVocabCount} vocab={vocab} logout={logout} />}
                   {activeTab === 'stats' && <Stats todayVocabCount={todayVocabCount} />}
@@ -7908,8 +8202,6 @@ const AppContent = ({ activeTab, setActiveTab, todayVocabCount, vocab, logout, s
                   {activeTab === 'invaders' && <KanaInvaders onBack={() => setActiveTab('game')} />}
                   {activeTab === 'wordsearch' && <WordSearch onBack={() => setActiveTab('game')} />}
                   {activeTab === 'chatbot' && <Chatbot />}
-                  {activeTab === 'japanHub' && <JapanHub />}
-                  {activeTab === 'imageAnalyzer' && <ImageAnalyzer />}
                   {activeTab === 'notebook' && <Notebook />}
                   {activeTab === 'achievements' && <Achievements />}
                   {activeTab === 'rankTest' && <RankTest vocab={vocab} />}
