@@ -150,77 +150,18 @@ const ACHIEVEMENTS = [
 const AI_MODELS: Record<string, { id: string; name: string }[]> = {
   gemini: [
     { id: 'gemini-2.0-flash', name: 'Gemini 2.0 Flash' },
-    { id: 'gemini-1.5-flash', name: 'Gemini 1.5 Flash' },
-    { id: 'gemini-1.5-pro', name: 'Gemini 1.5 Pro' },
-    { id: 'gemini-2.0-pro-exp-02-05', name: 'Gemini 2.0 Pro Exp' },
   ],
   openai: [
     { id: 'gpt-4o', name: 'GPT-4o' },
-    { id: 'gpt-4o-mini', name: 'GPT-4o Mini' },
-    { id: 'o1-preview', name: 'o1 Preview' },
-    { id: 'o1-mini', name: 'o1 Mini' },
-    { id: 'gpt-4-turbo', name: 'GPT-4 Turbo' },
   ],
   openrouter: [
     { id: 'google/gemini-2.0-flash-001', name: 'Gemini 2.0 Flash' },
-    { id: 'google/gemini-2.0-pro-001', name: 'Gemini 2.0 Pro' },
-    { id: 'anthropic/claude-3.5-sonnet', name: 'Claude 3.5 Sonnet' },
-    { id: 'anthropic/claude-3-opus', name: 'Claude 3 Opus' },
-    { id: 'meta-llama/llama-3.1-405b-instruct', name: 'Llama 3.1 405B' },
-    { id: 'mistralai/mistral-large', name: 'Mistral Large' },
-    { id: 'deepseek/deepseek-chat', name: 'DeepSeek V3' },
-    { id: 'perplexity/llama-3.1-sonar-large-128k-online', name: 'Sonar Large' },
   ],
   anthropic: [
     { id: 'claude-3-5-sonnet-20240620', name: 'Claude 3.5 Sonnet' },
-    { id: 'claude-3-opus-20240229', name: 'Claude 3 Opus' },
-    { id: 'claude-3-haiku-20240307', name: 'Claude 3 Haiku' },
-  ],
-  groq: [
-    { id: 'llama-3.1-70b-versatile', name: 'Llama 3.1 70B' },
-    { id: 'llama-3.1-8b-instant', name: 'Llama 3.1 8B' },
-    { id: 'mixtral-8x7b-32768', name: 'Mixtral 8x7B' },
-    { id: 'gemma2-9b-it', name: 'Gemma 2 9B' },
-  ],
-  mistral: [
-    { id: 'mistral-large-latest', name: 'Mistral Large' },
-    { id: 'mistral-medium-latest', name: 'Mistral Medium' },
-    { id: 'mistral-small-latest', name: 'Mistral Small' },
-    { id: 'pixtral-12b-2409', name: 'Pixtral 12B' },
-  ],
-  cohere: [
-    { id: 'command-r-plus', name: 'Command R+' },
-    { id: 'command-r', name: 'Command R' },
-    { id: 'command-light', name: 'Command Light' },
-  ],
-  deepseek: [
-    { id: 'deepseek-chat', name: 'DeepSeek Chat' },
-    { id: 'deepseek-coder', name: 'DeepSeek Coder' },
-  ],
-  together: [
-    { id: 'meta-llama/Llama-3-70b-chat-hf', name: 'Llama 3 70B' },
-    { id: 'mistralai/Mixtral-8x7B-Instruct-v0.1', name: 'Mixtral 8x7B' },
-    { id: 'togethercomputer/StripedHyena-Nous-7B', name: 'StripedHyena 7B' },
-  ],
-  perplexity: [
-    { id: 'llama-3.1-sonar-large-128k-online', name: 'Sonar Large Online' },
-    { id: 'llama-3.1-sonar-small-128k-online', name: 'Sonar Small Online' },
-    { id: 'llama-3.1-sonar-large-128k-chat', name: 'Sonar Large Chat' },
   ],
   xai: [
     { id: 'grok-beta', name: 'Grok Beta' },
-    { id: 'grok-2', name: 'Grok 2' },
-  ],
-  huggingface: [
-    { id: 'meta-llama/Llama-3.1-70B-Instruct', name: 'Llama 3.1 70B' },
-    { id: 'mistralai/Mistral-7B-v0.1', name: 'Mistral 7B' },
-    { id: 'google/gemma-2-9b-it', name: 'Gemma 2 9B' },
-  ],
-  ollama: [
-    { id: 'llama3', name: 'Llama 3' },
-    { id: 'mistral', name: 'Mistral' },
-    { id: 'phi3', name: 'Phi 3' },
-    { id: 'gemma2', name: 'Gemma 2' },
   ]
 };
 
@@ -360,70 +301,33 @@ const getApiKey = (profile?: UserProfile | null, purpose: AIPurpose = 'general')
     }
   }
 
-  // 2. Try old apiSettings
-  if (profile?.apiSettings) {
-    const { mode, universalKeys, translationKeys, senseiKeys, dictionaryKeys } = profile.apiSettings;
-    if (mode === 'particular' && purpose !== 'general') {
-      const keys = (purpose === 'translation' ? translationKeys : 
-                    purpose === 'sensei' ? senseiKeys : 
-                    purpose === 'dictionary' ? dictionaryKeys : 
-                    []) || [];
-      const validKeys = keys.filter(k => k.trim().length > 0);
-      if (validKeys.length > 0) {
-        return { key: validKeys[currentKeyIndex % validKeys.length].trim(), provider: 'gemini' as const };
-      }
-    }
-    
-    // Fallback to universal keys
-    const keys = universalKeys || [];
-    const validKeys = keys.filter(k => k.trim().length > 0);
-    if (validKeys.length > 0) {
-      return { key: validKeys[currentKeyIndex % validKeys.length].trim(), provider: 'gemini' as const };
-    }
-  }
-
-  // 3. Fallback to old apiKeys
-  if (profile?.apiKeys && profile.apiKeys.length > 0) {
-    const keys = profile.apiKeys.filter(k => k.trim().length > 0);
-    if (keys.length > 0) {
-      return { key: keys[currentKeyIndex % keys.length].trim(), provider: 'gemini' as const };
-    }
-  }
-
-  // 4. Try localStorage (user manual entry)
-  const localKey = typeof window !== 'undefined' ? localStorage.getItem('komorebi_gemini_key') : null;
-  if (localKey) return { key: localKey.trim(), provider: 'gemini' as const };
-
-  // 5. Try environment variables
+  // 2. Try environment variables
   const envKey = process.env.GEMINI_API_KEY || 
          process.env.GOOGLE_API_KEY ||
-         process.env.GEMINI_API_EY ||
          (import.meta as any).env?.VITE_GEMINI_API_KEY || 
          (import.meta as any).env?.VITE_GOOGLE_API_KEY ||
-         (import.meta as any).env?.VITE_GEMINI_API_EY ||
          '';
   
   const trimmedEnvKey = envKey.trim();
-  // Ignore placeholder keys or obviously invalid ones
-  if (!trimmedEnvKey || trimmedEnvKey.includes('TODO') || trimmedEnvKey.length < 10) return null;
-  
-  return { key: trimmedEnvKey, provider: 'gemini' as const };
+  if (trimmedEnvKey && !trimmedEnvKey.includes('TODO') && trimmedEnvKey.length >= 10) {
+    return { key: trimmedEnvKey, provider: 'gemini' as const };
+  }
+
+  // 3. Try localStorage (user manual entry)
+  const localKey = typeof window !== 'undefined' ? localStorage.getItem('komorebi_gemini_key') : null;
+  if (localKey) return { key: localKey.trim(), provider: 'gemini' as const };
+
+  return null;
 };
 
 
 const getSafeModel = (provider?: string, requestedModel?: string) => {
   if (!provider) return 'gemini-2.0-flash';
   
-  // User requested specific defaults for these two
-  if (provider === 'openrouter') return 'google/gemini-2.0-flash-001';
-  if (provider === 'gemini') return 'gemini-2.0-flash';
-
   const models = AI_MODELS[provider.toLowerCase()];
-  if (!models || models.length === 0) return 'gemini-2.0-flash';
-  
-  if (requestedModel) {
-    const found = models.find((m: any) => m.id === requestedModel);
-    if (found) return requestedModel;
+  if (!models || models.length === 0) {
+    if (provider === 'openrouter') return 'google/gemini-2.0-flash-001';
+    return 'gemini-2.0-flash';
   }
   
   return models[0].id;
@@ -433,21 +337,45 @@ const getAI = (profile?: UserProfile | null, purpose: AIPurpose = 'general') => 
   const keyInfo = getApiKey(profile, purpose);
   
   if (!keyInfo) {
-    console.warn(`No API keys found for purpose: ${purpose}`);
     return null;
   }
 
   const model = keyInfo.model || getSafeModel(keyInfo.provider);
 
-  // Use SDK directly for Gemini as per baseline
-  if (keyInfo.provider === 'gemini') {
-    return new GoogleGenAI({ apiKey: keyInfo.key });
-  }
-  
-  // Return an object that mimics the Gemini SDK but calls our proxy for other providers
+  // Return a unified interface for all providers
   return {
     models: {
       generateContent: async (params: any) => {
+        const targetModel = params.model || model;
+        
+        // If it's Gemini and we want to use the SDK directly
+        if (keyInfo.provider === 'gemini') {
+          try {
+            const genAI = new GoogleGenAI({ apiKey: keyInfo.key });
+            const response = await (genAI as any).models.generateContent({
+              model: targetModel,
+              contents: params.contents,
+              config: params.config
+            });
+            
+            const text = response.text || (response.candidates?.[0]?.content?.parts?.[0]?.text) || "";
+            return { 
+              text: text, 
+              response: { text: () => text },
+              candidates: response.candidates || [{ content: { parts: [{ text: text }] } }]
+            };
+          } catch (error: any) {
+            let errorMsg = error.message || "Gemini request failed";
+            if (errorMsg.includes("429") || errorMsg.includes("quota")) {
+              errorMsg = "Quota exceeded. Please try again later or use a different API key.";
+            } else if (errorMsg.includes("API key")) {
+              errorMsg = "Invalid API key. Please check your settings.";
+            }
+            throw new Error(errorMsg);
+          }
+        }
+
+        // Otherwise use the proxy for other providers
         const response = await fetch('/api/ai/generate', {
           method: 'POST',
           headers: { 
@@ -458,81 +386,48 @@ const getAI = (profile?: UserProfile | null, purpose: AIPurpose = 'general') => 
             provider: keyInfo.provider,
             key: keyInfo.key,
             baseUrl: (keyInfo as any).baseUrl,
-            model: params.model || model,
+            model: targetModel,
             contents: params.contents,
             systemInstruction: params.config?.systemInstruction,
             responseMimeType: params.config?.responseMimeType
           })
         });
 
-        const contentType = response.headers.get("content-type");
         if (!response.ok) {
+          const contentType = response.headers.get("content-type");
           if (contentType && contentType.includes("application/json")) {
             const errorData = await response.json();
-            // Try to extract the most useful error message
-            let errorMsg = errorData.error || "AI Proxy request failed";
-            
-            if (errorMsg.includes("quota") || errorMsg.includes("billing") || errorMsg.includes("credit")) {
-              errorMsg = "AI Provider Error: You exceeded your current quota or have no credits. Please check your plan and billing details.";
-            } else if (errorMsg.includes("API key") || errorMsg.includes("unauthorized") || errorMsg.includes("invalid_api_key")) {
-              errorMsg = "AI Provider Error: Incorrect API key provided. Please check your key in Settings.";
+            let errorMsg = errorData.error || errorData.details || "AI request failed";
+            if (errorMsg.toLowerCase().includes("quota") || errorMsg.toLowerCase().includes("credit")) {
+              errorMsg = "API Provider: Quota exceeded or insufficient credits.";
+            } else if (errorMsg.toLowerCase().includes("key") || errorMsg.toLowerCase().includes("unauthorized")) {
+              errorMsg = "API Provider: Invalid API key.";
             }
-            
             throw new Error(errorMsg);
-          } else {
-            const text = await response.text();
-            throw new Error(`AI Proxy failed with status ${response.status}. ${text.substring(0, 100)}`);
           }
+          throw new Error(`AI request failed with status ${response.status}`);
         }
 
-        if (contentType && contentType.includes("application/json")) {
-          return await response.json();
-        } else {
-          const text = await response.text();
-          throw new Error(`Expected JSON response from AI Proxy but got: ${text.substring(0, 100)}`);
-        }
+        const data = await response.json();
+        const text = data.text || (data.candidates?.[0]?.content?.parts?.[0]?.text) || "";
+        return { 
+          text: text,
+          response: { text: () => text },
+          candidates: data.candidates || [{ content: { parts: [{ text: text }] } }]
+        };
       }
     },
     chats: {
       create: (params: any) => {
         return {
           sendMessage: async (msgParams: any) => {
-            const response = await fetch('/api/ai/generate', {
-              method: 'POST',
-              headers: { 
-                'Content-Type': 'application/json',
-                'Accept': 'application/json'
-              },
-              body: JSON.stringify({
-                provider: keyInfo.provider,
-                key: keyInfo.key,
-                baseUrl: (keyInfo as any).baseUrl,
-                model: params.model,
-                contents: msgParams.message,
-                systemInstruction: params.config?.systemInstruction,
-                responseMimeType: params.config?.responseMimeType
-              })
+            // Re-use generateContent logic for simplicity in this unified wrapper
+            const result = await (getAI(profile, purpose) as any).models.generateContent({
+              model: params.model,
+              contents: msgParams.message,
+              config: params.config
             });
-
-            const contentType = response.headers.get("content-type");
-            if (!response.ok) {
-              if (contentType && contentType.includes("application/json")) {
-                const errorData = await response.json();
-                const errorMsg = typeof errorData.details === 'string' ? errorData.details : 
-                               (typeof errorData.error === 'string' ? errorData.error : JSON.stringify(errorData));
-                throw new Error(errorMsg || "AI Proxy request failed");
-              } else {
-                const text = await response.text();
-                throw new Error(`AI Proxy failed with status ${response.status}. ${text.substring(0, 100)}`);
-              }
-            }
-
-            if (contentType && contentType.includes("application/json")) {
-              return await response.json();
-            } else {
-              const text = await response.text();
-              throw new Error(`Expected JSON response from AI Proxy but got: ${text.substring(0, 100)}`);
-            }
+            return result;
           }
         };
       }
@@ -791,37 +686,70 @@ function handleFirestoreError(error: unknown, operationType: OperationType, path
 
 const ErrorBoundary = ({ children }: { children: React.ReactNode }) => {
   const [hasError, setHasError] = useState(false);
-  const [errorDetails, setErrorDetails] = useState<string | null>(null);
+  const [errorDetails, setErrorDetails] = useState<any>(null);
 
   useEffect(() => {
     const handleError = (event: ErrorEvent) => {
       if (event.error?.message?.includes('{"error":')) {
+        try {
+          const parsed = JSON.parse(event.error.message);
+          setHasError(true);
+          setErrorDetails(parsed);
+        } catch (e) {
+          setHasError(true);
+          setErrorDetails({ error: event.error.message });
+        }
+      } else {
         setHasError(true);
-        setErrorDetails(event.error.message);
+        setErrorDetails({ error: event.error?.message || "An unexpected error occurred" });
       }
     };
+
     window.addEventListener('error', handleError);
     return () => window.removeEventListener('error', handleError);
   }, []);
 
   if (hasError) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-stone-50 p-4">
-        <div className="max-w-md w-full bg-white rounded-3xl p-8 shadow-xl border border-red-100">
-          <AlertCircle className="w-12 h-12 text-red-500 mb-4" />
-          <h2 className="text-2xl font-bold text-stone-900 mb-2">Something went wrong</h2>
-          <p className="text-stone-600 mb-6 font-serif italic">
-            There was an issue connecting to our Japanese learning database.
-          </p>
-          <div className="bg-red-50 p-4 rounded-xl mb-6 overflow-auto max-h-40">
-            <code className="text-xs text-red-700">{errorDetails}</code>
+      <div className="min-h-screen bg-stone-50 dark:bg-stone-950 flex items-center justify-center p-6">
+        <div className="max-w-md w-full bg-white dark:bg-stone-900 rounded-[2.5rem] shadow-2xl p-8 border border-stone-100 dark:border-stone-800 space-y-6">
+          <div className="w-16 h-16 bg-red-50 dark:bg-red-900/20 rounded-2xl flex items-center justify-center mx-auto">
+            <AlertCircle className="w-8 h-8 text-red-500" />
           </div>
+          
+          <div className="text-center space-y-2">
+            <h2 className="text-2xl font-serif font-bold text-stone-900 dark:text-stone-100">Something went wrong</h2>
+            <p className="text-sm text-stone-500 dark:text-stone-400 font-serif italic">
+              {errorDetails?.error || "We encountered an error while processing your request."}
+            </p>
+          </div>
+
+          {errorDetails?.operationType && (
+            <div className="bg-stone-50 dark:bg-stone-800/50 p-4 rounded-2xl space-y-2">
+              <div className="flex justify-between text-[10px] font-bold uppercase tracking-widest text-stone-400">
+                <span>Operation</span>
+                <span className="text-stone-900 dark:text-stone-100">{errorDetails.operationType}</span>
+              </div>
+              {errorDetails.path && (
+                <div className="flex justify-between text-[10px] font-bold uppercase tracking-widest text-stone-400">
+                  <span>Resource</span>
+                  <span className="text-stone-900 dark:text-stone-100 truncate max-w-[150px]">{errorDetails.path}</span>
+                </div>
+              )}
+            </div>
+          )}
+
           <button 
             onClick={() => window.location.reload()}
-            className="w-full py-3 bg-stone-900 text-white rounded-full font-medium hover:bg-stone-800 transition-colors"
+            className="w-full py-4 bg-stone-900 dark:bg-stone-100 text-white dark:text-stone-900 rounded-2xl font-bold text-sm hover:opacity-90 transition-all flex items-center justify-center gap-2"
           >
-            Try Again
+            <RefreshCw className="w-4 h-4" />
+            Reload Application
           </button>
+          
+          <p className="text-[10px] text-center text-stone-400 font-serif italic">
+            If this persists, please check your internet connection or API keys in Settings.
+          </p>
         </div>
       </div>
     );
@@ -1423,6 +1351,15 @@ const Dashboard = ({ vocabCount, vocab, logout }: { vocabCount: number, vocab: V
 
   return (
     <div className="relative space-y-8 pb-24 px-4 pt-4">
+      {/* Branding */}
+      <div className="hidden md:flex items-center gap-5 mb-4 px-2">
+        <div className="w-14 h-14 bg-stone-900 dark:bg-stone-100 rounded-[1.25rem] flex items-center justify-center text-white dark:text-stone-900 text-3xl font-bold shadow-2xl shadow-stone-200/50 dark:shadow-none border border-stone-800 dark:border-stone-200">木</div>
+        <div className="flex flex-col">
+          <span className="font-editorial italic text-4xl tracking-tight text-stone-900 dark:text-stone-100 leading-none">Komorebi</span>
+          <span className="text-[10px] font-bold uppercase tracking-[0.3em] text-stone-400 dark:text-stone-500 mt-2">Japanese Learning Partner</span>
+        </div>
+      </div>
+
       {/* Today's Mission Card */}
       <motion.div 
         initial={{ opacity: 0, y: 20 }}
@@ -4047,53 +3984,47 @@ const Settings = ({ vocab }: { vocab: Vocabulary[] }) => {
 
       let responseText = '';
 
-      if (keyInfo.provider === 'gemini') {
-        const ai = new GoogleGenAI({ apiKey: keyInfo.key });
-        const response = await ai.models.generateContent({
-          model: getSafeModel(keyInfo.provider as any),
-          contents: "Respond with exactly the word 'OK'.",
-          config: {
-            systemInstruction: "You are a helpful assistant testing a connection."
-          }
-        });
-        responseText = response.text || '';
-      } else {
-        const response = await fetch('/api/ai/generate', {
-          method: 'POST',
-          headers: { 
-            'Content-Type': 'application/json',
-            'Accept': 'application/json'
-          },
-          body: JSON.stringify({
-            provider: keyInfo.provider,
-            key: keyInfo.key,
-            baseUrl: keyInfo.baseUrl,
-            model: getSafeModel(keyInfo.provider as any),
-            contents: "Respond with exactly the word 'OK'.",
-            systemInstruction: "You are a helpful assistant testing a connection."
-          })
-        });
-
-        const contentType = response.headers.get('content-type');
-        if (!contentType || !contentType.includes('application/json')) {
-          const text = await response.text();
-          throw new Error(`Expected JSON response from AI Proxy but got: ${text.substring(0, 100)}...`);
-        }
-
-        const data = await response.json();
+      if (keyInfo.provider === 'gemini' || true) { // Use unified interface for all
+        const ai = getAI(profile, 'general'); // This will use the keyInfo we just found if we pass it, but getAI uses profile
+        // Actually, handleTestAI can take specificKeyInfo. 
+        // Let's just use the logic from getAI directly here to be safe with specificKeyInfo
         
-        if (!response.ok) {
-          let errorMsg = data.error || 'Unknown error';
-          
-          if (errorMsg.includes("quota") || errorMsg.includes("billing") || errorMsg.includes("credit")) {
-            errorMsg = "You exceeded your current quota or have no credits. Please check your plan and billing details.";
-          } else if (errorMsg.includes("API key") || errorMsg.includes("unauthorized") || errorMsg.includes("invalid_api_key")) {
-            errorMsg = "Incorrect API key provided. Please check your key in Settings.";
+        const targetModel = getSafeModel(keyInfo.provider);
+        
+        if (keyInfo.provider === 'gemini') {
+          const genAI = new GoogleGenAI({ apiKey: keyInfo.key });
+          const response = await (genAI as any).models.generateContent({
+            model: targetModel,
+            contents: "Respond with exactly the word 'OK'.",
+            config: {
+              systemInstruction: "You are a helpful assistant testing a connection."
+            }
+          });
+          responseText = response.text || (response.candidates?.[0]?.content?.parts?.[0]?.text) || "";
+        } else {
+          const response = await fetch('/api/ai/generate', {
+            method: 'POST',
+            headers: { 
+              'Content-Type': 'application/json',
+              'Accept': 'application/json'
+            },
+            body: JSON.stringify({
+              provider: keyInfo.provider,
+              key: keyInfo.key,
+              baseUrl: keyInfo.baseUrl,
+              model: targetModel,
+              contents: "Respond with exactly the word 'OK'.",
+              systemInstruction: "You are a helpful assistant testing a connection."
+            })
+          });
+
+          if (!response.ok) {
+            const data = await response.json();
+            throw new Error(data.error || data.details || `Request failed with status ${response.status}`);
           }
-          
-          throw new Error(`AI Proxy Error: ${errorMsg}`);
+          const data = await response.json();
+          responseText = data.text || (data.candidates?.[0]?.content?.parts?.[0]?.text) || "";
         }
-        responseText = data.text || '';
       }
 
       if (responseText && responseText.toUpperCase().includes('OK')) {
@@ -4325,32 +4256,9 @@ const Settings = ({ vocab }: { vocab: Vocabulary[] }) => {
                             <option value="openai">OpenAI</option>
                             <option value="anthropic">Anthropic</option>
                             <option value="openrouter">OpenRouter</option>
-                            <option value="huggingface">Hugging Face</option>
-                            <option value="groq">Groq</option>
-                            <option value="mistral">Mistral</option>
-                            <option value="cohere">Cohere</option>
-                            <option value="deepseek">DeepSeek</option>
-                            <option value="together">Together AI</option>
-                            <option value="perplexity">Perplexity</option>
                             <option value="xai">xAI (Grok)</option>
-                            <option value="ollama">Ollama</option>
-                            <option value="custom">Custom...</option>
                           </select>
                         </div>
-                        {AI_MODELS[keyObj.provider.toLowerCase()] && (
-                          <div className="space-y-1">
-                            <label className="text-[9px] font-bold text-stone-400 uppercase tracking-widest px-1">Model</label>
-                            <select 
-                              value={keyObj.model || AI_MODELS[keyObj.provider.toLowerCase()][0].id}
-                              onChange={(e) => handleKeyChange('universal', idx, 'model', e.target.value)}
-                              className="w-full p-2.5 bg-white dark:bg-stone-900 rounded-xl text-[10px] font-bold uppercase tracking-widest border border-stone-100 dark:border-stone-800 outline-none"
-                            >
-                              {AI_MODELS[keyObj.provider.toLowerCase()].map((m: any) => (
-                                <option key={m.id} value={m.id}>{m.name}</option>
-                              ))}
-                            </select>
-                          </div>
-                        )}
                       </div>
                       
                       <div className="space-y-1">
@@ -4425,41 +4333,18 @@ const Settings = ({ vocab }: { vocab: Vocabulary[] }) => {
                           <div className="space-y-1">
                             <label className="text-[9px] font-bold text-stone-400 uppercase tracking-widest px-1">Provider</label>
                             <select 
-                              value={keyObj.provider}
-                              onChange={(e) => handleKeyChange('translation', idx, 'provider', e.target.value)}
-                              className="w-full p-2.5 bg-white dark:bg-stone-900 rounded-xl text-[10px] font-bold uppercase tracking-widest border border-stone-100 dark:border-stone-800 outline-none"
-                            >
-                              <option value="gemini">Gemini</option>
-                              <option value="openai">OpenAI</option>
-                              <option value="anthropic">Anthropic</option>
-                              <option value="openrouter">OpenRouter</option>
-                              <option value="huggingface">Hugging Face</option>
-                              <option value="groq">Groq</option>
-                              <option value="mistral">Mistral</option>
-                              <option value="cohere">Cohere</option>
-                              <option value="deepseek">DeepSeek</option>
-                              <option value="together">Together AI</option>
-                              <option value="perplexity">Perplexity</option>
-                              <option value="xai">xAI (Grok)</option>
-                              <option value="ollama">Ollama</option>
-                              <option value="custom">Custom...</option>
-                            </select>
-                          </div>
-                          {AI_MODELS[keyObj.provider.toLowerCase()] && (
-                            <div className="space-y-1">
-                              <label className="text-[9px] font-bold text-stone-400 uppercase tracking-widest px-1">Model</label>
-                              <select 
-                                value={keyObj.model || AI_MODELS[keyObj.provider.toLowerCase()][0].id}
-                                onChange={(e) => handleKeyChange('translation', idx, 'model', e.target.value)}
-                                className="w-full p-2.5 bg-white dark:bg-stone-900 rounded-xl text-[10px] font-bold uppercase tracking-widest border border-stone-100 dark:border-stone-800 outline-none"
-                              >
-                                {AI_MODELS[keyObj.provider.toLowerCase()].map((m: any) => (
-                                  <option key={m.id} value={m.id}>{m.name}</option>
-                                ))}
-                              </select>
-                            </div>
-                          )}
-                        </div>
+                               value={keyObj.provider}
+                               onChange={(e) => handleKeyChange('translation', idx, 'provider', e.target.value)}
+                               className="w-full p-2.5 bg-white dark:bg-stone-900 rounded-xl text-[10px] font-bold uppercase tracking-widest border border-stone-100 dark:border-stone-800 outline-none"
+                             >
+                               <option value="gemini">Gemini</option>
+                               <option value="openai">OpenAI</option>
+                               <option value="anthropic">Anthropic</option>
+                               <option value="openrouter">OpenRouter</option>
+                               <option value="xai">xAI (Grok)</option>
+                             </select>
+                           </div>
+                         </div>
                         
                         <div className="space-y-1">
                           <label className="text-[9px] font-bold text-stone-400 uppercase tracking-widest px-1">API Key</label>
@@ -4499,41 +4384,18 @@ const Settings = ({ vocab }: { vocab: Vocabulary[] }) => {
                           <div className="space-y-1">
                             <label className="text-[9px] font-bold text-stone-400 uppercase tracking-widest px-1">Provider</label>
                             <select 
-                              value={keyObj.provider}
-                              onChange={(e) => handleKeyChange('sensei', idx, 'provider', e.target.value)}
-                              className="w-full p-2.5 bg-white dark:bg-stone-900 rounded-xl text-[10px] font-bold uppercase tracking-widest border border-stone-100 dark:border-stone-800 outline-none"
-                            >
-                              <option value="gemini">Gemini</option>
-                              <option value="openai">OpenAI</option>
-                              <option value="anthropic">Anthropic</option>
-                              <option value="openrouter">OpenRouter</option>
-                              <option value="huggingface">Hugging Face</option>
-                              <option value="groq">Groq</option>
-                              <option value="mistral">Mistral</option>
-                              <option value="cohere">Cohere</option>
-                              <option value="deepseek">DeepSeek</option>
-                              <option value="together">Together AI</option>
-                              <option value="perplexity">Perplexity</option>
-                              <option value="xai">xAI (Grok)</option>
-                              <option value="ollama">Ollama</option>
-                              <option value="custom">Custom...</option>
-                            </select>
-                          </div>
-                          {AI_MODELS[keyObj.provider.toLowerCase()] && (
-                            <div className="space-y-1">
-                              <label className="text-[9px] font-bold text-stone-400 uppercase tracking-widest px-1">Model</label>
-                              <select 
-                                value={keyObj.model || AI_MODELS[keyObj.provider.toLowerCase()][0].id}
-                                onChange={(e) => handleKeyChange('sensei', idx, 'model', e.target.value)}
-                                className="w-full p-2.5 bg-white dark:bg-stone-900 rounded-xl text-[10px] font-bold uppercase tracking-widest border border-stone-100 dark:border-stone-800 outline-none"
-                              >
-                                {AI_MODELS[keyObj.provider.toLowerCase()].map((m: any) => (
-                                  <option key={m.id} value={m.id}>{m.name}</option>
-                                ))}
-                              </select>
-                            </div>
-                          )}
-                        </div>
+                               value={keyObj.provider}
+                               onChange={(e) => handleKeyChange('sensei', idx, 'provider', e.target.value)}
+                               className="w-full p-2.5 bg-white dark:bg-stone-900 rounded-xl text-[10px] font-bold uppercase tracking-widest border border-stone-100 dark:border-stone-800 outline-none"
+                             >
+                               <option value="gemini">Gemini</option>
+                               <option value="openai">OpenAI</option>
+                               <option value="anthropic">Anthropic</option>
+                               <option value="openrouter">OpenRouter</option>
+                               <option value="xai">xAI (Grok)</option>
+                             </select>
+                           </div>
+                         </div>
                         
                         <div className="space-y-1">
                           <label className="text-[9px] font-bold text-stone-400 uppercase tracking-widest px-1">API Key</label>
@@ -4573,41 +4435,18 @@ const Settings = ({ vocab }: { vocab: Vocabulary[] }) => {
                           <div className="space-y-1">
                             <label className="text-[9px] font-bold text-stone-400 uppercase tracking-widest px-1">Provider</label>
                             <select 
-                              value={keyObj.provider}
-                              onChange={(e) => handleKeyChange('dictionary', idx, 'provider', e.target.value)}
-                              className="w-full p-2.5 bg-white dark:bg-stone-900 rounded-xl text-[10px] font-bold uppercase tracking-widest border border-stone-100 dark:border-stone-800 outline-none"
-                            >
-                              <option value="gemini">Gemini</option>
-                              <option value="openai">OpenAI</option>
-                              <option value="anthropic">Anthropic</option>
-                              <option value="openrouter">OpenRouter</option>
-                              <option value="huggingface">Hugging Face</option>
-                              <option value="groq">Groq</option>
-                              <option value="mistral">Mistral</option>
-                              <option value="cohere">Cohere</option>
-                              <option value="deepseek">DeepSeek</option>
-                              <option value="together">Together AI</option>
-                              <option value="perplexity">Perplexity</option>
-                              <option value="xai">xAI (Grok)</option>
-                              <option value="ollama">Ollama</option>
-                              <option value="custom">Custom...</option>
-                            </select>
-                          </div>
-                          {AI_MODELS[keyObj.provider.toLowerCase()] && (
-                            <div className="space-y-1">
-                              <label className="text-[9px] font-bold text-stone-400 uppercase tracking-widest px-1">Model</label>
-                              <select 
-                                value={keyObj.model || AI_MODELS[keyObj.provider.toLowerCase()][0].id}
-                                onChange={(e) => handleKeyChange('dictionary', idx, 'model', e.target.value)}
-                                className="w-full p-2.5 bg-white dark:bg-stone-900 rounded-xl text-[10px] font-bold uppercase tracking-widest border border-stone-100 dark:border-stone-800 outline-none"
-                              >
-                                {AI_MODELS[keyObj.provider.toLowerCase()].map((m: any) => (
-                                  <option key={m.id} value={m.id}>{m.name}</option>
-                                ))}
-                              </select>
-                            </div>
-                          )}
-                        </div>
+                               value={keyObj.provider}
+                               onChange={(e) => handleKeyChange('dictionary', idx, 'provider', e.target.value)}
+                               className="w-full p-2.5 bg-white dark:bg-stone-900 rounded-xl text-[10px] font-bold uppercase tracking-widest border border-stone-100 dark:border-stone-800 outline-none"
+                             >
+                               <option value="gemini">Gemini</option>
+                               <option value="openai">OpenAI</option>
+                               <option value="anthropic">Anthropic</option>
+                               <option value="openrouter">OpenRouter</option>
+                               <option value="xai">xAI (Grok)</option>
+                             </select>
+                           </div>
+                         </div>
                         
                         <div className="space-y-1">
                           <label className="text-[9px] font-bold text-stone-400 uppercase tracking-widest px-1">API Key</label>
@@ -7948,10 +7787,13 @@ const AppContent = ({ activeTab, setActiveTab, todayVocabCount, vocab, logout, s
       </AnimatePresence>
 
       {/* Desktop Sidebar */}
-      <aside className="hidden md:flex w-56 bg-white dark:bg-[#1c1917] border-r border-stone-100 dark:border-stone-800 flex-col fixed inset-y-0 left-0 z-50 transition-colors duration-300">
-            <div className="p-6 flex items-center gap-2">
-              <div className="w-8 h-8 bg-stone-900 dark:bg-stone-100 rounded-lg flex items-center justify-center text-white dark:text-stone-900 font-bold shrink-0 text-sm">木</div>
-              <span className="font-serif font-bold text-lg tracking-tight text-stone-900 dark:text-stone-100">Komorebi</span>
+      <aside className="hidden md:flex w-64 bg-white dark:bg-[#1c1917] border-r border-stone-100 dark:border-stone-800 flex-col fixed inset-y-0 left-0 z-50 transition-colors duration-300">
+            <div className="p-8 flex items-center gap-3">
+              <div className="w-10 h-10 bg-stone-900 dark:bg-stone-100 rounded-xl flex items-center justify-center text-white dark:text-stone-900 font-bold shrink-0 text-xl shadow-lg">木</div>
+              <div className="flex flex-col">
+                <span className="font-serif font-bold text-xl tracking-tight text-stone-900 dark:text-stone-100 leading-none">Komorebi</span>
+                <span className="text-[8px] font-bold uppercase tracking-widest text-stone-400 dark:text-stone-500 mt-1">Learning Partner</span>
+              </div>
             </div>
             
             <nav className="flex-1 px-3 space-y-1 mt-2">
@@ -8151,31 +7993,47 @@ const AppContent = ({ activeTab, setActiveTab, todayVocabCount, vocab, logout, s
           <main className="p-4 md:p-8 lg:p-10">
             <div className="max-w-5xl mx-auto">
               {/* Header for Mobile */}
-              <div className="md:hidden flex items-center justify-between mb-6">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full border-2 border-white dark:border-stone-700 shadow-sm overflow-hidden bg-stone-100 dark:bg-stone-800 flex items-center justify-center shrink-0">
-                    {profile?.avatar?.startsWith('data:image') ? (
-                      <img src={profile.avatar} alt="Avatar" className="w-full h-full object-cover" />
-                    ) : (
-                      <span className="text-xl">{profile?.avatar || '🦊'}</span>
-                    )}
+              <div className="md:hidden flex flex-col gap-8 mb-10">
+                <div className="flex items-start justify-between">
+                  {/* Logo Section */}
+                  <div className="flex items-center gap-4">
+                    <div className="w-14 h-14 bg-stone-900 dark:bg-stone-100 rounded-[1.25rem] flex items-center justify-center text-white dark:text-stone-900 text-3xl font-bold shadow-2xl shadow-stone-200/50 dark:shadow-none border border-stone-800 dark:border-stone-200">木</div>
+                    <div className="flex flex-col">
+                      <span className="font-editorial italic text-3xl tracking-tight text-stone-900 dark:text-stone-100 leading-none">Komorebi</span>
+                      <span className="text-[9px] font-bold uppercase tracking-[0.3em] text-stone-400 dark:text-stone-500 mt-2">Japanese Learning Partner</span>
+                    </div>
                   </div>
-                  <div className="flex flex-col">
-                    <span className="font-bold text-xs text-stone-900 dark:text-stone-100 truncate">{profile?.displayName || 'Learner'}</span>
-                    <span className="text-[10px] text-stone-400">Level {Math.floor((profile?.xp || 0) / 100) + 1}</span>
+
+                  {/* Right Side: Profile & Actions */}
+                  <div className="flex flex-col items-end gap-4">
+                    {/* Profile Pic on Top */}
+                    <motion.div 
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      onClick={() => setActiveTab('settings')}
+                      className="w-14 h-14 rounded-[1.25rem] border-2 border-white dark:border-stone-800 shadow-xl overflow-hidden bg-stone-100 dark:bg-stone-800 flex items-center justify-center shrink-0 cursor-pointer ring-4 ring-stone-50 dark:ring-stone-900/50"
+                    >
+                      {profile?.avatar?.startsWith('data:image') ? (
+                        <img src={profile.avatar} alt="Avatar" className="w-full h-full object-cover" />
+                      ) : (
+                        <span className="text-3xl">{profile?.avatar || '🦊'}</span>
+                      )}
+                    </motion.div>
+                    
+                    {/* Streak & Settings below */}
+                    <div className="flex items-center gap-2 bg-white/80 dark:bg-stone-800/80 backdrop-blur-md p-1 rounded-2xl border border-stone-100 dark:border-stone-700 shadow-sm">
+                      <div className="px-3 py-1.5 bg-amber-50 dark:bg-amber-900/20 rounded-xl flex items-center gap-1.5">
+                        <Flame className="w-4 h-4 text-amber-500 fill-amber-500" />
+                        <span className="text-xs font-bold text-amber-900 dark:text-amber-100">{profile?.streakCount || 0}</span>
+                      </div>
+                      <button 
+                        onClick={() => setActiveTab('settings')} 
+                        className="p-2 text-stone-400 dark:text-stone-500 hover:text-stone-900 dark:hover:text-stone-100 transition-all"
+                      >
+                        <SettingsIcon className="w-5 h-5" />
+                      </button>
+                    </div>
                   </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="px-3 py-1 bg-amber-50 dark:bg-amber-900/20 rounded-full border border-amber-100 dark:border-amber-800 flex items-center gap-1.5">
-                    <Flame className="w-3 h-3 text-amber-500 fill-amber-500" />
-                    <span className="text-[10px] font-bold text-amber-900 dark:text-amber-100">{profile?.streakCount || 0}</span>
-                  </div>
-                  <button 
-                    onClick={() => setActiveTab('settings')} 
-                    className="p-2 text-stone-400 dark:text-stone-500 hover:text-stone-900 dark:hover:text-stone-100 transition-colors"
-                  >
-                    <SettingsIcon className="w-5 h-5" />
-                  </button>
                 </div>
               </div>
 
