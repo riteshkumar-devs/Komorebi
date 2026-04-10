@@ -3717,7 +3717,21 @@ const Settings = ({ vocab }: { vocab: Vocabulary[] }) => {
   const handleUpdateApiSettings = async (updates: Partial<UserProfile['apiSettings']>) => {
     try {
       const currentSettings = profile?.apiSettings || { mode: 'universal', universalKeys: profile?.apiKeys || [] };
-      const newSettings = { ...currentSettings, ...updates };
+      
+      // Deep merge structuredKeys if it exists in updates
+      let newStructuredKeys = currentSettings.structuredKeys;
+      if (updates.structuredKeys) {
+        newStructuredKeys = {
+          ...(currentSettings.structuredKeys || {}),
+          ...updates.structuredKeys
+        };
+      }
+
+      const newSettings = { 
+        ...currentSettings, 
+        ...updates,
+        structuredKeys: newStructuredKeys
+      };
       
       if (isDemo) {
         const p = JSON.parse(localStorage.getItem('komorebi_profile') || '{}');
@@ -3734,20 +3748,27 @@ const Settings = ({ vocab }: { vocab: Vocabulary[] }) => {
 
   const handleAddKey = (type: 'universal' | 'translation' | 'sensei' | 'dictionary') => {
     const currentSettings = profile?.apiSettings || { mode: 'universal', universalKeys: profile?.apiKeys || [] };
-    
-    // Support both legacy and structured
     const structuredKeys = currentSettings.structuredKeys || {};
-    const keySet = structuredKeys[type] || [];
+    
+    let keySet = [...(structuredKeys[type] || [])];
+    
+    if (keySet.length === 0) {
+      const legacyField = type === 'universal' ? 'universalKeys' : 
+                          type === 'translation' ? 'translationKeys' : 
+                          type === 'sensei' ? 'senseiKeys' : 'dictionaryKeys';
+      const legacyKeys = currentSettings[legacyField] || (type === 'universal' ? profile?.apiKeys : []) || [];
+      keySet = legacyKeys.map(k => ({ key: k, provider: 'gemini' }));
+    }
+
     const newStructuredKeys = {
       ...structuredKeys,
       [type]: [...keySet, { key: '', provider: 'gemini' }]
     };
 
-    // Also update legacy for backward compatibility if it's gemini
     const legacyField = type === 'universal' ? 'universalKeys' : 
                         type === 'translation' ? 'translationKeys' : 
                         type === 'sensei' ? 'senseiKeys' : 'dictionaryKeys';
-    const legacyKeys = [...(currentSettings[legacyField] || []), ''];
+    const legacyKeys = [...keySet.map(k => k.key), ''];
 
     handleUpdateApiSettings({ 
       structuredKeys: newStructuredKeys,
@@ -3758,9 +3779,26 @@ const Settings = ({ vocab }: { vocab: Vocabulary[] }) => {
   const handleKeyChange = (type: 'universal' | 'translation' | 'sensei' | 'dictionary', idx: number, field: 'key' | 'provider' | 'baseUrl' | 'customProvider' | 'model', value: string) => {
     const currentSettings = profile?.apiSettings || { mode: 'universal', universalKeys: profile?.apiKeys || [] };
     const structuredKeys = currentSettings.structuredKeys || {};
-    const keySet = [...(structuredKeys[type] || [{ key: '', provider: 'gemini' }])];
     
-    if (!keySet[idx]) keySet[idx] = { key: '', provider: 'gemini' };
+    let keySet = [...(structuredKeys[type] || [])];
+    
+    // If structured keys are missing for this type, initialize from legacy
+    if (keySet.length === 0) {
+      const legacyField = type === 'universal' ? 'universalKeys' : 
+                          type === 'translation' ? 'translationKeys' : 
+                          type === 'sensei' ? 'senseiKeys' : 'dictionaryKeys';
+      const legacyKeys = currentSettings[legacyField] || (type === 'universal' ? profile?.apiKeys : []) || [];
+      keySet = legacyKeys.map(k => ({ key: k, provider: 'gemini' }));
+    }
+    
+    // Ensure the index exists
+    if (keySet.length === 0) {
+      keySet = [{ key: '', provider: 'gemini' }];
+    }
+    
+    if (!keySet[idx]) {
+      keySet[idx] = { key: '', provider: 'gemini' };
+    }
     
     if (field === 'provider') {
       // Reset model when provider changes
@@ -3775,14 +3813,11 @@ const Settings = ({ vocab }: { vocab: Vocabulary[] }) => {
       [type]: keySet
     };
 
-    // Sync legacy if it's the key field and provider is gemini
+    // Sync legacy if it's the key field
     const legacyField = type === 'universal' ? 'universalKeys' : 
                         type === 'translation' ? 'translationKeys' : 
                         type === 'sensei' ? 'senseiKeys' : 'dictionaryKeys';
-    const legacyKeys = [...(currentSettings[legacyField] || [])];
-    if (field === 'key') {
-      legacyKeys[idx] = value;
-    }
+    const legacyKeys = keySet.map(k => k.key);
 
     handleUpdateApiSettings({ 
       structuredKeys: newStructuredKeys,
@@ -3793,17 +3828,28 @@ const Settings = ({ vocab }: { vocab: Vocabulary[] }) => {
   const handleRemoveKey = (type: 'universal' | 'translation' | 'sensei' | 'dictionary', idx: number) => {
     const currentSettings = profile?.apiSettings || { mode: 'universal', universalKeys: profile?.apiKeys || [] };
     const structuredKeys = currentSettings.structuredKeys || {};
-    const keySet = (structuredKeys[type] || []).filter((_, i) => i !== idx);
+    
+    let keySet = [...(structuredKeys[type] || [])];
+    
+    if (keySet.length === 0) {
+      const legacyField = type === 'universal' ? 'universalKeys' : 
+                          type === 'translation' ? 'translationKeys' : 
+                          type === 'sensei' ? 'senseiKeys' : 'dictionaryKeys';
+      const legacyKeys = currentSettings[legacyField] || (type === 'universal' ? profile?.apiKeys : []) || [];
+      keySet = legacyKeys.map(k => ({ key: k, provider: 'gemini' }));
+    }
+
+    const newKeySet = keySet.filter((_, i) => i !== idx);
     
     const newStructuredKeys = {
       ...structuredKeys,
-      [type]: keySet
+      [type]: newKeySet
     };
 
     const legacyField = type === 'universal' ? 'universalKeys' : 
                         type === 'translation' ? 'translationKeys' : 
                         type === 'sensei' ? 'senseiKeys' : 'dictionaryKeys';
-    const legacyKeys = (currentSettings[legacyField] || []).filter((_, i) => i !== idx);
+    const legacyKeys = newKeySet.map(k => k.key);
 
     handleUpdateApiSettings({ 
       structuredKeys: newStructuredKeys,
@@ -4243,7 +4289,7 @@ const Settings = ({ vocab }: { vocab: Vocabulary[] }) => {
                 </div>
                 <div className="space-y-4">
                   {(profile?.apiSettings?.structuredKeys?.universal || (profile?.apiSettings?.universalKeys || profile?.apiKeys || ['']).map(k => ({ key: k, provider: 'gemini' }))).map((keyObj: any, idx: number) => (
-                    <div className="space-y-4 p-4 bg-stone-50 dark:bg-stone-800/50 rounded-2xl border border-stone-100 dark:border-stone-800">
+                    <div key={idx} className="space-y-4 p-4 bg-stone-50 dark:bg-stone-800/50 rounded-2xl border border-stone-100 dark:border-stone-800">
                       <div className="grid grid-cols-2 gap-3">
                         <div className="space-y-1">
                           <label className="text-[9px] font-bold text-stone-400 uppercase tracking-widest px-1">Provider</label>

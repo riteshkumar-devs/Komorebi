@@ -39,16 +39,21 @@ async function startServer() {
     try {
       switch (provider) {
         case 'openai':
-        case 'openrouter': {
+        case 'openrouter':
+        case 'xai': {
           let finalBaseUrl = baseUrl;
           if (!finalBaseUrl) {
-            finalBaseUrl = provider === 'openai' ? "https://api.openai.com/v1/chat/completions" : "https://openrouter.ai/api/v1/chat/completions";
+            if (provider === 'openai') finalBaseUrl = "https://api.openai.com/v1/chat/completions";
+            else if (provider === 'openrouter') finalBaseUrl = "https://openrouter.ai/api/v1/chat/completions";
+            else if (provider === 'xai') finalBaseUrl = "https://api.x.ai/v1/chat/completions";
           } else if (!finalBaseUrl.endsWith('/chat/completions')) {
             // If it's just the base v1 URL, append the completions path
             finalBaseUrl = finalBaseUrl.replace(/\/+$/, '') + '/chat/completions';
           }
 
-          const defaultModel = provider === 'openai' ? "gpt-4o" : "google/gemini-2.0-flash-001";
+          const defaultModel = provider === 'openai' ? "gpt-4o" : 
+                               provider === 'xai' ? "grok-beta" :
+                               "google/gemini-2.0-flash-001";
           
           let userContent = contents;
           if (Array.isArray(contents)) {
@@ -75,8 +80,8 @@ async function startServer() {
                 "Authorization": `Bearer ${key}`,
                 "Content-Type": "application/json",
                 ...(provider === 'openrouter' ? {
-                  "HTTP-Referer": "https://ais-dev-crgco6vlf2kgfzw2voqzza-570758212111.asia-southeast1.run.app",
-                  "X-Title": "Japanese Learning App"
+                  "HTTP-Referer": req.headers.referer || "https://komorebi.app",
+                  "X-Title": "Komorebi Japanese Learning Partner"
                 } : {})
               }
             }
