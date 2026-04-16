@@ -39,10 +39,56 @@
             "count": { "type": "integer" }
           }
         },
+        "apiSettings": {
+          "type": "object",
+          "properties": {
+            "mode": { "type": "string", "enum": ["universal", "particular"] },
+            "universalKeys": { "type": "array", "items": { "type": "string" } },
+            "translationKeys": { "type": "array", "items": { "type": "string" } },
+            "senseiKeys": { "type": "array", "items": { "type": "string" } },
+            "dictionaryKeys": { "type": "array", "items": { "type": "string" } },
+            "structuredKeys": {
+              "type": "object",
+              "properties": {
+                "universal": { "type": "array", "items": { "$ref": "APIKey" } },
+                "translation": { "type": "array", "items": { "$ref": "APIKey" } },
+                "sensei": { "type": "array", "items": { "$ref": "APIKey" } },
+                "dictionary": { "type": "array", "items": { "$ref": "APIKey" } }
+              }
+            }
+          }
+        },
+        "aiCache": { "type": "object" },
+        "dictionarySearchesToday": { "type": "integer" },
+        "gameTimeToday": { "type": "integer" },
+        "claimedRewards": { "type": "array", "items": { "type": "string" } },
+        "customPhrases": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "jp": { "type": "string" },
+              "ro": { "type": "string" },
+              "en": { "type": "string" },
+              "category": { "type": "string" }
+            }
+          }
+        },
         "role": { "type": "string", "enum": ["admin", "user", "client"] },
         "theme": { "type": "string", "enum": ["light", "dark", "system"] }
       },
       "required": ["uid", "email"]
+    },
+    "APIKey": {
+      "title": "APIKey",
+      "type": "object",
+      "properties": {
+        "key": { "type": "string" },
+        "provider": { "type": "string", "enum": ["gemini", "openai", "anthropic", "openrouter", "xai"] },
+        "baseUrl": { "type": "string" },
+        "customProvider": { "type": "string" },
+        "model": { "type": "string" }
+      }
     },
     "Vocabulary": {
       "title": "Vocabulary",

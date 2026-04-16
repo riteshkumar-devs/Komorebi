@@ -155,7 +155,10 @@ const AI_MODELS: Record<string, { id: string; name: string }[]> = {
     { id: 'gpt-4o', name: 'GPT-4o' },
   ],
   openrouter: [
+    { id: 'mistralai/mistral-7b-instruct', name: 'Mistral 7B' },
+    { id: 'meta-llama/llama-3.1-405b', name: 'Llama 3.1 405B' },
     { id: 'google/gemini-2.0-flash-001', name: 'Gemini 2.0 Flash' },
+    { id: 'openai/gpt-4o', name: 'GPT-4o' },
   ],
   anthropic: [
     { id: 'claude-3-5-sonnet-20240620', name: 'Claude 3.5 Sonnet' },
@@ -326,7 +329,7 @@ const getSafeModel = (provider?: string, requestedModel?: string) => {
   
   const models = AI_MODELS[provider.toLowerCase()];
   if (!models || models.length === 0) {
-    if (provider === 'openrouter') return 'google/gemini-2.0-flash-001';
+    if (provider === 'openrouter') return 'mistralai/mistral-7b-instruct';
     return 'gemini-2.0-flash';
   }
   

@@ -83,7 +83,9 @@ service cloud.firestore {
         'uid', 'displayName', 'email', 'streakCount', 'lastActiveDate', 
         'dailyGoalMet', 'xp', 'rank', 'title', 'dailyGoal', 'avatar', 
         'ownedAvatars', 'preferredTTS', 'notificationsEnabled', 'achievements', 
-        'pinnedAchievements', 'apiKeys', 'quoteCache', 'quoteStats', 'role', 'theme'
+        'pinnedAchievements', 'apiKeys', 'quoteCache', 'quoteStats', 'role', 'theme',
+        'apiSettings', 'aiCache', 'claimedRewards', 'dictionarySearchesToday', 
+        'gameTimeToday', 'customPhrases'
       ];
       return data.keys().hasAll(['uid', 'email']) &&
              data.keys().hasOnly(allowedFields) &&
@@ -107,7 +109,13 @@ service cloud.firestore {
              (!('quoteCache' in data) || data.quoteCache is list) &&
              (!('quoteStats' in data) || data.quoteStats is map) &&
              (!('role' in data) || data.role in ['admin', 'user', 'client']) &&
-             (!('theme' in data) || data.theme in ['light', 'dark', 'system']);
+             (!('theme' in data) || data.theme in ['light', 'dark', 'system']) &&
+             (!('apiSettings' in data) || data.apiSettings is map) &&
+             (!('aiCache' in data) || data.aiCache is map) &&
+             (!('claimedRewards' in data) || data.claimedRewards is list) &&
+             (!('dictionarySearchesToday' in data) || data.dictionarySearchesToday is number) &&
+             (!('gameTimeToday' in data) || data.gameTimeToday is number) &&
+             (!('customPhrases' in data) || data.customPhrases is list);
     }
 
     function isValidVocab(data) {
