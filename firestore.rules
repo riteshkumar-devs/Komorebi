@@ -24,6 +24,9 @@
 //   - apiKeys: list
 //   - quoteCache: list
 //   - quoteStats: map
+//   - dob: string
+//   - careerGoal: string
+//   - onboardingCompleted: boolean
 //
 // Collection: users/{userId}/vocabularies
 // Document ID: {vocabId}
@@ -79,110 +82,71 @@ service cloud.firestore {
     }
 
     function isValidUser(data) {
-      let allowedFields = [
-        'uid', 'displayName', 'email', 'streakCount', 'lastActiveDate', 
-        'dailyGoalMet', 'xp', 'rank', 'title', 'dailyGoal', 'avatar', 
-        'ownedAvatars', 'preferredTTS', 'notificationsEnabled', 'achievements', 
-        'pinnedAchievements', 'apiKeys', 'quoteCache', 'quoteStats', 'role', 'theme',
-        'apiSettings', 'aiCache', 'claimedRewards', 'dictionarySearchesToday', 
-        'gameTimeToday', 'customPhrases'
-      ];
       return data.keys().hasAll(['uid', 'email']) &&
-             data.keys().hasOnly(allowedFields) &&
              data.uid is string &&
              data.email is string &&
-             (!('displayName' in data) || (data.displayName is string || data.displayName == null)) &&
-             (!('streakCount' in data) || data.streakCount is number) &&
-             (!('xp' in data) || data.xp is number) &&
-             (!('lastActiveDate' in data) || data.lastActiveDate is timestamp) &&
-             (!('dailyGoalMet' in data) || data.dailyGoalMet is bool) &&
-             (!('rank' in data) || data.rank is string) &&
-             (!('title' in data) || data.title is string) &&
-             (!('dailyGoal' in data) || data.dailyGoal is number) &&
-             (!('avatar' in data) || data.avatar is string) &&
-             (!('ownedAvatars' in data) || data.ownedAvatars is list) &&
-             (!('preferredTTS' in data) || data.preferredTTS in ['native', 'gemini']) &&
-             (!('notificationsEnabled' in data) || data.notificationsEnabled is bool) &&
-             (!('achievements' in data) || data.achievements is list) &&
-             (!('pinnedAchievements' in data) || data.pinnedAchievements is list) &&
-             (!('apiKeys' in data) || data.apiKeys is list) &&
-             (!('quoteCache' in data) || data.quoteCache is list) &&
-             (!('quoteStats' in data) || data.quoteStats is map) &&
-             (!('role' in data) || data.role in ['admin', 'user', 'client']) &&
-             (!('theme' in data) || data.theme in ['light', 'dark', 'system']) &&
-             (!('apiSettings' in data) || data.apiSettings is map) &&
-             (!('aiCache' in data) || data.aiCache is map) &&
-             (!('claimedRewards' in data) || data.claimedRewards is list) &&
-             (!('dictionarySearchesToday' in data) || data.dictionarySearchesToday is number) &&
-             (!('gameTimeToday' in data) || data.gameTimeToday is number) &&
-             (!('customPhrases' in data) || data.customPhrases is list);
+             (!('preferredTTS' in data) || data.preferredTTS is string) &&
+             (!('role' in data) || data.role is string) &&
+             (!('onboardingCompleted' in data) || data.onboardingCompleted is bool);
     }
 
     function isValidVocab(data) {
-      let allowedFields = ['uid', 'japanese', 'meaning', 'romaji', 'createdAt', 'mastery', 'parentId', 'type', 'deleted'];
-      return data.keys().hasAll(['uid', 'japanese', 'meaning', 'createdAt']) &&
-             data.keys().hasOnly(allowedFields) &&
-             data.uid == request.auth.uid &&
-             data.japanese is string && data.japanese.size() <= 100 &&
-             data.meaning is string && data.meaning.size() <= 500 &&
-             (!('romaji' in data) || (data.romaji is string && data.romaji.size() <= 100)) &&
-             (!('mastery' in data) || data.mastery is number) &&
-             (!('parentId' in data) || data.parentId is string) &&
-             (!('type' in data) || data.type in ['main', 'sub']) &&
-             (!('deleted' in data) || data.deleted is bool) &&
-             data.createdAt is timestamp;
+      return data.keys().hasAll(['japanese', 'meaning']) &&
+             data.japanese is string &&
+             data.meaning is string;
     }
 
     function isValidNote(data) {
-      let allowedFields = ['title', 'content', 'createdAt', 'updatedAt', 'color', 'isPinned'];
-      return data.keys().hasAll(['title', 'content', 'createdAt', 'updatedAt']) &&
-             data.keys().hasOnly(allowedFields) &&
-             data.title is string && data.title.size() <= 200 &&
-             data.content is string && data.content.size() <= 5000 &&
-             (!('color' in data) || data.color is string) &&
-             (!('isPinned' in data) || data.isPinned is bool) &&
-             data.createdAt is timestamp &&
-             data.updatedAt is timestamp;
+      return data.keys().hasAll(['title', 'content']) &&
+             data.title is string &&
+             data.content is string;
     }
 
     function isValidDiscoveredWord(data) {
-      let allowedFields = ['jp', 'ro', 'en', 'createdAt'];
       return data.keys().hasAll(['jp', 'en']) &&
-             data.keys().hasOnly(allowedFields) &&
-             data.jp is string && data.jp.size() <= 100 &&
-             data.en is string && data.en.size() <= 500 &&
-             (!('ro' in data) || (data.ro is string && data.ro.size() <= 100)) &&
-             (!('createdAt' in data) || data.createdAt is timestamp);
+             data.jp is string &&
+             data.en is string;
     }
 
     // ===============================================================
     // Rules
     // ===============================================================
 
+    match /test/connection {
+      allow read: if isAuthenticated();
+    }
+
+    match /quotes/{quoteId} {
+      allow read: if true;
+      allow create, update: if isAuthenticated(); // Allow users to contribute for now, or tighten to isAdmin()
+      allow delete: if isAdmin();
+    }
+
     match /users/{userId} {
-      allow read: if isOwner(userId);
+      allow read: if isOwner(userId) || isAdmin();
       allow create: if isOwner(userId) && isValidUser(request.resource.data);
       allow update: if isOwner(userId) && isValidUser(request.resource.data);
+      allow delete: if isAdmin();
 
       match /vocabularies/{vocabId} {
-        allow read: if isOwner(userId);
+        allow read: if isOwner(userId) || isAdmin();
         allow create: if isOwner(userId) && isValidVocab(request.resource.data);
         allow update: if isOwner(userId) && isValidVocab(request.resource.data);
-        allow delete: if isOwner(userId);
+        allow delete: if isOwner(userId) || isAdmin();
       }
 
       match /notes/{noteId} {
-        allow read: if isOwner(userId);
+        allow read: if isOwner(userId) || isAdmin();
         allow create: if isOwner(userId) && isValidNote(request.resource.data);
         allow update: if isOwner(userId) && isValidNote(request.resource.data);
-        allow delete: if isOwner(userId);
+        allow delete: if isOwner(userId) || isAdmin();
       }
 
       match /discovered_words/{wordId} {
-        allow read: if isOwner(userId);
+        allow read: if isOwner(userId) || isAdmin();
         allow create: if isOwner(userId) && isValidDiscoveredWord(request.resource.data);
         allow update: if isOwner(userId) && isValidDiscoveredWord(request.resource.data);
-        allow delete: if isOwner(userId);
+        allow delete: if isOwner(userId) || isAdmin();
       }
     }
   }

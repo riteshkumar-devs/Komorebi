@@ -18,18 +18,11 @@ async function startServer() {
 
   // API routes go here
   app.get("/api/health", (req, res) => {
-    console.log("Health check request received");
     res.json({ status: "ok" });
   });
 
   // AI Proxy Endpoint
   app.post("/api/ai/generate", async (req, res) => {
-    console.log("Incoming AI request:", {
-      provider: req.body.provider,
-      model: req.body.model,
-      hasKey: !!req.body.key,
-      contentsType: typeof req.body.contents
-    });
     const { provider, key, baseUrl, model, contents, systemInstruction, responseMimeType } = req.body;
 
     if (!key) {

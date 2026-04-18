@@ -48,6 +48,9 @@ export interface UserProfile {
   gameTimeToday?: number; // in seconds
   claimedRewards?: string[];
   customPhrases?: { jp: string; ro: string; en: string; category: string }[];
+  onboardingCompleted?: boolean;
+  dob?: string;
+  careerGoal?: string;
 }
 
 export interface Note {
@@ -78,6 +81,14 @@ export interface DiscoveredWord {
   ro: string;
   en: string;
   createdAt?: Timestamp;
+}
+
+export interface Quote {
+  id?: string;
+  text: string;
+  translation: string;
+  author?: string;
+  createdAt: Timestamp;
 }
 
 export enum OperationType {

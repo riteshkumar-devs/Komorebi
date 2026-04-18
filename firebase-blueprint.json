@@ -75,7 +75,10 @@
           }
         },
         "role": { "type": "string", "enum": ["admin", "user", "client"] },
-        "theme": { "type": "string", "enum": ["light", "dark", "system"] }
+        "theme": { "type": "string", "enum": ["light", "dark", "system"] },
+        "dob": { "type": "string" },
+        "careerGoal": { "type": "string" },
+        "onboardingCompleted": { "type": "boolean" }
       },
       "required": ["uid", "email"]
     },

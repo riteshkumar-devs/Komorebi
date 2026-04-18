@@ -38,6 +38,7 @@
 @layer base {
   :root {
     color-scheme: light;
+    font-size: 14px;
   }
   :root.dark {
     color-scheme: dark;

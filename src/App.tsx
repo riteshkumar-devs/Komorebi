@@ -98,13 +98,37 @@ import {
   Bookmark,
   Bell
 } from 'lucide-react';
-import { GoogleGenAI, Modality } from "@google/genai";
+import { 
+  LineChart, 
+  Line, 
+  XAxis, 
+  YAxis, 
+  CartesianGrid, 
+  Tooltip, 
+  ResponsiveContainer,
+  AreaChart,
+  Area
+} from 'recharts';
 import ReactMarkdown from 'react-markdown';
 import { format, isToday, startOfDay, differenceInDays } from 'date-fns';
 import { motion, AnimatePresence } from 'motion/react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import { hiragana, katakana } from './kanaData';
+import { GoogleGenAI } from "@google/genai";
+
+// Utility for safe date formatting from Firestore Timestamp or plain object
+const getSafeDate = (date: any): Date => {
+  if (!date) return new Date();
+  if (typeof date.toDate === 'function') return date.toDate();
+  if (date.seconds !== undefined) return new Date(date.seconds * 1000);
+  if (date instanceof Date) return date;
+  return new Date();
+};
+
+const formatSafeDate = (date: any, formatStr: string = 'MMM d, yyyy') => {
+  return format(getSafeDate(date), formatStr);
+};
 
 // Utility for tailwind classes
 function cn(...inputs: ClassValue[]) {
@@ -150,15 +174,17 @@ const ACHIEVEMENTS = [
 const AI_MODELS: Record<string, { id: string; name: string }[]> = {
   gemini: [
     { id: 'gemini-2.0-flash', name: 'Gemini 2.0 Flash' },
+    { id: 'gemini-2.0-flash-lite', name: 'Gemini 2.0 Flash-Lite' },
   ],
   openai: [
     { id: 'gpt-4o', name: 'GPT-4o' },
+    { id: 'gpt-4o-mini', name: 'GPT-4o Mini' },
   ],
   openrouter: [
-    { id: 'mistralai/mistral-7b-instruct', name: 'Mistral 7B' },
-    { id: 'meta-llama/llama-3.1-405b', name: 'Llama 3.1 405B' },
+    { id: 'google/gemini-2.0-flash-lite-001', name: 'Gemini 2.0 Flash-Lite' },
     { id: 'google/gemini-2.0-flash-001', name: 'Gemini 2.0 Flash' },
-    { id: 'openai/gpt-4o', name: 'GPT-4o' },
+    { id: 'mistralai/mistral-7b-instruct:free', name: 'Mistral 7B (Free)' },
+    { id: 'meta-llama/llama-3.1-405b', name: 'Llama 3.1 405B' },
   ],
   anthropic: [
     { id: 'claude-3-5-sonnet-20240620', name: 'Claude 3.5 Sonnet' },
@@ -199,7 +225,32 @@ const checkAchievements = (profile: UserProfile, vocabCount: number, notesCount:
   return changed ? newAchievements : null;
 };
 
-// --- Rank System ---
+// --- Storage Helper for Chrome Compatibility ---
+const safeStorage = {
+  getItem: (key: string) => {
+    try {
+      return localStorage.getItem(key);
+    } catch (e) {
+      console.warn("Storage access denied. Using memory fallback.");
+      return (window as any)._memoryStorage?.[key] || null;
+    }
+  },
+  setItem: (key: string, value: string) => {
+    try {
+      localStorage.setItem(key, value);
+    } catch (e) {
+      if (!(window as any)._memoryStorage) (window as any)._memoryStorage = {};
+      (window as any)._memoryStorage[key] = value;
+    }
+  },
+  removeItem: (key: string) => {
+    try {
+      localStorage.removeItem(key);
+    } catch (e) {
+      if ((window as any)._memoryStorage) delete (window as any)._memoryStorage[key];
+    }
+  }
+};
 const SOLO_LEVELING_RANKS = [
   'E5', 'E4', 'E3', 'E2', 'E1',
   'D5', 'D4', 'D3', 'D2', 'D1',
@@ -317,7 +368,7 @@ const getApiKey = (profile?: UserProfile | null, purpose: AIPurpose = 'general')
   }
 
   // 3. Try localStorage (user manual entry)
-  const localKey = typeof window !== 'undefined' ? localStorage.getItem('komorebi_gemini_key') : null;
+  const localKey = typeof window !== 'undefined' ? safeStorage.getItem('komorebi_gemini_key') : null;
   if (localKey) return { key: localKey.trim(), provider: 'gemini' as const };
 
   return null;
@@ -325,11 +376,12 @@ const getApiKey = (profile?: UserProfile | null, purpose: AIPurpose = 'general')
 
 
 const getSafeModel = (provider?: string, requestedModel?: string) => {
+  if (requestedModel) return requestedModel;
   if (!provider) return 'gemini-2.0-flash';
   
   const models = AI_MODELS[provider.toLowerCase()];
   if (!models || models.length === 0) {
-    if (provider === 'openrouter') return 'mistralai/mistral-7b-instruct';
+    if (provider.toLowerCase() === 'openrouter') return 'mistralai/mistral-7b-instruct';
     return 'gemini-2.0-flash';
   }
   
@@ -469,7 +521,6 @@ const updateAICache = async (profile: UserProfile | null, user: any, prompt: str
 const rotateApiKey = (profile: UserProfile | null) => {
   if (profile?.apiKeys && profile.apiKeys.length > 1) {
     currentKeyIndex++;
-    console.log(`Rotating to API key index: ${currentKeyIndex % profile.apiKeys.length}`);
     return true;
   }
   return false;
@@ -512,7 +563,7 @@ const useTTS = () => {
   const [hasJaVoice, setHasJaVoice] = useState<boolean | null>(null);
   const [quotaExhausted, setQuotaExhausted] = useState(false);
   const [mode, setMode] = useState<'native' | 'gemini'>(() => {
-    return (localStorage.getItem('komorebi_tts_mode') as 'native' | 'gemini') || 'native';
+    return (safeStorage.getItem('komorebi_tts_mode') as 'native' | 'gemini') || 'native';
   });
 
   // Pre-warm voices
@@ -575,7 +626,7 @@ const useTTS = () => {
         model: "gemini-2.5-flash-preview-tts",
         contents: [{ parts: [{ text: `Say in Japanese: ${text}` }] }],
         config: {
-          responseModalities: [Modality.AUDIO],
+          responseModalities: ["AUDIO"],
           speechConfig: {
             voiceConfig: {
               prebuiltVoiceConfig: { voiceName: 'Kore' },
@@ -622,10 +673,8 @@ const useTTS = () => {
         await playNative(text);
       }
     } catch (error) {
-      console.error("TTS Error:", error);
       // Fallback to native if gemini fails
       if (mode !== 'native') {
-        console.log("Falling back to native TTS...");
         await playNative(text);
       }
     }
@@ -914,8 +963,8 @@ const Achievements = () => {
 
     try {
       if (isDemo) {
-        const p = JSON.parse(localStorage.getItem('komorebi_profile') || '{}');
-        localStorage.setItem('komorebi_profile', JSON.stringify({ ...p, pinnedAchievements: newPinned }));
+        const p = JSON.parse(safeStorage.getItem('komorebi_profile') || '{}');
+        safeStorage.setItem('komorebi_profile', JSON.stringify({ ...p, pinnedAchievements: newPinned }));
       } else if (user) {
         await updateDoc(doc(db, 'users', user.uid), { pinnedAchievements: newPinned });
       }
@@ -1165,69 +1214,78 @@ const Stats = ({ todayVocabCount }: { todayVocabCount: number }) => {
   const dailyGoal = profile?.dailyGoal || 5;
   const progress = Math.min((todayVocabCount / dailyGoal) * 100, 100);
 
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    visible: {
+      opacity: 1,
+      transition: { staggerChildren: 0.1 }
+    }
+  };
+
+  const itemVariants = {
+    hidden: { opacity: 0, y: 20 },
+    visible: { opacity: 1, y: 0 }
+  };
+
   return (
-    <div className="space-y-8 pb-20">
-      <div className="flex items-center justify-between">
-        <h2 className="text-3xl font-editorial italic text-stone-900">Your Progress</h2>
-      </div>
+    <motion.div 
+      variants={containerVariants}
+      initial="hidden"
+      animate="visible"
+      className="space-y-8 pb-20"
+    >
+      <motion.div variants={itemVariants} className="flex items-center justify-between">
+        <h2 className="text-3xl font-editorial italic text-stone-900 dark:text-stone-100">Your Progress</h2>
+      </motion.div>
       
       <div className="grid grid-cols-2 gap-4">
         <motion.div 
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="bg-white p-8 rounded-[3rem] border border-stone-100 shadow-sm text-center space-y-2"
+          variants={itemVariants}
+          className="bg-white dark:bg-stone-900/50 p-8 rounded-[3rem] border border-stone-100 dark:border-stone-800 shadow-sm text-center space-y-2"
         >
-          <div className="w-12 h-12 bg-orange-50 rounded-2xl flex items-center justify-center mx-auto mb-4">
+          <div className="w-12 h-12 bg-orange-50 dark:bg-orange-900/20 rounded-2xl flex items-center justify-center mx-auto mb-4">
             <Flame className="w-6 h-6 text-orange-500" />
           </div>
-          <div className="text-3xl font-bold text-stone-900">{streak}</div>
-          <div className="text-[10px] text-stone-400 uppercase tracking-widest font-bold">Day Streak</div>
+          <div className="text-3xl font-bold text-stone-900 dark:text-stone-100">{streak}</div>
+          <div className="text-[10px] text-stone-500 dark:text-stone-300 uppercase tracking-widest font-bold">Day Streak</div>
         </motion.div>
 
         <motion.div 
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
-          className="bg-white p-8 rounded-[3rem] border border-stone-100 shadow-sm text-center space-y-2"
+          variants={itemVariants}
+          className="bg-white dark:bg-stone-900/50 p-8 rounded-[3rem] border border-stone-100 dark:border-stone-800 shadow-sm text-center space-y-2"
         >
-          <div className="w-12 h-12 bg-yellow-50 rounded-2xl flex items-center justify-center mx-auto mb-4">
+          <div className="w-12 h-12 bg-yellow-50 dark:bg-yellow-900/20 rounded-2xl flex items-center justify-center mx-auto mb-4">
             <Zap className="w-6 h-6 text-yellow-500" />
           </div>
-          <div className="text-3xl font-bold text-stone-900">{xp}</div>
-          <div className="text-[10px] text-stone-400 uppercase tracking-widest font-bold">Total XP</div>
+          <div className="text-3xl font-bold text-stone-900 dark:text-stone-100">{xp}</div>
+          <div className="text-[10px] text-stone-500 dark:text-stone-300 uppercase tracking-widest font-bold">Total XP</div>
         </motion.div>
         
         <motion.div 
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-          className="bg-white p-8 rounded-[3rem] border border-stone-100 shadow-sm text-center space-y-2"
+          variants={itemVariants}
+          className="bg-white dark:bg-stone-900/50 p-8 rounded-[3rem] border border-stone-100 dark:border-stone-800 shadow-sm text-center space-y-2"
         >
-          <div className="w-12 h-12 bg-blue-50 rounded-2xl flex items-center justify-center mx-auto mb-4">
+          <div className="w-12 h-12 bg-blue-50 dark:bg-blue-900/20 rounded-2xl flex items-center justify-center mx-auto mb-4">
             <Trophy className="w-6 h-6 text-blue-500" />
           </div>
-          <div className="text-3xl font-bold text-stone-900">{rank}</div>
-          <div className="text-[10px] text-stone-400 uppercase tracking-widest font-bold">Current Rank</div>
+          <div className="text-3xl font-bold text-stone-900 dark:text-stone-100">{rank}</div>
+          <div className="text-[10px] text-stone-500 dark:text-stone-300 uppercase tracking-widest font-bold">Current Rank</div>
         </motion.div>
         
         <motion.div 
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.3 }}
-          className="bg-white p-8 rounded-[3rem] border border-stone-100 shadow-sm text-center space-y-2"
+          variants={itemVariants}
+          className="bg-white dark:bg-stone-900/50 p-8 rounded-[3rem] border border-stone-100 dark:border-stone-800 shadow-sm text-center space-y-2"
         >
-          <div className="w-12 h-12 bg-emerald-50 rounded-2xl flex items-center justify-center mx-auto mb-4">
+          <div className="w-12 h-12 bg-emerald-50 dark:bg-emerald-900/20 rounded-2xl flex items-center justify-center mx-auto mb-4">
             <BookOpen className="w-6 h-6 text-emerald-500" />
           </div>
-          <div className="text-3xl font-bold text-stone-900">{totalWords}</div>
-          <div className="text-[10px] text-stone-400 uppercase tracking-widest font-bold">Words Learned</div>
+          <div className="text-3xl font-bold text-stone-900 dark:text-stone-100">{totalWords}</div>
+          <div className="text-[10px] text-stone-500 dark:text-stone-300 uppercase tracking-widest font-bold">Words Learned</div>
         </motion.div>
       </div>
 
       <motion.div 
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.4 }}
+        variants={itemVariants}
         className="bg-[#1a4d5e] p-8 rounded-[3rem] text-white shadow-xl"
       >
         <div className="flex items-center justify-between mb-6">
@@ -1249,13 +1307,25 @@ const Stats = ({ todayVocabCount }: { todayVocabCount: number }) => {
           </p>
         </div>
       </motion.div>
-    </div>
+    </motion.div>
   );
 };
 
 const Dashboard = ({ vocabCount, vocab, logout }: { vocabCount: number, vocab: Vocabulary[], logout: () => void }) => {
   const { profile, user, isDemo, setProfile } = useContext(AuthContext);
-  const [quote, setQuote] = useState<{ text: string; translation: string } | null>(null);
+  const { quotes } = useQuoteAgent();
+  const [activeQuoteIndex, setActiveQuoteIndex] = useState(0);
+
+  useEffect(() => {
+    if (quotes.length > 0) {
+      const interval = setInterval(() => {
+        setActiveQuoteIndex(prev => (prev + 1) % quotes.length);
+      }, 10000);
+      return () => clearInterval(interval);
+    }
+  }, [quotes]);
+
+  const activeQuote = quotes[activeQuoteIndex] || { text: "継続は力なり", translation: "Continuity is power." };
   const [loadingQuote, setLoadingQuote] = useState(false);
   const streak = profile?.streakCount || 0;
   const level = Math.floor((profile?.xp || 0) / 100) + 1;
@@ -1276,71 +1346,7 @@ const Dashboard = ({ vocabCount, vocab, logout }: { vocabCount: number, vocab: V
   ];
   const completedMissions = missions.filter(m => m.completed).length;
 
-  useEffect(() => {
-    const fetchQuote = async () => {
-      if (!profile) return;
-
-      const today = format(new Date(), 'yyyy-MM-dd');
-      const stats = profile.quoteStats || { lastDate: '', count: 0 };
-      const cache = profile.quoteCache || [];
-
-      let currentCount = stats.lastDate === today ? stats.count : 0;
-
-      if (currentCount >= 15) {
-        if (cache.length > 0) {
-          const randomQuote = cache[Math.floor(Math.random() * cache.length)];
-          setQuote(randomQuote);
-        } else {
-          setQuote({ text: "継続は力なり", translation: "Continuity is power." });
-        }
-        setLoadingQuote(false);
-        return;
-      }
-
-      setLoadingQuote(true);
-      try {
-        const ai = getAI(profile);
-        if (!ai) throw new Error("AI not found");
-
-        const response = await ai.models.generateContent({
-          model: getSafeModel(getApiKey(profile)?.provider),
-          contents: "Generate a short, inspiring Japanese proverb or quote about learning or persistence. Return it in JSON format with 'text' (Japanese) and 'translation' (English) fields. Do not include markdown formatting.",
-          config: { responseMimeType: "application/json" }
-        });
-
-        const data = JSON.parse(response.text || '{}');
-        if (data.text && data.translation) {
-          setQuote(data);
-          const newCache = [...cache, data].slice(-50);
-          const updates = {
-            quoteCache: newCache,
-            quoteStats: { lastDate: today, count: currentCount + 1 }
-          };
-
-          if (!isDemo && profile) {
-            await updateDoc(doc(db, 'users', profile.uid), updates);
-          } else if (profile) {
-            const updatedProfile = { ...profile, ...updates };
-            setProfile(updatedProfile);
-            localStorage.setItem('komorebi_profile', JSON.stringify(updatedProfile));
-          }
-        } else {
-          throw new Error("Invalid quote data");
-        }
-      } catch (error) {
-        console.error("Quote fetch error:", error);
-        if (cache.length > 0) {
-          const randomQuote = cache[Math.floor(Math.random() * cache.length)];
-          setQuote(randomQuote);
-        } else {
-          setQuote({ text: "継続は力なり", translation: "Continuity is power." });
-        }
-      } finally {
-        setLoadingQuote(false);
-      }
-    };
-    fetchQuote();
-  }, [profile?.uid]);
+  // Legacy quote fetch removed to prevent conflicts with AI Agent
 
   const getStableWordOfTheDay = () => {
     if (vocab.length === 0) return { japanese: "学習", romaji: "Gakushuu", meaning: "Study / Learning" };
@@ -1352,39 +1358,66 @@ const Dashboard = ({ vocabCount, vocab, logout }: { vocabCount: number, vocab: V
 
   const wordOfTheDay = getStableWordOfTheDay();
 
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    visible: {
+      opacity: 1,
+      transition: {
+        staggerChildren: 0.1
+      }
+    }
+  };
+
+  const itemVariants = {
+    hidden: { opacity: 0, y: 20 },
+    visible: { opacity: 1, y: 0 }
+  };
+
   return (
-    <div className="relative space-y-8 pb-24 px-4 pt-4">
+    <motion.div 
+      variants={containerVariants}
+      initial="hidden"
+      animate="visible"
+      className="relative space-y-8 pb-24 px-4 pt-4"
+    >
       {/* Branding */}
-      <div className="hidden md:flex items-center gap-5 mb-4 px-2">
+      <motion.div variants={itemVariants} className="hidden md:flex items-center gap-5 mb-4 px-2">
         <div className="w-14 h-14 bg-stone-900 dark:bg-stone-100 rounded-[1.25rem] flex items-center justify-center text-white dark:text-stone-900 text-3xl font-bold shadow-2xl shadow-stone-200/50 dark:shadow-none border border-stone-800 dark:border-stone-200">木</div>
         <div className="flex flex-col">
           <span className="font-editorial italic text-4xl tracking-tight text-stone-900 dark:text-stone-100 leading-none">Komorebi</span>
           <span className="text-[10px] font-bold uppercase tracking-[0.3em] text-stone-400 dark:text-stone-500 mt-2">Japanese Learning Partner</span>
         </div>
-      </div>
+      </motion.div>
 
       {/* Today's Mission Card */}
       <motion.div 
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
+        variants={itemVariants}
         className="bg-gradient-to-br from-[#1a4d5e] to-[#2c6e81] p-6 rounded-[2.5rem] shadow-xl text-white relative overflow-hidden"
       >
         <div className="flex justify-between items-start relative z-10">
           <div className="space-y-4 flex-1">
             <div className="space-y-1">
               <h2 className="text-xl font-bold">Today's Mission</h2>
-              <p className="text-white/70 text-xs">Complete 3 small steps today</p>
+              <p className="text-white/80 text-xs">Small steps lead to great heights</p>
             </div>
             
             <div className="space-y-3">
               {missions.map(mission => (
                 <div key={mission.id} className="flex items-center gap-3">
-                  <div className={`w-5 h-5 rounded-md flex items-center justify-center border ${mission.completed ? 'bg-white/20 border-white/40' : 'border-white/20'}`}>
-                    {mission.completed && <Check className="w-3 h-3 text-white" />}
+                  <div className={cn(
+                    "w-6 h-6 rounded-lg flex items-center justify-center border transition-all",
+                    mission.completed ? 'bg-white/30 border-white/50' : 'bg-white/5 border-white/10'
+                  )}>
+                    {mission.completed && <Check className="w-4 h-4 text-white" />}
                   </div>
                   <div className="flex items-center gap-2">
-                    <mission.icon className="w-4 h-4 text-white/60" />
-                    <span className={`text-sm ${mission.completed ? 'text-white/60 line-through' : 'text-white'}`}>{mission.label}</span>
+                    <mission.icon className={cn("w-4 h-4", mission.completed ? "text-white/40" : "text-white/60")} />
+                    <span className={cn(
+                      "text-sm transition-all",
+                      mission.completed ? 'text-white/40 line-through' : 'text-white font-medium'
+                    )}>
+                      {mission.label}
+                    </span>
                   </div>
                 </div>
               ))}
@@ -1436,25 +1469,28 @@ const Dashboard = ({ vocabCount, vocab, logout }: { vocabCount: number, vocab: V
       </motion.div>
 
       {/* Quote Section */}
-      <div className="text-center space-y-2 py-2">
+      <motion.div variants={itemVariants} className="text-center space-y-2 py-2">
         <h3 className="text-xl font-japanese text-stone-900 dark:text-stone-100">
-          {quote?.text || "継続は力なり"}
+          {activeQuote.text}
         </h3>
         <p className="text-stone-500 dark:text-stone-400 text-sm font-serif italic">
-          {quote?.translation || "Continuity is power."}
+          {activeQuote.translation}
         </p>
+        {activeQuote.author && (
+          <p className="text-[10px] text-stone-400 uppercase tracking-widest mt-1 opacity-60">— {activeQuote.author}</p>
+        )}
         <div className="flex justify-center">
           <button className="flex items-center gap-1 text-[10px] font-bold text-stone-400 uppercase tracking-widest border border-stone-200 dark:border-stone-800 px-3 py-1 rounded-full">
             <Bookmark className="w-3 h-3" />
             Save
           </button>
         </div>
-      </div>
+      </motion.div>
 
       {/* Grid Section */}
       <div className="grid grid-cols-2 gap-4">
         {/* Word of the Day */}
-        <div className="col-span-1 bg-white dark:bg-stone-900 p-5 rounded-[2rem] border border-stone-100 dark:border-stone-800 shadow-sm space-y-4">
+        <motion.div variants={itemVariants} className="col-span-1 bg-white dark:bg-stone-900 p-5 rounded-[2rem] border border-stone-100 dark:border-stone-800 shadow-sm space-y-4">
           <p className="text-[10px] font-bold text-stone-400 uppercase tracking-wider">Word of the Day</p>
           <div className="flex items-center gap-3">
             <span className="text-4xl font-japanese text-stone-900 dark:text-stone-100">{wordOfTheDay.japanese}</span>
@@ -1465,17 +1501,17 @@ const Dashboard = ({ vocabCount, vocab, logout }: { vocabCount: number, vocab: V
           </div>
           <button 
             onClick={() => {
-              localStorage.setItem('komorebi_search_query', wordOfTheDay.japanese);
+              safeStorage.setItem('komorebi_search_query', wordOfTheDay.japanese);
               (window as any).setActiveTab('dictionary');
             }}
             className="w-full bg-[#f2a93b]/10 text-[#f2a93b] py-2 rounded-xl text-xs font-bold hover:bg-[#f2a93b]/20 transition-colors"
           >
             Learn
           </button>
-        </div>
+        </motion.div>
 
         {/* Rank Card */}
-        <div className="col-span-1 bg-[#fff8f0] dark:bg-stone-900 p-5 rounded-[2rem] border border-[#ffe8cc] dark:border-stone-800 shadow-sm space-y-4">
+        <motion.div variants={itemVariants} className="col-span-1 bg-[#fff8f0] dark:bg-stone-900 p-5 rounded-[2rem] border border-[#ffe8cc] dark:border-stone-800 shadow-sm space-y-4">
           <div className="space-y-1">
             <h4 className="text-sm font-bold text-stone-900 dark:text-stone-100">Your Rank: {profile?.rank || 'E5'}</h4>
             <p className="text-[10px] text-stone-500 italic">Take today's test to level up</p>
@@ -1486,10 +1522,11 @@ const Dashboard = ({ vocabCount, vocab, logout }: { vocabCount: number, vocab: V
           >
             START TEST
           </button>
-        </div>
+        </motion.div>
 
         {/* Big Library Button */}
-        <button 
+        <motion.button 
+          variants={itemVariants}
           onClick={() => (window as any).setActiveTab('vocabList')}
           className="col-span-1 bg-white dark:bg-stone-900 p-5 rounded-[2rem] border border-stone-100 dark:border-stone-800 shadow-sm flex flex-col items-center justify-center gap-3 hover:bg-stone-50 dark:hover:bg-stone-800 transition-all group"
         >
@@ -1497,10 +1534,10 @@ const Dashboard = ({ vocabCount, vocab, logout }: { vocabCount: number, vocab: V
             <Library className="w-6 h-6 text-stone-600 dark:text-stone-400" />
           </div>
           <span className="text-sm font-bold text-stone-900 dark:text-stone-100">My Library</span>
-        </button>
+        </motion.button>
 
         {/* Chat with Sensei Card */}
-        <div className="col-span-1 bg-white dark:bg-stone-900 rounded-[2rem] border border-stone-100 dark:border-stone-800 shadow-sm overflow-hidden flex flex-col">
+        <motion.div variants={itemVariants} className="col-span-1 bg-white dark:bg-stone-900 rounded-[2rem] border border-stone-100 dark:border-stone-800 shadow-sm overflow-hidden flex flex-col">
           <div className="h-24 bg-stone-100 dark:bg-stone-800 relative overflow-hidden">
             <img 
               src="https://picsum.photos/seed/anime-sensei-girl/400/300" 
@@ -1520,11 +1557,11 @@ const Dashboard = ({ vocabCount, vocab, logout }: { vocabCount: number, vocab: V
               OPEN CHAT
             </button>
           </div>
-        </div>
+        </motion.div>
       </div>
 
       {/* Bottom Streak Tracker */}
-      <div className="bg-white dark:bg-stone-900 p-4 md:p-6 rounded-[2.5rem] border border-stone-100 dark:border-stone-800 shadow-sm space-y-6 overflow-hidden">
+      <motion.div variants={itemVariants} className="bg-white dark:bg-stone-900 p-4 md:p-6 rounded-[2.5rem] border border-stone-100 dark:border-stone-800 shadow-sm space-y-6 overflow-hidden">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="space-y-1">
             <h4 className="text-xs font-bold text-stone-900 dark:text-stone-100 uppercase tracking-wider">Weekly Activity</h4>
@@ -1604,15 +1641,16 @@ const Dashboard = ({ vocabCount, vocab, logout }: { vocabCount: number, vocab: V
             </div>
           </div>
         </div>
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
   );
 };
 
 const VocabList = ({ vocab }: { vocab: Vocabulary[] }) => {
-  const { user, isDemo } = useContext(AuthContext);
+  const { user, isDemo, profile, setProfile } = useContext(AuthContext);
   const [search, setSearch] = useState('');
   const [editingVocab, setEditingVocab] = useState<Vocabulary | null>(null);
+  const [selectedDetails, setSelectedDetails] = useState<{ word: string, details: string } | null>(null);
   const [editJapanese, setEditJapanese] = useState('');
   const [editMeaning, setEditMeaning] = useState('');
   const [editRomaji, setEditRomaji] = useState('');
@@ -1741,6 +1779,15 @@ const VocabList = ({ vocab }: { vocab: Vocabulary[] }) => {
                 </div>
               </div>
               <div className="flex items-center gap-1.5 justify-end border-t dark:border-stone-800 sm:border-t-0 pt-3 sm:pt-0">
+                {checkAICache(profile, `dict_${v.japanese}`) && (
+                  <button 
+                    onClick={() => setSelectedDetails({ word: v.japanese, details: checkAICache(profile, `dict_${v.japanese}`) || '' })}
+                    className="p-2 text-[#f2a93b] hover:bg-amber-50 dark:hover:bg-amber-900/10 rounded-full transition-all"
+                    title="View Details"
+                  >
+                    <Sparkles className="w-4 h-4" />
+                  </button>
+                )}
                 <button 
                   onClick={() => play(v.japanese)}
                   disabled={ttsLoading}
@@ -1774,6 +1821,46 @@ const VocabList = ({ vocab }: { vocab: Vocabulary[] }) => {
           ))
         )}
       </div>
+
+      {/* Details Modal */}
+      <AnimatePresence>
+        {selectedDetails && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-6">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setSelectedDetails(null)}
+              className="absolute inset-0 bg-stone-900/40 backdrop-blur-sm"
+            />
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="relative w-full max-w-2xl bg-white dark:bg-stone-900 rounded-[3rem] shadow-2xl p-8 max-h-[80vh] overflow-y-auto custom-scrollbar border border-stone-100 dark:border-stone-800"
+            >
+              <div className="flex justify-between items-start mb-6">
+                <h3 className="text-3xl font-editorial italic text-stone-900 dark:text-stone-100">{selectedDetails.word} Breakdown</h3>
+                <button 
+                  onClick={() => setSelectedDetails(null)}
+                  className="p-2 text-stone-300 hover:text-stone-900 transition-colors"
+                >
+                  <XCircle className="w-6 h-6" />
+                </button>
+              </div>
+              <div className="prose prose-stone dark:prose-invert max-w-none prose-headings:font-editorial prose-headings:italic text-sm">
+                <ReactMarkdown>{selectedDetails.details}</ReactMarkdown>
+              </div>
+              <button 
+                onClick={() => setSelectedDetails(null)}
+                className="mt-8 w-full py-4 bg-stone-900 dark:bg-stone-100 text-white dark:text-stone-900 rounded-2xl font-bold text-xs uppercase tracking-widest hover:bg-stone-800 dark:hover:bg-stone-200 transition-all"
+              >
+                Close Breakdown
+              </button>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
       {/* Edit Modal */}
       <AnimatePresence>
@@ -2588,9 +2675,17 @@ const VocabEntry = ({ vocab }: { vocab: Vocabulary[] }) => {
     if (!japanese || !meaning) return;
     if (!isDemo && !user) return;
 
-    // Check for duplicate meaning if not already confirmed as subtype
+    // Auto-clean input based on user request: No English in Japanese, No Markdown in anything
+    const cleanJp = japanese.match(/[\u3000-\u303f\u3040-\u309f\u30a0-\u30ff\uff00-\uff9f\u4e00-\u9faf\u3400-\u4dbf]+/g)?.join('') || japanese.trim();
+    const cleanRo = romaji.replace(/[#*`_~]/g, '').trim();
+    const cleanEn = meaning.replace(/[#*`_~]/g, '').trim();
+
+    // Check for duplicate meaning or japanese text if not already confirmed as subtype
     if (!isSubtype) {
-      const existing = vocab.find(v => v.meaning.toLowerCase().trim() === meaning.toLowerCase().trim());
+      const existing = vocab.find(v => 
+        v.meaning.toLowerCase().trim() === cleanEn.toLowerCase().trim() ||
+        v.japanese.trim() === cleanJp
+      );
       if (existing) {
         setDuplicateMatch(existing);
         setShowDuplicateModal(true);
@@ -2600,16 +2695,19 @@ const VocabEntry = ({ vocab }: { vocab: Vocabulary[] }) => {
     
     setLoading(true);
     try {
-      const vocabData = {
+      const vocabData: Partial<Vocabulary> = {
         uid: isDemo ? 'guest' : user!.uid,
-        japanese,
-        meaning,
-        romaji,
+        japanese: cleanJp,
+        meaning: cleanEn,
+        romaji: cleanRo,
         createdAt: Timestamp.now(),
         mastery: 0,
-        type: isSubtype ? 'sub' : 'main' as 'main' | 'sub',
-        parentId: isSubtype ? duplicateMatch?.id : undefined
+        type: isSubtype ? 'sub' : 'main',
       };
+
+      if (isSubtype && duplicateMatch?.id) {
+        vocabData.parentId = duplicateMatch.id;
+      }
 
       if (isDemo) {
         const localVocab = JSON.parse(localStorage.getItem('komorebi_vocab') || '[]');
@@ -3074,12 +3172,14 @@ const ImageAnalyzer = () => {
   );
 };
 
-const Dictionary = () => {
+const Dictionary = ({ vocab }: { vocab: Vocabulary[] }) => {
   const { profile, setProfile, user, isDemo, discoveredWords, setDiscoveredWords } = useContext(AuthContext);
   const [query, setQuery] = useState('');
   const [result, setResult] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [showCommon, setShowCommon] = useState(true);
+  const [showDetails, setShowDetails] = useState(false);
+  const [duplicateFound, setDuplicateFound] = useState<string | null>(null);
 
   useEffect(() => {
     const pendingSearch = localStorage.getItem('komorebi_search_query');
@@ -3098,6 +3198,15 @@ const Dictionary = () => {
 
   const handleSaveToLibrary = async (word: { jp: string; ro: string; en: string }) => {
     if (!isDemo && !user) return;
+    
+    // Duplicate check
+    const isDuplicate = vocab.some(v => v.japanese === word.jp || v.meaning.toLowerCase() === word.en.toLowerCase());
+    if (isDuplicate) {
+      setDuplicateFound(word.jp);
+      setTimeout(() => setDuplicateFound(null), 3000);
+      return;
+    }
+
     setSavingWord(word.jp);
     try {
       const vocabData = {
@@ -3195,6 +3304,42 @@ const Dictionary = () => {
     }
   };
 
+  const parseDictionaryResult = (text: string) => {
+    const cleanValue = (val: string) => {
+      let cleaned = val.replace(/[#*`_~]/g, '').trim();
+      // Remove common prefixes
+      const labels = ['kanji', 'romaji', 'meaning', 'definition', 'japanese', 'english', 'pronunciation'];
+      for (const label of labels) {
+        const regex = new RegExp(`^${label}\\s*:`, 'i');
+        if (regex.test(cleaned)) {
+          cleaned = cleaned.replace(regex, '').trim();
+          break;
+        }
+      }
+      return cleaned;
+    };
+
+    const lines = text.split('\n').filter(l => l.trim().length > 0);
+    
+    // 1. Japanese - Extract ONLY Japanese characters as requested
+    const jpLineRaw = lines.find(l => /\[KANJI\]/.test(l)) || 
+                     lines.find(l => /[\u3000-\u303f\u3040-\u309f\u30a0-\u30ff\uff00-\uff9f\u4e00-\u9faf\u3400-\u4dbf]/.test(l)) || '';
+    const jpNoLabel = cleanValue(jpLineRaw.replace('[KANJI]', ''));
+    // Filter to keep ONLY Japanese characters
+    const jpMatch = jpNoLabel.match(/[\u3000-\u303f\u3040-\u309f\u30a0-\u30ff\uff00-\uff9f\u4e00-\u9faf\u3400-\u4dbf]+/g);
+    const jp = jpMatch ? jpMatch.join('') : jpNoLabel || query;
+
+    // 2. Romaji
+    const roLineRaw = lines.find(l => /\[ROMAJI\]/.test(l) || l.toLowerCase().includes('romaji')) || '';
+    const ro = cleanValue(roLineRaw.replace('[ROMAJI]', ''));
+
+    // 3. Meaning
+    const enLineRaw = lines.find(l => /\[MEANING\]/.test(l) || l.toLowerCase().includes('definition') || l.toLowerCase().includes('meaning') || l.toLowerCase().includes('english')) || '';
+    const en = cleanValue(enLineRaw.replace('[MEANING]', '')) || query;
+
+    return { jp, ro, en };
+  };
+
   const handleSearch = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (!query) return;
@@ -3204,11 +3349,13 @@ const Dictionary = () => {
     if (cachedResponse) {
       setResult(cachedResponse);
       setShowCommon(false);
+      setShowDetails(false); // Reset details toggle on new result
       return;
     }
 
     setLoading(true);
     setShowCommon(false);
+    setShowDetails(false);
     try {
       const ai = getAI(profile, 'translation');
       if (!ai) throw new Error("API Key not found. Please add GEMINI_API_KEY to your secrets.");
@@ -3216,12 +3363,19 @@ const Dictionary = () => {
       const response = await ai.models.generateContent({
         model: getSafeModel(getApiKey(profile, 'translation')?.provider),
         contents: `Act as a professional Japanese-English dictionary. Provide a concise, structured definition for "${searchTerm}". 
-        Include:
-        1. Kanji/Kana
-        2. Romaji
-        3. Clear English definition
-        4. One natural example sentence with translation.
-        Format as clean Markdown with clear headings.`,
+        
+        Strictly follow this format for the summary at the top:
+        [KANJI]: (The Japanese word)
+        [ROMAJI]: (The Romaji pronunciation)
+        [MEANING]: (The primary English definition only, no extra notes)
+
+        Then provide a detailed breakdown with:
+        ### Additional Context
+        - Grammar points
+        - Example sentences with translations
+        - Cultural nuances
+        
+        Format as clean Markdown.`,
       });
 
       const definition = response.text?.trim() || "No results found.";
@@ -3347,45 +3501,94 @@ const Dictionary = () => {
           <motion.div 
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            className="bg-white dark:bg-stone-900 p-8 rounded-[2rem] shadow-sm border border-stone-100 dark:border-stone-800 relative"
+            className="space-y-4"
           >
-            <div className="absolute top-6 right-6 flex gap-2">
-              <button 
-                onClick={() => {
-                  // Try to extract word, romaji, and meaning from Markdown
-                  const lines = result.split('\n').filter(l => l.trim().length > 0);
-                  const jp = lines.find(l => /[\u3000-\u303f\u3040-\u309f\u30a0-\u30ff\uff00-\uff9f\u4e00-\u9faf\u3400-\u4dbf]/.test(l))?.replace(/[#*]/g, '').trim() || query;
-                  const ro = lines.find(l => l.toLowerCase().includes('romaji'))?.split(':')?.[1]?.trim() || '';
-                  const en = lines.find(l => l.toLowerCase().includes('definition') || l.toLowerCase().includes('meaning'))?.split(':')?.[1]?.trim() || query;
-                  handleSaveToLibrary({ jp, ro, en });
-                }}
-                disabled={savingWord === 'search_result'}
-                className="p-3 bg-stone-50 rounded-full text-stone-400 hover:text-stone-900 transition-all"
-                title="Save to Library"
-              >
-                {savingWord === 'search_result' ? <RotateCcw className="w-5 h-5 animate-spin" /> : <Plus className="w-5 h-5" />}
-              </button>
-              <button 
-                onClick={() => { setResult(null); setShowCommon(true); setQuery(''); }}
-                className="p-3 bg-stone-50 rounded-full text-stone-400 hover:text-stone-900 transition-all"
-              >
-                <RotateCcw className="w-5 h-5" />
-              </button>
-              <button 
-                onClick={() => {
-                  const lines = result.split('\n').filter(l => l.trim().length > 0);
-                  const japaneseLine = lines.find(l => /[\u3000-\u303f\u3040-\u309f\u30a0-\u30ff\uff00-\uff9f\u4e00-\u9faf\u3400-\u4dbf]/.test(l));
-                  play(japaneseLine || lines[0]);
-                }}
-                disabled={ttsLoading}
-                className="p-3 bg-stone-50 rounded-full text-stone-400 hover:text-stone-900 transition-all"
-              >
-                <Volume2 className={cn("w-5 h-5", ttsLoading && "animate-pulse")} />
-              </button>
+            {/* Summary Card */}
+            <div className="bg-white dark:bg-stone-900 p-8 rounded-[2rem] shadow-sm border border-stone-100 dark:border-stone-800 relative group overflow-hidden">
+              <div className="absolute top-6 right-6 flex gap-2">
+                <div className="relative">
+                  {duplicateFound === parseDictionaryResult(result).jp && (
+                    <motion.div 
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="absolute -top-10 right-0 whitespace-nowrap px-3 py-1 bg-stone-900 text-white text-[8px] uppercase tracking-widest font-bold rounded-lg shadow-xl z-10"
+                    >
+                      Already in Library
+                    </motion.div>
+                  )}
+                  <button 
+                    onClick={() => handleSaveToLibrary(parseDictionaryResult(result))}
+                    disabled={savingWord === parseDictionaryResult(result).jp || !!vocab.find(v => v.japanese === parseDictionaryResult(result).jp)}
+                    className={cn(
+                      "p-3 rounded-full transition-all",
+                      vocab.find(v => v.japanese === parseDictionaryResult(result).jp) 
+                        ? "bg-emerald-50 text-emerald-500 cursor-default" 
+                        : "bg-stone-50 text-stone-400 hover:text-stone-900"
+                    )}
+                    title={vocab.find(v => v.japanese === parseDictionaryResult(result).jp) ? "Already in Library" : "Save to Library"}
+                  >
+                    {vocab.find(v => v.japanese === parseDictionaryResult(result).jp) ? <CheckCircle2 className="w-5 h-5" /> : (savingWord === parseDictionaryResult(result).jp ? <RotateCcw className="w-5 h-5 animate-spin" /> : <Plus className="w-5 h-5" />)}
+                  </button>
+                </div>
+                <button 
+                  onClick={() => { setResult(null); setShowCommon(true); setQuery(''); }}
+                  className="p-3 bg-stone-50 rounded-full text-stone-400 hover:text-stone-900 transition-all"
+                >
+                  <RotateCcw className="w-5 h-5" />
+                </button>
+                <button 
+                  onClick={() => play(parseDictionaryResult(result).jp)}
+                  disabled={ttsLoading}
+                  className="p-3 bg-stone-50 rounded-full text-stone-400 hover:text-stone-900 transition-all"
+                >
+                  <Volume2 className={cn("w-5 h-5", ttsLoading && "animate-pulse")} />
+                </button>
+              </div>
+
+              {/* Main Result Display */}
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <span className="text-5xl font-serif text-stone-900 dark:text-stone-100">{parseDictionaryResult(result).jp}</span>
+                  <div className="text-xs font-mono text-stone-400 uppercase tracking-widest">{parseDictionaryResult(result).ro || "Pronunciation N/A"}</div>
+                </div>
+                
+                <div className="space-y-1">
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-[#f2a93b]">Primary Meaning</span>
+                  <div className="text-xl text-stone-600 dark:text-stone-400 font-editorial italic pr-32">{parseDictionaryResult(result).en}</div>
+                </div>
+              </div>
+
+              <div className="mt-8 pt-6 border-t border-stone-50 dark:border-stone-800">
+                <button 
+                  onClick={() => setShowDetails(!showDetails)}
+                  className="text-[10px] font-bold uppercase tracking-widest text-stone-400 hover:text-[#f2a93b] transition-colors flex items-center gap-2"
+                >
+                  {showDetails ? "Hide Content" : "Show AI Detailed Breakdown"}
+                  <ChevronRight className={cn("w-3 h-3 transition-transform", showDetails && "rotate-90")} />
+                </button>
+              </div>
             </div>
-            <div className="prose prose-stone dark:prose-invert max-w-none prose-headings:font-editorial prose-headings:italic">
-              <ReactMarkdown>{result}</ReactMarkdown>
-            </div>
+
+            {/* AI Detailed Breakdown */}
+            <AnimatePresence>
+              {showDetails && (
+                <motion.div 
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  exit={{ opacity: 0, height: 0 }}
+                  className="bg-stone-50/50 dark:bg-stone-800/20 p-8 rounded-[2rem] border border-stone-100 dark:border-stone-800 overflow-hidden"
+                >
+                  <div className="prose prose-stone dark:prose-invert max-w-none prose-headings:font-editorial prose-headings:italic text-sm">
+                    <ReactMarkdown>
+                      {result.split('\n')
+                        .filter(l => !l.startsWith('[KANJI]') && !l.startsWith('[ROMAJI]') && !l.startsWith('[MEANING]'))
+                        .join('\n')
+                        .trim()}
+                    </ReactMarkdown>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </motion.div>
         )}
       </AnimatePresence>
@@ -3394,9 +3597,19 @@ const Dictionary = () => {
 };
 
 const Flashcards = ({ vocab }: { vocab: Vocabulary[] }) => {
+  const [step, setStep] = useState<'intro' | 'session'>('intro');
+  const [sessionVocab, setSessionVocab] = useState<Vocabulary[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isFlipped, setIsFlipped] = useState(false);
   const { play, loading: ttsLoading } = useTTSContext();
+
+  const startSession = (count: number) => {
+    const shuffled = [...vocab].sort(() => 0.5 - Math.random());
+    setSessionVocab(shuffled.slice(0, Math.min(count, vocab.length)));
+    setCurrentIndex(0);
+    setIsFlipped(false);
+    setStep('session');
+  };
 
   if (vocab.length === 0) {
     return (
@@ -3408,13 +3621,53 @@ const Flashcards = ({ vocab }: { vocab: Vocabulary[] }) => {
     );
   }
 
-  const current = vocab[currentIndex];
+  if (step === 'intro') {
+    return (
+      <div className="max-w-xl mx-auto text-center py-20 bg-white dark:bg-stone-900 rounded-[3rem] border border-stone-50 dark:border-stone-800 shadow-sm space-y-12">
+        <div className="space-y-4">
+          <div className="w-20 h-20 bg-stone-900 dark:bg-stone-100 rounded-3xl mx-auto flex items-center justify-center shadow-lg -rotate-3">
+            <Layers className="w-10 h-10 text-white dark:text-stone-900" />
+          </div>
+          <h2 className="text-4xl font-editorial italic text-stone-900 dark:text-stone-100">Flashcard Review</h2>
+          <p className="text-stone-500 dark:text-stone-400 font-serif italic">How many cards do you want to review?</p>
+        </div>
+
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 px-8">
+          {[10, 15, 20].map(count => (
+            <button
+              key={count}
+              onClick={() => startSession(count)}
+              className="py-4 rounded-2xl font-bold text-sm transition-all border-2 border-stone-50 dark:border-stone-800 hover:border-stone-900 dark:hover:border-stone-100 text-stone-900 dark:text-stone-100"
+            >
+              {count}
+            </button>
+          ))}
+          <button
+            onClick={() => startSession(vocab.length)}
+            className="py-4 rounded-2xl font-bold text-sm transition-all border-2 border-stone-50 dark:border-stone-800 hover:border-stone-900 dark:hover:border-stone-100 text-stone-900 dark:text-stone-100"
+          >
+            All
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  const current = sessionVocab[currentIndex];
 
   return (
     <div className="max-w-md mx-auto py-2">
       <div className="mb-4 flex justify-between items-center">
-        <h2 className="text-xl font-editorial italic text-stone-900 dark:text-stone-100">Review</h2>
-        <span className="text-stone-400 dark:text-stone-500 font-mono text-[10px]">{currentIndex + 1} / {vocab.length}</span>
+        <div className="flex items-center gap-3">
+          <button 
+            onClick={() => setStep('intro')}
+            className="p-2 text-stone-400 hover:text-stone-900 transition-colors"
+          >
+            <ChevronLeft className="w-5 h-5" />
+          </button>
+          <h2 className="text-xl font-editorial italic text-stone-900 dark:text-stone-100">Review</h2>
+        </div>
+        <span className="text-stone-400 dark:text-stone-500 font-mono text-[10px]">{currentIndex + 1} / {sessionVocab.length}</span>
       </div>
 
       <div 
@@ -3461,7 +3714,7 @@ const Flashcards = ({ vocab }: { vocab: Vocabulary[] }) => {
           onClick={(e) => {
             e.stopPropagation();
             setIsFlipped(false);
-            setCurrentIndex(prev => (prev === 0 ? vocab.length - 1 : prev - 1));
+            setCurrentIndex(prev => (prev === 0 ? sessionVocab.length - 1 : prev - 1));
           }}
           className="flex-1 py-2.5 bg-white border border-stone-200 text-stone-600 rounded-full font-bold text-xs hover:bg-stone-50 transition-all"
         >
@@ -3471,7 +3724,7 @@ const Flashcards = ({ vocab }: { vocab: Vocabulary[] }) => {
           onClick={(e) => {
             e.stopPropagation();
             setIsFlipped(false);
-            setCurrentIndex(prev => (prev === vocab.length - 1 ? 0 : prev + 1));
+            setCurrentIndex(prev => (prev === sessionVocab.length - 1 ? 0 : prev + 1));
           }}
           className="flex-1 py-2.5 bg-stone-900 text-white rounded-full font-bold text-xs hover:bg-stone-800 transition-all shadow-sm shadow-stone-200"
         >
@@ -4029,7 +4282,6 @@ const Settings = ({ vocab }: { vocab: Vocabulary[] }) => {
       }
 
       const providerName = (keyInfo as any).customProvider || keyInfo.provider.toUpperCase();
-      console.log(`Testing ${providerName} connection...`);
 
       let responseText = '';
 
@@ -4308,6 +4560,20 @@ const Settings = ({ vocab }: { vocab: Vocabulary[] }) => {
                             <option value="xai">xAI (Grok)</option>
                           </select>
                         </div>
+                        {AI_MODELS[keyObj.provider?.toLowerCase()] && (
+                          <div className="space-y-1">
+                            <label className="text-[9px] font-bold text-stone-400 uppercase tracking-widest px-1">Model</label>
+                            <select 
+                              value={keyObj.model || AI_MODELS[keyObj.provider.toLowerCase()][0].id}
+                              onChange={(e) => handleKeyChange('universal', idx, 'model', e.target.value)}
+                              className="w-full p-2.5 bg-white dark:bg-stone-900 rounded-xl text-[10px] font-bold uppercase tracking-widest border border-stone-100 dark:border-stone-800 outline-none"
+                            >
+                              {AI_MODELS[keyObj.provider.toLowerCase()].map(m => (
+                                <option key={m.id} value={m.id}>{m.name}</option>
+                              ))}
+                            </select>
+                          </div>
+                        )}
                       </div>
                       
                       <div className="space-y-1">
@@ -4393,6 +4659,20 @@ const Settings = ({ vocab }: { vocab: Vocabulary[] }) => {
                                <option value="xai">xAI (Grok)</option>
                              </select>
                            </div>
+                           {AI_MODELS[keyObj.provider?.toLowerCase()] && (
+                             <div className="space-y-1">
+                               <label className="text-[9px] font-bold text-stone-400 uppercase tracking-widest px-1">Model</label>
+                               <select 
+                                 value={keyObj.model || AI_MODELS[keyObj.provider.toLowerCase()][0].id}
+                                 onChange={(e) => handleKeyChange('translation', idx, 'model', e.target.value)}
+                                 className="w-full p-2.5 bg-white dark:bg-stone-900 rounded-xl text-[10px] font-bold uppercase tracking-widest border border-stone-100 dark:border-stone-800 outline-none"
+                               >
+                                 {AI_MODELS[keyObj.provider.toLowerCase()].map(m => (
+                                   <option key={m.id} value={m.id}>{m.name}</option>
+                                 ))}
+                               </select>
+                             </div>
+                           )}
                          </div>
                         
                         <div className="space-y-1">
@@ -4444,6 +4724,20 @@ const Settings = ({ vocab }: { vocab: Vocabulary[] }) => {
                                <option value="xai">xAI (Grok)</option>
                              </select>
                            </div>
+                           {AI_MODELS[keyObj.provider?.toLowerCase()] && (
+                             <div className="space-y-1">
+                               <label className="text-[9px] font-bold text-stone-400 uppercase tracking-widest px-1">Model</label>
+                               <select 
+                                 value={keyObj.model || AI_MODELS[keyObj.provider.toLowerCase()][0].id}
+                                 onChange={(e) => handleKeyChange('sensei', idx, 'model', e.target.value)}
+                                 className="w-full p-2.5 bg-white dark:bg-stone-900 rounded-xl text-[10px] font-bold uppercase tracking-widest border border-stone-100 dark:border-stone-800 outline-none"
+                               >
+                                 {AI_MODELS[keyObj.provider.toLowerCase()].map(m => (
+                                   <option key={m.id} value={m.id}>{m.name}</option>
+                                 ))}
+                               </select>
+                             </div>
+                           )}
                          </div>
                         
                         <div className="space-y-1">
@@ -4495,6 +4789,20 @@ const Settings = ({ vocab }: { vocab: Vocabulary[] }) => {
                                <option value="xai">xAI (Grok)</option>
                              </select>
                            </div>
+                           {AI_MODELS[keyObj.provider?.toLowerCase()] && (
+                             <div className="space-y-1">
+                               <label className="text-[9px] font-bold text-stone-400 uppercase tracking-widest px-1">Model</label>
+                               <select 
+                                 value={keyObj.model || AI_MODELS[keyObj.provider.toLowerCase()][0].id}
+                                 onChange={(e) => handleKeyChange('dictionary', idx, 'model', e.target.value)}
+                                 className="w-full p-2.5 bg-white dark:bg-stone-900 rounded-xl text-[10px] font-bold uppercase tracking-widest border border-stone-100 dark:border-stone-800 outline-none"
+                               >
+                                 {AI_MODELS[keyObj.provider.toLowerCase()].map(m => (
+                                   <option key={m.id} value={m.id}>{m.name}</option>
+                                 ))}
+                               </select>
+                             </div>
+                           )}
                          </div>
                         
                         <div className="space-y-1">
@@ -5486,7 +5794,7 @@ const Notebook = () => {
 
                 <div className="mt-8 pt-6 border-t border-stone-900/5 flex justify-between items-center">
                   <div className="text-[9px] font-bold uppercase tracking-widest text-stone-400">
-                    {format(note.updatedAt.toDate(), 'MMM d, yyyy')}
+                    {formatSafeDate(note.updatedAt, 'MMM d, yyyy')}
                   </div>
                   {note.isPinned && (
                     <span className="text-[9px] font-bold uppercase tracking-widest text-stone-900 flex items-center gap-1">
@@ -7206,14 +7514,14 @@ export default function App() {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
-  const [isDemo, setIsDemo] = useState(localStorage.getItem('komorebi_demo') === 'true');
+  const [isDemo, setIsDemo] = useState(safeStorage.getItem('komorebi_demo') === 'true');
   const [activeTab, setActiveTab] = useState<'dashboard' | 'vocab' | 'vocabList' | 'quiz' | 'dictionary' | 'flashcards' | 'translator' | 'kana' | 'phrasebook' | 'settings' | 'game' | 'chatbot' | 'notebook' | 'invaders' | 'wordsearch' | 'shop' | 'room' | 'rankTest' | 'stats' | 'japanHub' | 'imageAnalyzer'>(() => {
-    return (localStorage.getItem('komorebi_active_tab') as any) || 'dashboard';
+    return (safeStorage.getItem('komorebi_active_tab') as any) || 'dashboard';
   });
 
   const handleSetActiveTab = (tab: any) => {
     setActiveTab(tab);
-    localStorage.setItem('komorebi_active_tab', tab);
+    safeStorage.setItem('komorebi_active_tab', tab);
   };
 
   const logout = useCallback(async () => {
@@ -7251,9 +7559,9 @@ export default function App() {
   const setDemoMode = (val: boolean) => {
     setIsDemo(val);
     if (val) {
-      localStorage.setItem('komorebi_demo', 'true');
+      safeStorage.setItem('komorebi_demo', 'true');
       // Initialize demo profile if not exists
-      if (!localStorage.getItem('komorebi_profile')) {
+      if (!safeStorage.getItem('komorebi_profile')) {
         const demoProfile: UserProfile = {
           uid: 'guest',
           displayName: 'Guest Learner',
@@ -7264,10 +7572,10 @@ export default function App() {
           xp: 0,
           rank: 'E5'
         };
-        localStorage.setItem('komorebi_profile', JSON.stringify(demoProfile));
+        safeStorage.setItem('komorebi_profile', JSON.stringify(demoProfile));
       }
     } else {
-      localStorage.removeItem('komorebi_demo');
+      safeStorage.removeItem('komorebi_demo');
     }
   };
 
@@ -7276,13 +7584,12 @@ export default function App() {
     if (!user) return;
 
     const migrateData = async () => {
-      const guestProfile = localStorage.getItem('komorebi_profile');
-      const guestVocab = localStorage.getItem('komorebi_vocab');
-      const guestNotes = localStorage.getItem('komorebi_notes');
-      const guestDiscovered = localStorage.getItem('discovered_words');
+      const guestProfile = safeStorage.getItem('komorebi_profile');
+      const guestVocab = safeStorage.getItem('komorebi_vocab');
+      const guestNotes = safeStorage.getItem('komorebi_notes');
+      const guestDiscovered = safeStorage.getItem('discovered_words');
 
       if (guestProfile || guestVocab || guestNotes || guestDiscovered) {
-        console.log("Migrating guest data...");
         
         // 1. Migrate Profile (merge XP, streak, etc.)
         if (guestProfile) {
@@ -7344,7 +7651,6 @@ export default function App() {
         localStorage.removeItem('komorebi_notes');
         localStorage.removeItem('discovered_words');
         localStorage.removeItem('komorebi_demo');
-        console.log("Migration complete.");
       }
     };
 
@@ -7382,7 +7688,7 @@ export default function App() {
         setProfile(data);
 
         // Check streak logic
-        const lastDate = data.lastActiveDate?.toDate();
+        const lastDate = getSafeDate(data.lastActiveDate);
         if (lastDate && !isToday(lastDate)) {
           const diff = differenceInDays(startOfDay(new Date()), startOfDay(lastDate));
           if (diff > 1) {
@@ -7417,7 +7723,7 @@ export default function App() {
     const unsubVocab = onSnapshot(q, (snapshot) => {
       const list = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as Vocabulary));
       setVocab(list);
-      setTodayVocabCount(list.filter(v => isToday(v.createdAt.toDate())).length);
+      setTodayVocabCount(list.filter(v => isToday(getSafeDate(v.createdAt))).length);
     }, (err) => {
       handleFirestoreError(err, OperationType.GET, `users/${user.uid}/vocabularies`);
       setLoading(false);
@@ -7452,7 +7758,7 @@ export default function App() {
         createdAt: item.createdAt?.seconds ? new Timestamp(item.createdAt.seconds, item.createdAt.nanoseconds) : Timestamp.now()
       }));
 
-      const lastDate = p.lastActiveDate?.seconds ? new Timestamp(p.lastActiveDate.seconds, p.lastActiveDate.nanoseconds).toDate() : null;
+      const lastDate = getSafeDate(p.lastActiveDate);
       let streakCount = p.streakCount || 0;
       let dailyGoalMet = p.dailyGoalMet || false;
 
@@ -7480,7 +7786,7 @@ export default function App() {
         lastActiveDate: p.lastActiveDate?.seconds ? new Timestamp(p.lastActiveDate.seconds, p.lastActiveDate.nanoseconds) : Timestamp.now()
       });
       setVocab(vocabList);
-      setTodayVocabCount(vocabList.filter((item: any) => isToday(item.createdAt.toDate())).length);
+      setTodayVocabCount(vocabList.filter((item: any) => isToday(getSafeDate(item.createdAt))).length);
       setLoading(false);
     };
 
@@ -7603,7 +7909,6 @@ export default function App() {
   useEffect(() => {
     const timeout = setTimeout(() => {
       if (loading) {
-        console.log("Loading timeout reached...");
         setLoading(false);
       }
     }, 5000);
@@ -7637,9 +7942,7 @@ export default function App() {
     provider.setCustomParameters({ prompt: 'select_account' });
     
     try {
-      console.log("Attempting Google Sign-In...");
       const result = await signInWithPopup(auth, provider);
-      console.log("Sign-In Success:", result.user.email);
       setIsDemo(false);
       localStorage.removeItem('komorebi_demo');
     } catch (error: any) {
@@ -7696,48 +7999,368 @@ export default function App() {
   );
 }
 
-const NamePrompt = ({ onSave }: { onSave: (name: string) => void }) => {
-  const [name, setName] = useState('');
-  
+const OnboardingFlow = ({ onComplete }: { onComplete: (data: any) => Promise<void> }) => {
+  const [step, setStep] = useState(0); // Starts at 0 for welcome
+  const [loading, setLoading] = useState(false);
+  const [data, setData] = useState({
+    name: '',
+    dob: '',
+    careerGoal: '',
+    dailyGoal: 10
+  });
+
+  const handleFinish = async () => {
+    setLoading(true);
+    try {
+      await onComplete(data);
+    } catch (e) {
+      console.error(e);
+      setLoading(false);
+    }
+  };
+
+  const nextStep = () => setStep(s => s + 1);
+  const prevStep = () => setStep(s => Math.max(0, s - 1));
+
+  const projectionData = Array.from({ length: 13 }).map((_, i) => {
+    const months = i * 1;
+    const wordsPerDay = data.dailyGoal;
+    const totalWords = months * 30 * wordsPerDay;
+    return {
+      name: `Month ${months}`,
+      level: totalWords,
+      average: months * 50 // Assume avg learner knows 50 words per month
+    };
+  });
+
   return (
-    <div className="fixed inset-0 z-[200] flex items-center justify-center p-6">
+    <div className="fixed inset-0 z-[200] flex items-center justify-center p-6 sm:p-10">
       <motion.div 
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
-        className="absolute inset-0 bg-stone-900/60 backdrop-blur-md"
+        className="absolute inset-0 bg-stone-900/40 backdrop-blur-xl"
       />
       <motion.div 
-        initial={{ opacity: 0, scale: 0.9, y: 20 }}
+        initial={{ opacity: 0, scale: 0.9, y: 40 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
-        className="relative w-full max-w-md bg-white dark:bg-stone-900 rounded-[3rem] shadow-2xl p-10 text-center border border-stone-100 dark:border-stone-800"
+        className="relative w-full max-w-2xl bg-white dark:bg-[#1c1917] rounded-[3.5rem] shadow-[0_32px_64px_-16px_rgba(0,0,0,0.3)] p-8 sm:p-12 overflow-hidden border border-white/20"
       >
-        <div className="w-20 h-20 bg-stone-900 dark:bg-stone-100 rounded-3xl flex items-center justify-center text-white dark:text-stone-900 text-3xl font-bold mx-auto mb-8 shadow-xl shadow-stone-200 dark:shadow-none">木</div>
-        <h2 className="text-3xl font-editorial italic text-stone-900 dark:text-stone-100 mb-2">Welcome to Komorebi</h2>
-        <p className="text-stone-500 dark:text-stone-400 font-serif italic mb-8">What should we call you on your journey?</p>
-        
-        <form onSubmit={(e) => { e.preventDefault(); if (name.trim()) onSave(name.trim()); }} className="space-y-4">
-          <input 
-            autoFocus
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="Enter your name..."
-            className="w-full p-5 bg-stone-50 dark:bg-stone-900 border-2 border-transparent dark:border-stone-800 rounded-2xl text-center text-xl font-medium text-stone-900 dark:text-stone-100 focus:ring-2 focus:ring-stone-200 dark:focus:ring-stone-700 transition-all outline-none placeholder:text-stone-300 dark:placeholder:text-stone-600"
-          />
-          <button 
-            type="submit"
-            disabled={!name.trim()}
-            className="w-full py-5 bg-stone-900 dark:bg-stone-100 text-white dark:text-stone-900 rounded-full font-bold hover:bg-stone-800 dark:hover:bg-stone-200 transition-all shadow-xl shadow-stone-200 dark:shadow-none disabled:opacity-50"
-          >
-            Start Learning
-          </button>
-        </form>
+        <AnimatePresence mode="wait">
+          {step === 0 && (
+            <motion.div 
+              key="step0"
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 1.05 }}
+              className="flex flex-col items-center justify-center text-center space-y-10"
+            >
+              <div className="w-24 h-24 bg-stone-900 dark:bg-stone-100 rounded-[2.5rem] flex items-center justify-center text-white dark:text-stone-900 text-5xl font-bold shadow-2xl relative">
+                木
+                <motion.div 
+                  animate={{ scale: [1, 1.2, 1], opacity: [0.3, 0.6, 0.3] }}
+                  transition={{ duration: 4, repeat: Infinity }}
+                  className="absolute inset-0 bg-stone-900 dark:bg-stone-100 rounded-[2.5rem] -z-10 blur-2xl" 
+                />
+              </div>
+              <div className="space-y-4 max-w-sm">
+                <h1 className="text-5xl font-editorial italic tracking-tight text-stone-900 dark:text-stone-100">Komorebi</h1>
+                <p className="text-stone-600 dark:text-stone-300 leading-relaxed italic font-serif text-lg">
+                  "The sunlight filtering through the trees."
+                </p>
+                <p className="text-stone-400 dark:text-stone-500 text-sm leading-relaxed p-6 bg-stone-50 dark:bg-stone-900/50 rounded-3xl border border-stone-100 dark:border-stone-800">
+                  Welcome to your journey toward Japanese mastery. We'll need a few details to personalize your experience.
+                </p>
+              </div>
+              <button 
+                onClick={nextStep}
+                className="px-12 py-5 bg-stone-900 dark:bg-stone-100 text-white dark:text-stone-900 rounded-full font-bold hover:scale-105 transition-all shadow-xl flex items-center gap-3"
+              >
+                Begin Your Path <ArrowRight className="w-4 h-4" />
+              </button>
+            </motion.div>
+          )}
+
+          {step === 1 && (
+            <motion.div 
+              key="step1"
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              className="space-y-8"
+            >
+              <div className="space-y-2">
+                <span className="text-[10px] font-bold uppercase tracking-[0.3em] text-stone-400">Step 01 / 04</span>
+                <h2 className="text-4xl font-editorial italic text-stone-900 dark:text-stone-100 leading-tight">First, what is<br />your name?</h2>
+              </div>
+              <input 
+                autoFocus
+                value={data.name}
+                onChange={(e) => setData({...data, name: e.target.value})}
+                placeholder="Type your name here..."
+                className="w-full text-3xl font-medium bg-transparent border-b-2 border-stone-100 dark:border-stone-800 pb-4 outline-none focus:border-stone-900 dark:focus:border-stone-100 transition-colors placeholder:text-stone-200 dark:placeholder:text-stone-800"
+              />
+              <div className="flex justify-end">
+                <button 
+                  disabled={!data.name.trim()}
+                  onClick={nextStep}
+                  className="px-10 py-5 bg-stone-900 dark:bg-stone-100 text-white dark:text-stone-900 rounded-full font-bold hover:scale-105 transition-all disabled:opacity-30 flex items-center gap-2"
+                >
+                  Continue <ArrowRight className="w-4 h-4" />
+                </button>
+              </div>
+            </motion.div>
+          )}
+
+          {step === 2 && (
+            <motion.div 
+              key="step2"
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              className="space-y-8"
+            >
+              <div className="space-y-2">
+                <span className="text-[10px] font-bold uppercase tracking-[0.3em] text-stone-400">Step 02 / 04</span>
+                <h2 className="text-4xl font-editorial italic text-stone-900 dark:text-stone-100 leading-tight">When were<br />you born?</h2>
+              </div>
+              <input 
+                type="date"
+                autoFocus
+                value={data.dob}
+                onChange={(e) => setData({...data, dob: e.target.value})}
+                className="w-full text-3xl font-medium bg-transparent border-b-2 border-stone-100 dark:border-stone-800 pb-4 outline-none focus:border-stone-900 dark:focus:border-stone-100 transition-colors"
+              />
+              <div className="flex justify-between items-center pt-8">
+                <button onClick={prevStep} className="text-stone-400 font-bold uppercase tracking-widest text-[10px] hover:text-stone-900 dark:hover:text-stone-100">Back</button>
+                <button 
+                  disabled={!data.dob}
+                  onClick={nextStep}
+                  className="px-10 py-5 bg-stone-900 dark:bg-stone-100 text-white dark:text-stone-900 rounded-full font-bold hover:scale-105 transition-all disabled:opacity-30 flex items-center gap-2"
+                >
+                  Continue <ArrowRight className="w-4 h-4" />
+                </button>
+              </div>
+            </motion.div>
+          )}
+
+          {step === 3 && (
+            <motion.div 
+              key="step3"
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              className="space-y-8"
+            >
+              <div className="space-y-2">
+                <span className="text-[10px] font-bold uppercase tracking-[0.3em] text-stone-400">Step 03 / 05</span>
+                <h2 className="text-4xl font-editorial italic text-stone-900 dark:text-stone-100 leading-tight">Your daily<br />commitment?</h2>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4">
+                {[5, 10, 15, 20].map(goal => (
+                  <button
+                    key={goal}
+                    onClick={() => {
+                      setData({...data, dailyGoal: goal});
+                      nextStep();
+                    }}
+                    className={cn(
+                      "p-8 rounded-[2rem] border-2 transition-all text-left group",
+                      data.dailyGoal === goal 
+                        ? "bg-stone-900 dark:bg-stone-100 border-stone-900 dark:border-stone-100" 
+                        : "bg-white dark:bg-stone-900 border-stone-100 dark:border-stone-800 hover:border-stone-300 dark:hover:border-stone-600"
+                    )}
+                  >
+                    <span className={cn(
+                      "text-4xl font-display font-medium block",
+                      data.dailyGoal === goal ? "text-white dark:text-stone-900" : "text-stone-400"
+                    )}>{goal}</span>
+                    <span className={cn(
+                      "text-xs font-bold uppercase tracking-wider block mt-1",
+                      data.dailyGoal === goal ? "text-white/60 dark:text-stone-900/60" : "text-stone-300"
+                    )}>Words / Day</span>
+                  </button>
+                ))}
+              </div>
+
+              <div className="flex justify-start">
+                <button onClick={prevStep} className="text-stone-400 font-bold uppercase tracking-widest text-[10px] hover:text-stone-900 dark:hover:text-stone-100">Back</button>
+              </div>
+            </motion.div>
+          )}
+
+          {step === 4 && (
+            <motion.div 
+              key="step4"
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              className="space-y-8"
+            >
+              <div className="space-y-2">
+                <span className="text-[10px] font-bold uppercase tracking-[0.3em] text-stone-400">Step 04 / 05</span>
+                <h2 className="text-4xl font-editorial italic text-stone-900 dark:text-stone-100 leading-tight">How will Japanese<br />help your career?</h2>
+              </div>
+              <textarea 
+                autoFocus
+                value={data.careerGoal}
+                onChange={(e) => setData({...data, careerGoal: e.target.value})}
+                placeholder="E.g. I want to work at a tech company in Tokyo..."
+                rows={3}
+                className="w-full text-xl font-medium bg-stone-50 dark:bg-stone-900 rounded-3xl p-6 outline-none focus:ring-2 focus:ring-stone-200 dark:focus:ring-stone-800 transition-all border border-stone-100 dark:border-stone-800"
+              />
+              <div className="flex justify-between items-center">
+                <button onClick={prevStep} className="text-stone-400 font-bold uppercase tracking-widest text-[10px] hover:text-stone-900 dark:hover:text-stone-100">Back</button>
+                <button 
+                  disabled={!data.careerGoal.trim()}
+                  onClick={nextStep}
+                  className="px-10 py-5 bg-stone-900 dark:bg-stone-100 text-white dark:text-stone-900 rounded-full font-bold hover:scale-105 transition-all disabled:opacity-30 flex items-center gap-2"
+                >
+                  See Projection <Sparkles className="w-4 h-4" />
+                </button>
+              </div>
+            </motion.div>
+          )}
+
+          {step === 5 && (
+            <motion.div 
+              key="step5"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="space-y-8"
+            >
+              <div className="space-y-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-orange-100 dark:bg-orange-900/30 rounded-xl flex items-center justify-center">
+                    <Zap className="w-5 h-5 text-orange-600" />
+                  </div>
+                  <div>
+                    <h2 className="text-2xl font-editorial italic text-stone-900 dark:text-stone-100">Your Potential Journey</h2>
+                    <p className="text-xs text-stone-400">Based on {data.dailyGoal} words per day</p>
+                  </div>
+                </div>
+
+                <div className="h-64 sm:h-80 w-full bg-stone-50 dark:bg-stone-900/50 rounded-[2.5rem] p-6 border border-stone-100 dark:border-stone-800">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart data={projectionData}>
+                      <defs>
+                        <linearGradient id="colorLevel" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#f2a93b" stopOpacity={0.4}/>
+                          <stop offset="95%" stopColor="#f2a93b" stopOpacity={0}/>
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e7eb33" />
+                      <XAxis dataKey="name" fontSize={10} axisLine={false} tickLine={false} fill="#888" />
+                      <YAxis fontSize={10} axisLine={false} tickLine={false} fill="#888" />
+                      <Tooltip 
+                        contentStyle={{ backgroundColor: '#1c1917', border: 'none', borderRadius: '16px', color: '#fff', fontSize: '10px' }}
+                        itemStyle={{ color: '#f2a93b' }}
+                      />
+                      <Area type="monotone" dataKey="level" stroke="#f2a93b" strokeWidth={3} fillOpacity={1} fill="url(#colorLevel)" name="Your Progress" />
+                      <Area type="monotone" dataKey="average" stroke="#888" strokeWidth={1} strokeDasharray="5 5" fillOpacity={0} name="Avg. Person in India" />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="bg-orange-50 dark:bg-orange-900/10 p-5 rounded-3xl border border-orange-100/50 dark:border-orange-900/20">
+                    <div className="text-2xl font-bold text-orange-600">{data.dailyGoal * 30}</div>
+                    <div className="text-[9px] font-bold uppercase tracking-widest text-orange-400">Words in 1 Month</div>
+                  </div>
+                  <div className="bg-emerald-50 dark:bg-emerald-900/10 p-5 rounded-3xl border border-emerald-100/50 dark:border-emerald-900/20">
+                    <div className="text-2xl font-bold text-emerald-600">{Math.round(((data.dailyGoal * 30) / 150) * 100 - 100)}%</div>
+                    <div className="text-[9px] font-bold uppercase tracking-widest text-emerald-400">vs Avg. Indian</div>
+                  </div>
+                </div>
+
+                <p className="text-xs text-stone-500 dark:text-stone-400 text-center italic font-serif leading-relaxed px-4">
+                  In just 12 months, you'll know over {data.dailyGoal * 360} words. That's enough to understand {data.dailyGoal >= 15 ? '98%' : '90%'} of everyday Japanese conversations.
+                </p>
+              </div>
+
+              <div className="flex flex-col gap-4">
+                <button 
+                  disabled={loading}
+                  onClick={handleFinish}
+                  className="w-full py-5 bg-stone-900 dark:bg-stone-100 text-white dark:text-stone-900 rounded-full font-bold hover:scale-[1.02] transition-all flex items-center justify-center gap-3 shadow-xl disabled:opacity-50"
+                >
+                  {loading ? (
+                    <div className="w-5 h-5 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                  ) : (
+                    <>
+                      <Trees className="w-5 h-5" />
+                      Begin Your Awakening
+                    </>
+                  )}
+                </button>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </motion.div>
     </div>
   );
 };
 
+// --- AI Quote Agent Service ---
+const useQuoteAgent = () => {
+  const { profile, user, isDemo } = useContext(AuthContext);
+  const [quotes, setQuotes] = useState<any[]>([]);
+
+  const fetchGlobalQuotes = async () => {
+    try {
+      const q = query(collection(db, 'quotes'), orderBy('createdAt', 'desc'));
+      const snapshot = await getDocs(q);
+      const fetched = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      setQuotes(fetched);
+
+      // If less than 5 quotes, trigger agent to generate 10
+      if (fetched.length < 5 && profile) {
+        generateQuotes(profile);
+      }
+    } catch (e) {
+      // console.error("Agent: Error fetching global quotes", e);
+    }
+  };
+
+  const generateQuotes = async (p: UserProfile) => {
+    const ai = getAI(p, 'general');
+    if (!ai) return;
+
+    try {
+      const prompt = `Generate 10 motivational or philosophical quotes about learning, wisdom, and the path to mastery, specifically relevant to a Japanese aesthetic (like Zen or 武士道). 
+      Format as a JSON array: [{"text": "...", "translation": "...", "author": "..."}]`;
+      
+      const result = await ai.models.generateContent({
+        contents: [{ role: "user", parts: [{ text: prompt }] }],
+        config: { responseMimeType: "application/json" }
+      });
+
+      const parsed = JSON.parse(result.text);
+      if (Array.isArray(parsed)) {
+        for (const q of parsed.slice(0, 10)) {
+          await addDoc(collection(db, 'quotes'), {
+            ...q,
+            createdAt: Timestamp.now()
+          });
+        }
+        fetchGlobalQuotes(); // Refresh after upload
+      }
+    } catch (e) {
+      console.error("Agent: Generation failure", e);
+    }
+  };
+
+  useEffect(() => {
+    fetchGlobalQuotes();
+  }, [profile?.uid]);
+
+  return { quotes };
+};
+
 const AppContent = ({ activeTab, setActiveTab, todayVocabCount, vocab, logout, streakWarning }: any) => {
   const { profile, user, isDemo, setProfile } = useContext(AuthContext);
+  const { quotes } = useQuoteAgent();
   const { quotaExhausted } = useTTSContext();
   const [showMoreMenu, setShowMoreMenu] = useState(false);
 
@@ -7751,9 +8374,9 @@ const AppContent = ({ activeTab, setActiveTab, todayVocabCount, vocab, logout, s
         try {
           const updates = { gameTimeToday: (profile?.gameTimeToday || 0) + 60 };
           if (isDemo) {
-            const p = JSON.parse(localStorage.getItem('komorebi_profile') || '{}');
+            const p = JSON.parse(safeStorage.getItem('komorebi_profile') || '{}');
             const updatedProfile = { ...p, ...updates };
-            localStorage.setItem('komorebi_profile', JSON.stringify(updatedProfile));
+            safeStorage.setItem('komorebi_profile', JSON.stringify(updatedProfile));
             setProfile(updatedProfile);
           } else if (user) {
             await updateDoc(doc(db, 'users', user.uid), updates);
@@ -7766,26 +8389,44 @@ const AppContent = ({ activeTab, setActiveTab, todayVocabCount, vocab, logout, s
     }
   }, [activeTab, profile?.gameTimeToday, user, isDemo, setProfile]);
   
-  const isNewUser = profile && (profile.displayName === 'Guest Learner' || !profile.displayName);
+  const isNewUser = profile && !profile.onboardingCompleted;
 
   const unlocked = profile?.achievements || [];
   const claimed = profile?.claimedRewards || [];
   const hasUnclaimedRewards = unlocked.some(id => !claimed.includes(id));
 
-  const handleSaveName = async (name: string) => {
-    if (isDemo) {
-      const p = JSON.parse(localStorage.getItem('komorebi_profile') || '{}');
-      localStorage.setItem('komorebi_profile', JSON.stringify({ ...p, displayName: name }));
-      window.location.reload(); // Refresh to apply
-    } else if (user) {
-      await updateDoc(doc(db, 'users', user.uid), { displayName: name });
+  const handleOnboardingComplete = async (data: any) => {
+    const updates = { 
+      displayName: data.name,
+      dob: data.dob,
+      careerGoal: data.careerGoal,
+      dailyGoal: data.dailyGoal,
+      onboardingCompleted: true
+    };
+    
+    // Optimistic update to UI state
+    setProfile((prev: any) => prev ? { ...prev, ...updates } : null);
+
+    try {
+      if (isDemo) {
+        const p = JSON.parse(safeStorage.getItem('komorebi_profile') || '{}');
+        const updatedProfile = { ...p, ...updates };
+        safeStorage.setItem('komorebi_profile', JSON.stringify(updatedProfile));
+        setProfile(updatedProfile);
+      } else if (user) {
+        await updateDoc(doc(db, 'users', user.uid), updates);
+        setProfile(prev => prev ? { ...prev, ...updates } : null);
+      }
+    } catch (error) {
+      console.error("Critical: Failed to save onboarding:", error);
+      if (!isDemo && user) handleFirestoreError(error, OperationType.UPDATE, `users/${user.uid}`);
     }
   };
 
   return (
     <div className="min-h-screen bg-[#f5f2ed] dark:bg-[#1c1917] pb-20 md:pb-0 md:pl-56 transition-colors duration-300">
       <AnimatePresence>
-        {isNewUser && <NamePrompt onSave={handleSaveName} />}
+        {isNewUser && <OnboardingFlow onComplete={handleOnboardingComplete} />}
       </AnimatePresence>
       {/* Quota Warning */}
       <AnimatePresence>
@@ -8101,7 +8742,7 @@ const AppContent = ({ activeTab, setActiveTab, todayVocabCount, vocab, logout, s
                   {activeTab === 'vocabList' && <VocabList vocab={vocab} />}
                   {activeTab === 'flashcards' && <Flashcards vocab={vocab} />}
                   {activeTab === 'quiz' && <Quiz vocab={vocab} />}
-                  {activeTab === 'dictionary' && <Dictionary />}
+                  {activeTab === 'dictionary' && <Dictionary vocab={vocab} />}
                   {activeTab === 'translator' && <Translator />}
                   {activeTab === 'phrasebook' && <Phrasebook />}
                   {activeTab === 'kana' && <WritingPractice />}
