@@ -96,7 +96,11 @@ import {
   Headphones,
   Upload,
   Bookmark,
-  Bell
+  Bell,
+  HelpCircle,
+  Key,
+  ExternalLink,
+  Info
 } from 'lucide-react';
 import { 
   LineChart, 
@@ -855,16 +859,17 @@ const Login = () => {
         animate={{ opacity: 1, y: 0 }}
         className="max-w-md w-full"
       >
-        <div className="text-center mb-8">
-          <div className="mb-6 inline-flex items-center justify-center w-20 h-20 bg-stone-900 rounded-3xl rotate-3 shadow-lg">
-            <span className="text-4xl text-white font-bold">木</span>
+          <div className="text-center mb-8">
+            <div className="mb-6 inline-flex items-center justify-center w-20 h-20 bg-stone-900 dark:bg-[#f2a93b] rounded-3xl rotate-3 shadow-lg">
+              <span className="text-4xl text-white dark:text-stone-900 font-bold">木</span>
+            </div>
+            <h1 className="text-5xl font-editorial italic tracking-tight text-stone-900 dark:text-stone-100 mb-2">Komorebi</h1>
+            <span className="text-[11px] font-bold uppercase tracking-[0.4em] text-[#f2a93b] mt-2 italic">Japanese Learning Partner</span>
+            <p className="text-stone-600 dark:text-stone-400 font-serif italic text-lg mt-4">
+              "Sunlight filtering through the leaves." <br/>
+              Your daily companion for mastering Japanese.
+            </p>
           </div>
-          <h1 className="text-5xl font-serif font-light text-stone-900 mb-4 tracking-tight">Komorebi</h1>
-          <p className="text-stone-600 font-serif italic text-lg">
-            "Sunlight filtering through the leaves." <br/>
-            Your daily companion for mastering Japanese.
-          </p>
-        </div>
 
         <div className="bg-white p-8 rounded-[2.5rem] shadow-xl border border-stone-100 space-y-6">
           <form onSubmit={handleEmailAuth} className="space-y-4">
@@ -1385,7 +1390,7 @@ const Dashboard = ({ vocabCount, vocab, logout }: { vocabCount: number, vocab: V
         <div className="w-14 h-14 bg-stone-900 dark:bg-stone-100 rounded-[1.25rem] flex items-center justify-center text-white dark:text-stone-900 text-3xl font-bold shadow-2xl shadow-stone-200/50 dark:shadow-none border border-stone-800 dark:border-stone-200">木</div>
         <div className="flex flex-col">
           <span className="font-editorial italic text-4xl tracking-tight text-stone-900 dark:text-stone-100 leading-none">Komorebi</span>
-          <span className="text-[10px] font-bold uppercase tracking-[0.3em] text-stone-400 dark:text-stone-500 mt-2">Japanese Learning Partner</span>
+          <span className="text-[10px] font-bold uppercase tracking-[0.3em] text-[#f2a93b] mt-2 italic">Japanese Learning Partner</span>
         </div>
       </motion.div>
 
@@ -1425,28 +1430,28 @@ const Dashboard = ({ vocabCount, vocab, logout }: { vocabCount: number, vocab: V
           </div>
 
           <div className="flex flex-col items-center gap-4">
-            <div className="relative w-24 h-24">
-              <svg className="w-full h-full transform -rotate-90">
+            <div className="relative w-24 h-24 p-2">
+              <svg className="w-full h-full transform -rotate-90 overflow-visible" viewBox="0 0 100 100">
                 <circle
-                  cx="48"
-                  cy="48"
-                  r="40"
+                  cx="50"
+                  cy="50"
+                  r="44"
                   stroke="currentColor"
                   strokeWidth="8"
                   fill="transparent"
                   className="text-white/10"
                 />
                 <motion.circle
-                  cx="48"
-                  cy="48"
-                  r="40"
+                  cx="50"
+                  cy="50"
+                  r="44"
                   stroke="currentColor"
                   strokeWidth="8"
                   fill="transparent"
-                  strokeDasharray={251.32}
-                  initial={{ strokeDashoffset: 251.32 }}
-                  animate={{ strokeDashoffset: 251.32 - (251.32 * completedMissions) / 3 }}
-                  className="text-white/40"
+                  strokeDasharray={276.46}
+                  initial={{ strokeDashoffset: 276.46 }}
+                  animate={{ strokeDashoffset: 276.46 - (276.46 * completedMissions) / 3 }}
+                  className="text-white/50"
                   strokeLinecap="round"
                 />
               </svg>
@@ -1537,25 +1542,22 @@ const Dashboard = ({ vocabCount, vocab, logout }: { vocabCount: number, vocab: V
         </motion.button>
 
         {/* Chat with Sensei Card */}
-        <motion.div variants={itemVariants} className="col-span-1 bg-white dark:bg-stone-900 rounded-[2rem] border border-stone-100 dark:border-stone-800 shadow-sm overflow-hidden flex flex-col">
-          <div className="h-24 bg-stone-100 dark:bg-stone-800 relative overflow-hidden">
-            <img 
-              src="https://picsum.photos/seed/anime-sensei-girl/400/300" 
-              alt="Sensei" 
-              className="w-full h-full object-cover opacity-90"
-              referrerPolicy="no-referrer"
-            />
-            <div className="absolute inset-0 bg-gradient-to-t from-white dark:from-stone-900 to-transparent" />
-          </div>
-          <div className="p-4 pt-0 space-y-2 relative z-10 -mt-4">
-            <h4 className="text-xs font-bold text-stone-900 dark:text-stone-100">Sensei Chat</h4>
-            <p className="text-[9px] text-stone-500 leading-tight">Ask anything to your AI Sensei</p>
-            <button 
-              onClick={() => (window as any).setActiveTab('chatbot')}
-              className="w-full bg-stone-50 dark:bg-stone-800 text-stone-900 dark:text-white py-1.5 rounded-lg text-[10px] font-bold border border-stone-100 dark:border-stone-700 shadow-sm"
-            >
-              OPEN CHAT
-            </button>
+        <motion.div variants={itemVariants} className="col-span-1 bg-white dark:bg-stone-900 rounded-[2rem] border border-stone-100 dark:border-stone-800 shadow-sm overflow-hidden flex flex-col group">
+          <div className="h-24 bg-stone-900 dark:bg-stone-950 relative overflow-hidden flex items-center justify-center">
+              <div className="absolute inset-0 opacity-20 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-[#f2a93b]/50 via-transparent to-transparent animate-pulse" />
+              <div className="relative z-10 w-12 h-12 bg-white/10 rounded-2xl flex items-center justify-center backdrop-blur-md group-hover:scale-110 transition-transform">
+                <Brain className="w-6 h-6 text-[#f2a93b]" />
+              </div>
+            </div>
+            <div className="p-4 pt-0 space-y-2 relative z-10 -mt-2">
+              <h4 className="text-xs font-bold text-stone-900 dark:text-stone-100">Sensei AI</h4>
+              <p className="text-[9px] text-stone-500 dark:text-stone-400 leading-tight">Your intelligent Japanese guide</p>
+              <button 
+                onClick={() => (window as any).setActiveTab('chatbot')}
+                className="w-full bg-stone-900 dark:bg-[#f2a93b] dark:text-stone-900 text-white py-1.5 rounded-lg text-[10px] font-bold border border-stone-800 dark:border-amber-400 shadow-sm hover:scale-[1.02] transition-transform active:scale-95"
+              >
+                LAUNCH AI
+              </button>
           </div>
         </motion.div>
       </div>
@@ -1745,7 +1747,7 @@ const VocabList = ({ vocab }: { vocab: Vocabulary[] }) => {
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Search..."
-          className="w-full p-4 pl-12 bg-white dark:bg-stone-900 border border-stone-100 dark:border-stone-800 text-stone-900 dark:text-stone-100 rounded-2xl shadow-sm focus:border-stone-900 dark:focus:border-stone-100 transition-all text-base outline-none"
+          className="w-full p-4 pl-12 bg-white dark:bg-stone-900 border border-stone-100 dark:border-stone-800 text-stone-900 dark:text-stone-100 rounded-2xl shadow-sm focus:border-stone-900 dark:focus:border-stone-100 transition-all text-base outline-none placeholder:text-stone-300 dark:placeholder:text-stone-500"
         />
       </div>
 
@@ -1770,12 +1772,12 @@ const VocabList = ({ vocab }: { vocab: Vocabulary[] }) => {
                 <div>
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className="text-lg font-serif text-stone-900 dark:text-stone-100">{v.japanese}</span>
-                    <span className="text-stone-400 dark:text-stone-500 font-mono text-[8px] uppercase tracking-widest">{v.romaji}</span>
+                    <span className="text-stone-400 dark:text-stone-300 font-mono text-[8px] uppercase tracking-widest">{v.romaji}</span>
                     <div className="px-1.5 py-0.5 bg-stone-50 dark:bg-stone-800 rounded text-[7px] font-bold text-stone-400 dark:text-stone-500 uppercase tracking-tighter">
                       {v.mastery}%
                     </div>
                   </div>
-                  <p className="text-stone-500 dark:text-stone-400 font-editorial italic text-sm">{v.meaning}</p>
+                  <p className="text-stone-500 dark:text-stone-200 font-editorial italic text-sm">{v.meaning}</p>
                 </div>
               </div>
               <div className="flex items-center gap-1.5 justify-end border-t dark:border-stone-800 sm:border-t-0 pt-3 sm:pt-0">
@@ -1899,11 +1901,11 @@ const VocabList = ({ vocab }: { vocab: Vocabulary[] }) => {
                     />
                   </div>
                   <div className="space-y-2">
-                    <label className="text-[10px] font-bold uppercase tracking-widest text-stone-400 dark:text-stone-500">Meaning</label>
+                    <label className="text-[10px] font-bold uppercase tracking-widest text-stone-400 dark:text-stone-300">Meaning</label>
                     <input 
                       value={editMeaning}
                       onChange={(e) => setEditMeaning(e.target.value)}
-                      className="w-full p-4 bg-stone-50 dark:bg-stone-800 text-stone-900 dark:text-stone-100 rounded-2xl font-editorial italic outline-none focus:ring-2 focus:ring-stone-100 dark:focus:ring-stone-700"
+                      className="w-full p-4 bg-stone-50 dark:bg-stone-800 text-stone-900 dark:text-stone-100 rounded-2xl font-editorial italic outline-none focus:ring-2 focus:ring-stone-100 dark:focus:ring-stone-700 placeholder:text-stone-300 dark:placeholder:text-stone-500"
                       required
                     />
                   </div>
@@ -2798,31 +2800,31 @@ const VocabEntry = ({ vocab }: { vocab: Vocabulary[] }) => {
 
         <form onSubmit={handleSubmit} className="bg-white dark:bg-stone-900 p-6 rounded-[2rem] shadow-sm border border-stone-50 dark:border-stone-800 space-y-5">
           <div className="space-y-2">
-            <label className="text-[9px] font-bold uppercase tracking-[0.3em] text-stone-400 dark:text-stone-500">Japanese (Kanji/Kana)</label>
+            <label className="text-[9px] font-bold uppercase tracking-[0.3em] text-stone-400 dark:text-stone-300">Japanese (Kanji/Kana)</label>
             <input 
               value={japanese}
               onChange={(e) => setJapanese(e.target.value)}
               placeholder="e.g. 木漏れ日"
-              className="w-full p-4 bg-stone-50 dark:bg-stone-800 border-none rounded-xl focus:ring-2 focus:ring-stone-100 dark:focus:ring-stone-700 transition-all text-xl font-serif text-stone-900 dark:text-stone-100 placeholder:text-stone-300 dark:placeholder:text-stone-600"
+              className="w-full p-4 bg-stone-50 dark:bg-stone-800 border-none rounded-xl focus:ring-2 focus:ring-stone-100 dark:focus:ring-stone-700 transition-all text-xl font-serif text-stone-900 dark:text-stone-100 placeholder:text-stone-300 dark:placeholder:text-stone-500"
               required
             />
           </div>
           <div className="space-y-2">
-            <label className="text-[9px] font-bold uppercase tracking-[0.3em] text-stone-400 dark:text-stone-500">Romaji</label>
+            <label className="text-[9px] font-bold uppercase tracking-[0.3em] text-stone-400 dark:text-stone-300">Romaji</label>
             <input 
               value={romaji}
               onChange={(e) => setRomaji(e.target.value)}
               placeholder="e.g. Komorebi"
-              className="w-full p-4 bg-stone-50 dark:bg-stone-800 border-none rounded-xl focus:ring-2 focus:ring-stone-100 dark:focus:ring-stone-700 transition-all font-mono text-xs text-stone-900 dark:text-stone-100 placeholder:text-stone-300 dark:placeholder:text-stone-600"
+              className="w-full p-4 bg-stone-50 dark:bg-stone-800 border-none rounded-xl focus:ring-2 focus:ring-stone-100 dark:focus:ring-stone-700 transition-all font-mono text-xs text-stone-900 dark:text-stone-100 placeholder:text-stone-300 dark:placeholder:text-stone-500"
             />
           </div>
           <div className="space-y-2">
-            <label className="text-[9px] font-bold uppercase tracking-[0.3em] text-stone-400 dark:text-stone-500">Meaning</label>
+            <label className="text-[9px] font-bold uppercase tracking-[0.3em] text-stone-400 dark:text-stone-300">Meaning</label>
             <input 
               value={meaning}
               onChange={(e) => setMeaning(e.target.value)}
               placeholder="e.g. Sunlight filtering through leaves"
-              className="w-full p-4 bg-stone-50 dark:bg-stone-800 border-none rounded-xl focus:ring-2 focus:ring-stone-100 dark:focus:ring-stone-700 transition-all font-editorial italic text-base text-stone-900 dark:text-stone-100 placeholder:text-stone-300 dark:placeholder:text-stone-600"
+              className="w-full p-4 bg-stone-50 dark:bg-stone-800 border-none rounded-xl focus:ring-2 focus:ring-stone-100 dark:focus:ring-stone-700 transition-all font-editorial italic text-base text-stone-900 dark:text-stone-100 placeholder:text-stone-300 dark:placeholder:text-stone-500"
               required
             />
           </div>
@@ -3306,35 +3308,55 @@ const Dictionary = ({ vocab }: { vocab: Vocabulary[] }) => {
 
   const parseDictionaryResult = (text: string) => {
     const cleanValue = (val: string) => {
+      // Remove Markdown symbols and colons/punctuation at start/end
       let cleaned = val.replace(/[#*`_~]/g, '').trim();
-      // Remove common prefixes
+      cleaned = cleaned.replace(/^[:\s-]+|[:\s-]+$/g, '').trim();
+      
+      // Remove common labels
       const labels = ['kanji', 'romaji', 'meaning', 'definition', 'japanese', 'english', 'pronunciation'];
       for (const label of labels) {
-        const regex = new RegExp(`^${label}\\s*:`, 'i');
+        const regex = new RegExp(`^${label}\\s*[:\\s-]*`, 'i');
         if (regex.test(cleaned)) {
           cleaned = cleaned.replace(regex, '').trim();
           break;
         }
       }
-      return cleaned;
+      return cleaned.replace(/^[:\s-]+|[:\s-]+$/g, '').trim();
     };
 
-    const lines = text.split('\n').filter(l => l.trim().length > 0);
+    const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
     
-    // 1. Japanese - Extract ONLY Japanese characters as requested
-    const jpLineRaw = lines.find(l => /\[KANJI\]/.test(l)) || 
-                     lines.find(l => /[\u3000-\u303f\u3040-\u309f\u30a0-\u30ff\uff00-\uff9f\u4e00-\u9faf\u3400-\u4dbf]/.test(l)) || '';
+    // 1. Japanese - Extract ONLY Japanese characters
+    let jpLineRaw = lines.find(l => /\[KANJI\]/.test(l)) || '';
+    if (!jpLineRaw) {
+      // Fallback: look for a line containing Japanese characters that isn't an intro sentence
+      jpLineRaw = lines.find(l => 
+        /[\u3000-\u303f\u3040-\u309f\u30a0-\u30ff\uff00-\uff9f\u4e00-\u9faf\u3400-\u4dbf]/.test(l) && 
+        !l.toLowerCase().includes('here is') && 
+        !l.toLowerCase().includes('definition') &&
+        l.length < 50
+      ) || '';
+    }
     const jpNoLabel = cleanValue(jpLineRaw.replace('[KANJI]', ''));
-    // Filter to keep ONLY Japanese characters
     const jpMatch = jpNoLabel.match(/[\u3000-\u303f\u3040-\u309f\u30a0-\u30ff\uff00-\uff9f\u4e00-\u9faf\u3400-\u4dbf]+/g);
     const jp = jpMatch ? jpMatch.join('') : jpNoLabel || query;
 
     // 2. Romaji
-    const roLineRaw = lines.find(l => /\[ROMAJI\]/.test(l) || l.toLowerCase().includes('romaji')) || '';
+    const roLineRaw = lines.find(l => /\[ROMAJI\]/.test(l) || (/romaji/i.test(l) && l.includes(':'))) || '';
     const ro = cleanValue(roLineRaw.replace('[ROMAJI]', ''));
 
     // 3. Meaning
-    const enLineRaw = lines.find(l => /\[MEANING\]/.test(l) || l.toLowerCase().includes('definition') || l.toLowerCase().includes('meaning') || l.toLowerCase().includes('english')) || '';
+    // To avoid intro sentences, we look for [MEANING] or lines that AREN'T labels and aren't intro sentences
+    let enLineRaw = lines.find(l => /\[MEANING\]/.test(l)) || '';
+    if (!enLineRaw) {
+      enLineRaw = lines.find(l => 
+        (l.toLowerCase().includes('meaning') || l.toLowerCase().includes('definition')) && 
+        l.includes(':') && 
+        !l.toLowerCase().includes('here is') && 
+        !l.toLowerCase().includes('breakdown') &&
+        l.split(' ').length < 15
+      ) || '';
+    }
     const en = cleanValue(enLineRaw.replace('[MEANING]', '')) || query;
 
     return { jp, ro, en };
@@ -3364,10 +3386,12 @@ const Dictionary = ({ vocab }: { vocab: Vocabulary[] }) => {
         model: getSafeModel(getApiKey(profile, 'translation')?.provider),
         contents: `Act as a professional Japanese-English dictionary. Provide a concise, structured definition for "${searchTerm}". 
         
+        CRITICAL: Provide ONLY the requested fields at the top. DO NOT use introduction sentences like "Here is the definition...".
+        
         Strictly follow this format for the summary at the top:
-        [KANJI]: (The Japanese word)
-        [ROMAJI]: (The Romaji pronunciation)
-        [MEANING]: (The primary English definition only, no extra notes)
+        [KANJI]: (The Japanese word ONLY, no other text)
+        [ROMAJI]: (The Romaji pronunciation ONLY, no labels)
+        [MEANING]: (The primary English definition ONLY, no extra notes or sentences)
 
         Then provide a detailed breakdown with:
         ### Additional Context
@@ -3381,9 +3405,22 @@ const Dictionary = ({ vocab }: { vocab: Vocabulary[] }) => {
       const definition = response.text?.trim() || "No results found.";
       setResult(definition);
       
-      // Update cache
-      if (definition !== "No results found.") {
-        updateAICache(profile, user, `dict_${searchTerm}`, definition, !!isDemo, setProfile);
+      // Update cache under BOTH the search query AND the resulting Kanji (ATOMICALLY)
+      if (definition !== "No results found." && profile) {
+        const parsed = parseDictionaryResult(definition);
+        const updates: Record<string, string> = { [`dict_${searchTerm}`]: definition };
+        if (parsed.jp && parsed.jp !== searchTerm) {
+          updates[`dict_${parsed.jp}`] = definition;
+        }
+
+        const newCache = { ...(profile.aiCache || {}), ...updates };
+        if (isDemo) {
+          const p = { ...profile, aiCache: newCache };
+          setProfile(p);
+          safeStorage.setItem('komorebi_profile', JSON.stringify(p));
+        } else if (user) {
+          updateDoc(doc(db, 'users', user.uid), { aiCache: newCache }).catch(e => console.error(e));
+        }
       }
     } catch (error: any) {
       console.error("AI Error:", error);
@@ -4902,7 +4939,7 @@ const Settings = ({ vocab }: { vocab: Vocabulary[] }) => {
 
         <section className="space-y-4">
           <h3 className="text-sm font-bold uppercase tracking-widest text-stone-400">Environment</h3>
-          <div className="p-6 bg-stone-50 rounded-3xl space-y-4">
+          <div className="p-6 bg-stone-50 dark:bg-stone-800 rounded-3xl space-y-4">
             <div className="flex justify-between items-center text-xs">
               <span className="text-stone-500 font-serif italic">Environment</span>
               <span className="font-mono text-stone-900 bg-white px-2 py-1 rounded-md border border-stone-100">
@@ -4914,6 +4951,89 @@ const Settings = ({ vocab }: { vocab: Vocabulary[] }) => {
                 Tip: If you just added your key, you may need to "Share" or "Deploy" the app again to update the production build.
               </p>
             )}
+          </div>
+        </section>
+
+        <section className="space-y-6 pt-4 border-t border-stone-100 dark:border-stone-800">
+          <div className="flex items-center gap-2">
+            <HelpCircle className="w-5 h-5 text-[#f2a93b]" />
+            <h3 className="text-sm font-bold uppercase tracking-widest text-stone-900 dark:text-stone-100">Frequently Asked Questions</h3>
+          </div>
+          
+          <div className="grid gap-4">
+            {/* API Keys FAQ */}
+            <div className="p-5 bg-white dark:bg-stone-900 rounded-[2rem] border border-stone-100 dark:border-stone-800 shadow-sm space-y-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-stone-50 dark:bg-stone-800 rounded-xl">
+                  <Key className="w-4 h-4 text-stone-400" />
+                </div>
+                <h4 className="text-sm font-bold text-stone-900 dark:text-stone-100">How do I get and set up API Keys?</h4>
+              </div>
+              <p className="text-xs text-stone-500 dark:text-stone-400 leading-relaxed font-serif italic">
+                To power the AI features, you need to provide an API key from one of the supported providers:
+              </p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {[
+                  { name: 'Google Gemini', url: 'https://aistudio.google.com/app/apikey', desc: 'Free Tier Available' },
+                  { name: 'OpenRouter', url: 'https://openrouter.ai/keys', desc: 'Access Many Models' },
+                  { name: 'OpenAI (GPT)', url: 'https://platform.openai.com/api-keys', desc: 'Paid Credits Req.' },
+                  { name: 'Anthropic', url: 'https://console.anthropic.com/', desc: 'Claude Models' },
+                ].map((provider) => (
+                  <a 
+                    key={provider.name}
+                    href={provider.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center justify-between p-3 bg-stone-50 dark:bg-stone-800 rounded-xl border border-stone-100 dark:border-stone-700 hover:border-[#f2a93b] transition-all group"
+                  >
+                    <div className="flex flex-col">
+                      <span className="text-[10px] font-bold text-stone-900 dark:text-stone-100">{provider.name}</span>
+                      <span className="text-[9px] text-stone-400">{provider.desc}</span>
+                    </div>
+                    <ExternalLink className="w-3 h-3 text-stone-300 group-hover:text-[#f2a93b] transition-all" />
+                  </a>
+                ))}
+              </div>
+            </div>
+
+            {/* Maximize Benefits FAQ */}
+            <div className="p-5 bg-white dark:bg-stone-900 rounded-[2rem] border border-stone-100 dark:border-stone-800 shadow-sm space-y-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-stone-50 dark:bg-stone-800 rounded-xl">
+                  <Zap className="w-4 h-4 text-stone-400" />
+                </div>
+                <h4 className="text-sm font-bold text-stone-900 dark:text-stone-100">How to maximize your learning?</h4>
+              </div>
+              <div className="space-y-3">
+                <div className="flex gap-3">
+                  <div className="mt-1 w-1.5 h-1.5 rounded-full bg-[#f2a93b] shrink-0" />
+                  <p className="text-[11px] text-stone-500 dark:text-stone-400"><span className="font-bold text-stone-700 dark:text-stone-200">Daily Streak:</span> Use the app daily to build muscle memory and maintain consistency.</p>
+                </div>
+                <div className="flex gap-3">
+                  <div className="mt-1 w-1.5 h-1.5 rounded-full bg-[#f2a93b] shrink-0" />
+                  <p className="text-[11px] text-stone-500 dark:text-stone-400"><span className="font-bold text-stone-700 dark:text-stone-200">Chat with Sensei:</span> Don't just translate words—practice full conversations to understand context.</p>
+                </div>
+                <div className="flex gap-3">
+                  <div className="mt-1 w-1.5 h-1.5 rounded-full bg-[#f2a93b] shrink-0" />
+                  <p className="text-[11px] text-stone-500 dark:text-stone-400"><span className="font-bold text-stone-700 dark:text-stone-200">Smart Vocabulary:</span> Add words you encounter during chat directly to your library for later flashcard review.</p>
+                </div>
+              </div>
+            </div>
+
+            {/* BYOK Model FAQ */}
+            <div className="p-5 bg-stone-900 dark:bg-stone-100 rounded-[2rem] shadow-xl space-y-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-stone-800 dark:bg-stone-200 rounded-xl">
+                  <Info className="w-4 h-4 text-stone-400 dark:text-stone-600" />
+                </div>
+                <h4 className="text-sm font-bold text-white dark:text-stone-900">What is the "BYOK" Model?</h4>
+              </div>
+              <p className="text-xs text-stone-300 dark:text-stone-600 leading-relaxed font-serif italic">
+                Komorebi is a <span className="text-[#f2a93b] font-bold">Bring Your Own Key</span> application. 
+                We provide the specialized learning environment, and you provide the AI "intelligence" via your own keys. 
+                This ensures your data remains yours, and you only pay for exactly what you use directly to the AI providers.
+              </p>
+            </div>
           </div>
         </section>
 
@@ -8063,7 +8183,10 @@ const OnboardingFlow = ({ onComplete }: { onComplete: (data: any) => Promise<voi
                 />
               </div>
               <div className="space-y-4 max-w-sm">
-                <h1 className="text-5xl font-editorial italic tracking-tight text-stone-900 dark:text-stone-100">Komorebi</h1>
+          <div className="flex flex-col">
+            <h1 className="text-5xl font-editorial italic tracking-tight text-stone-900 dark:text-stone-100">Komorebi</h1>
+            <span className="text-[11px] font-bold uppercase tracking-[0.4em] text-[#f2a93b] mt-2 italic">Japanese Learning Partner</span>
+          </div>
                 <p className="text-stone-600 dark:text-stone-300 leading-relaxed italic font-serif text-lg">
                   "The sunlight filtering through the trees."
                 </p>
@@ -8478,13 +8601,13 @@ const AppContent = ({ activeTab, setActiveTab, todayVocabCount, vocab, logout, s
 
       {/* Desktop Sidebar */}
       <aside className="hidden md:flex w-64 bg-white dark:bg-[#1c1917] border-r border-stone-100 dark:border-stone-800 flex-col fixed inset-y-0 left-0 z-50 transition-colors duration-300">
-            <div className="p-8 flex items-center gap-3">
-              <div className="w-10 h-10 bg-stone-900 dark:bg-stone-100 rounded-xl flex items-center justify-center text-white dark:text-stone-900 font-bold shrink-0 text-xl shadow-lg">木</div>
-              <div className="flex flex-col">
-                <span className="font-serif font-bold text-xl tracking-tight text-stone-900 dark:text-stone-100 leading-none">Komorebi</span>
-                <span className="text-[8px] font-bold uppercase tracking-widest text-stone-400 dark:text-stone-500 mt-1">Learning Partner</span>
+              <div className="p-8 flex items-center gap-3 group/brand">
+                <div className="w-10 h-10 bg-stone-900 dark:bg-[#f2a93b] rounded-xl flex items-center justify-center text-white dark:text-stone-900 font-bold shrink-0 text-xl shadow-lg group-hover/brand:scale-110 transition-transform">木</div>
+                <div className="flex flex-col">
+                  <span className="font-editorial italic font-bold text-2xl tracking-tight text-stone-900 dark:text-stone-100 leading-none">Komorebi</span>
+                  <span className="text-[8px] font-bold uppercase tracking-widest text-[#f2a93b] mt-1 italic">Japanese Learning Partner</span>
+                </div>
               </div>
-            </div>
             
             <nav className="flex-1 px-3 space-y-1 mt-2">
               <div className="px-3 mb-2 text-[10px] font-bold uppercase tracking-widest text-stone-400 dark:text-stone-500">Main</div>
@@ -8536,11 +8659,11 @@ const AppContent = ({ activeTab, setActiveTab, todayVocabCount, vocab, logout, s
                   className={cn(
                     "w-full flex items-center gap-3 p-3 rounded-xl transition-all group relative",
                     activeTab === item.id 
-                      ? "bg-stone-900 text-white shadow-lg shadow-stone-200" 
-                      : "text-stone-400 hover:bg-stone-50 hover:text-stone-900"
+                      ? "bg-stone-900 dark:bg-stone-100 text-white dark:text-stone-900 shadow-lg shadow-stone-200 dark:shadow-none" 
+                      : "text-stone-400 dark:text-stone-500 hover:bg-stone-50 dark:hover:bg-stone-800 hover:text-stone-900 dark:hover:text-stone-100"
                   )}
                 >
-                  <item.icon className={cn("w-4 h-4 transition-transform group-hover:scale-110", activeTab === item.id ? "text-white" : "text-stone-400 group-hover:text-stone-900")} />
+                  <item.icon className={cn("w-4 h-4 transition-transform group-hover:scale-110", activeTab === item.id ? "text-white dark:text-stone-900" : "text-stone-400 dark:text-stone-500 group-hover:text-stone-900 dark:group-hover:text-stone-100")} />
                   <span className="font-medium text-xs tracking-wide">{item.label}</span>
                   {item.id === 'achievements' && hasUnclaimedRewards && (
                     <div className="absolute top-2 right-2 w-2 h-2 bg-amber-500 rounded-full ring-2 ring-white dark:ring-stone-900 animate-pulse" />
@@ -8548,7 +8671,7 @@ const AppContent = ({ activeTab, setActiveTab, todayVocabCount, vocab, logout, s
                   {activeTab === item.id && (
                     <motion.div 
                       layoutId="activeTabDesktop"
-                      className="absolute inset-0 bg-stone-900 rounded-xl -z-10"
+                      className="absolute inset-0 bg-stone-900 dark:bg-stone-100 rounded-xl -z-10"
                       transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
                     />
                   )}
@@ -8556,13 +8679,13 @@ const AppContent = ({ activeTab, setActiveTab, todayVocabCount, vocab, logout, s
               ))}
             </nav>
 
-            <div className="p-4 border-t border-stone-50 dark:border-stone-800">
-              <div className="p-4 bg-amber-50/50 rounded-2xl border border-amber-100/50 flex items-center justify-between">
+            <div className="p-4 border-t border-stone-100 dark:border-stone-800">
+              <div className="p-4 bg-amber-50/50 dark:bg-amber-900/10 rounded-2xl border border-amber-100/50 dark:border-amber-900/20 flex items-center justify-between shadow-inner">
                 <div className="flex items-center gap-2">
-                  <Flame className="w-4 h-4 text-amber-500 fill-amber-500" />
-                  <span className="text-[10px] font-bold text-amber-900 uppercase tracking-widest">Streak</span>
+                  <Flame className="w-4 h-4 text-[#f2a93b] fill-[#f2a93b]" />
+                  <span className="text-[10px] font-bold text-amber-900 dark:text-amber-200 uppercase tracking-widest">Streak</span>
                 </div>
-                <span className="text-lg font-serif text-amber-900">{profile?.streakCount || 0} Days</span>
+                <span className="text-lg font-serif text-amber-900 dark:text-amber-100">{profile?.streakCount || 0} Days</span>
               </div>
             </div>
           </aside>
@@ -8688,10 +8811,10 @@ const AppContent = ({ activeTab, setActiveTab, todayVocabCount, vocab, logout, s
                   {/* Logo Section */}
                   <div className="flex items-center gap-4">
                     <div className="w-14 h-14 bg-stone-900 dark:bg-stone-100 rounded-[1.25rem] flex items-center justify-center text-white dark:text-stone-900 text-3xl font-bold shadow-2xl shadow-stone-200/50 dark:shadow-none border border-stone-800 dark:border-stone-200">木</div>
-                    <div className="flex flex-col">
-                      <span className="font-editorial italic text-3xl tracking-tight text-stone-900 dark:text-stone-100 leading-none">Komorebi</span>
-                      <span className="text-[9px] font-bold uppercase tracking-[0.3em] text-stone-400 dark:text-stone-500 mt-2">Japanese Learning Partner</span>
-                    </div>
+                  <div className="flex flex-col">
+                    <span className="font-editorial italic text-3xl tracking-tight text-stone-900 dark:text-stone-100 leading-none">Komorebi</span>
+                    <span className="text-[9px] font-bold uppercase tracking-[0.3em] text-[#f2a93b] mt-1 italic">Japanese Learning Partner</span>
+                  </div>
                   </div>
 
                   {/* Right Side: Profile & Actions */}

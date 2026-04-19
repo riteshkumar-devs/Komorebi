@@ -47,7 +47,7 @@
     @apply bg-[#fdfbf7] text-stone-900 transition-colors duration-300;
   }
   .dark body {
-    @apply bg-[#1c1917] text-stone-100;
+    @apply bg-[#0c0a09] text-stone-100;
   }
 }
 
