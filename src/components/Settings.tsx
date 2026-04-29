@@ -401,12 +401,16 @@ export const Settings = ({ vocab }: { vocab: Vocabulary[] }) => {
         const targetModel = getSafeModel(keyInfo.provider);
         
         if (keyInfo.provider === 'gemini') {
-          const genAI = new GoogleGenAI({ apiKey: keyInfo.key });
-          const response = await genAI.models.generateContent({ 
-            model: targetModel, 
-            contents: "Respond with exactly the word 'OK'." 
-          });
-          responseText = response.text || "";
+          try {
+            const ai = new GoogleGenAI({ apiKey: keyInfo.key });
+            const response = await ai.models.generateContent({ 
+              model: targetModel, 
+              contents: "Respond with exactly the word 'OK'." 
+            });
+            responseText = response.text || "";
+          } catch (error: any) {
+            throw new Error(error.message || "Gemini Test Failed");
+          }
         } else {
           // Fallback or specific proxy
           const response = await fetch('/api/ai/generate', {
@@ -1144,32 +1148,6 @@ export const Settings = ({ vocab }: { vocab: Vocabulary[] }) => {
         </section>
 
         <div className="h-px bg-stone-50 dark:bg-stone-800" />
-
-        <section className="space-y-4">
-          <h3 className="text-sm font-bold uppercase tracking-widest text-stone-400 dark:text-stone-500">Voice Preferences</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <button 
-              onClick={() => setTTSMode('native')}
-              className={cn(
-                "p-6 rounded-3xl border-2 transition-all text-left space-y-2",
-                mode === 'native' ? "border-stone-900 bg-stone-50" : "border-stone-50 hover:border-stone-200"
-              )}
-            >
-              <div className="font-bold text-stone-900">Built-in Voice</div>
-              <div className="text-xs text-stone-500 font-serif italic">Uses your device's native text-to-speech. Free and unlimited.</div>
-            </button>
-            <button 
-              onClick={() => setTTSMode('gemini')}
-              className={cn(
-                "p-6 rounded-3xl border-2 transition-all text-left space-y-2",
-                mode === 'gemini' ? "border-stone-900 bg-stone-50" : "border-stone-50 hover:border-stone-200"
-              )}
-            >
-              <div className="font-bold text-stone-900">AI Voice (Gemini)</div>
-              <div className="text-xs text-stone-500 font-serif italic">High-quality neural voices. Requires an API key and has daily limits.</div>
-            </button>
-          </div>
-        </section>
 
         <section className="space-y-4 pt-6">
           <h3 className="text-sm font-bold uppercase tracking-widest text-stone-400">Session</h3>

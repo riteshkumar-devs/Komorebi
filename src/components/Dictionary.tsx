@@ -24,7 +24,7 @@ import { exportToPDF } from '../lib/pdf';
 
 export const Dictionary = ({ vocab }: { vocab: Vocabulary[] }) => {
   const { profile, setProfile, user, isDemo, discoveredWords, setDiscoveredWords, checkUsageLimit, incrementUsage } = useContext(AuthContext);
-  // Sound effects removed as per user request
+  const { play: playSound } = useSound();
   const [query, setQuery] = useState('');
   const [result, setResult] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -82,7 +82,7 @@ export const Dictionary = ({ vocab }: { vocab: Vocabulary[] }) => {
         const vocabRef = collection(db, 'users', user.uid, 'vocabularies');
         await addDoc(vocabRef, vocabData);
       }
-      // playSound('success');
+      playSound('success');
     } catch (error) {
       console.error("Save Error:", error);
     } finally {
@@ -362,6 +362,14 @@ export const Dictionary = ({ vocab }: { vocab: Vocabulary[] }) => {
                 <div className="flex justify-between items-start mb-2">
                   <span className="text-2xl font-serif text-stone-900 dark:text-stone-100">{word.jp}</span>
                   <div className="flex items-center gap-2">
+                    <button 
+                      onClick={(e) => { e.stopPropagation(); handleSaveToLibrary(word); }}
+                      disabled={savingWord === word.jp}
+                      className="p-2 bg-stone-50 dark:bg-stone-800 rounded-full text-stone-400 hover:text-stone-900 dark:hover:text-stone-100 transition-all disabled:opacity-50"
+                      title="Save to Library"
+                    >
+                      {savingWord === word.jp ? <RotateCcw className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+                    </button>
                     <Volume2 
                       onClick={(e) => { e.stopPropagation(); play(word.jp); }}
                       className="w-4 h-4 text-stone-300 group-hover:text-stone-900 dark:group-hover:text-stone-100 transition-colors cursor-pointer" 
@@ -383,6 +391,30 @@ export const Dictionary = ({ vocab }: { vocab: Vocabulary[] }) => {
           >
             <div className="bg-white dark:bg-stone-900 p-8 rounded-[2rem] shadow-sm border border-stone-100 dark:border-stone-800 relative group overflow-hidden">
               <div className="absolute top-6 right-6 flex gap-2">
+                <div className="relative">
+                  {duplicateFound === parseDictionaryResult(result).jp && (
+                    <motion.div 
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="absolute -top-10 right-0 whitespace-nowrap px-3 py-1 bg-stone-900 text-white text-[8px] uppercase tracking-widest font-bold rounded-lg shadow-xl z-10"
+                    >
+                      Already in Library
+                    </motion.div>
+                  )}
+                  <button 
+                    onClick={() => handleSaveToLibrary(parseDictionaryResult(result), result)}
+                    disabled={savingWord === parseDictionaryResult(result).jp || !!vocab.find(v => v.japanese === parseDictionaryResult(result).jp)}
+                    className={cn(
+                      "p-3 rounded-full transition-all",
+                      vocab.find(v => v.japanese === parseDictionaryResult(result).jp) 
+                        ? "bg-emerald-50 dark:bg-emerald-900/20 text-emerald-500 cursor-default" 
+                        : "bg-stone-50 dark:bg-stone-800 text-stone-400 hover:text-stone-900"
+                    )}
+                    title={vocab.find(v => v.japanese === parseDictionaryResult(result).jp) ? "Already in Library" : "Save to Library"}
+                  >
+                    {vocab.find(v => v.japanese === parseDictionaryResult(result).jp) ? <CheckCircle2 className="w-5 h-5" /> : (savingWord === parseDictionaryResult(result).jp ? <RotateCcw className="w-5 h-5 animate-spin" /> : <Plus className="w-5 h-5" />)}
+                  </button>
+                </div>
                 <button 
                   onClick={() => { setResult(null); setShowCommon(true); setQuery(''); }}
                   className="p-3 bg-stone-50 dark:bg-stone-800 rounded-full text-stone-400 hover:text-stone-900 dark:hover:text-stone-100 transition-all font-bold"

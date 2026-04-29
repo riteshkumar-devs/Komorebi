@@ -90,18 +90,21 @@ export const getAI = (profile?: UserProfile | null, purpose: AIPurpose = 'genera
         
         if (keyInfo.provider === 'gemini') {
           try {
-            const genAI = new GoogleGenAI({ apiKey: keyInfo.key });
-            const response = await (genAI as any).models.generateContent({
+            const ai = new GoogleGenAI({ apiKey: keyInfo.key });
+            const response = await ai.models.generateContent({
               model: targetModel,
-              contents: params.contents,
+              contents: typeof params.contents === 'string' 
+                ? params.contents 
+                : params.contents,
               config: params.config
             });
             
-            const text = response.text || (response.candidates?.[0]?.content?.parts?.[0]?.text) || "";
+            const text = response.text || "";
+            
             return { 
               text: text, 
               response: { text: () => text },
-              candidates: response.candidates || [{ content: { parts: [{ text: text }] } }]
+              candidates: (response as any).candidates || [{ content: { parts: [{ text: text }] } }]
             };
           } catch (error: any) {
             let errorMsg = error.message || "Gemini request failed";
@@ -136,6 +139,8 @@ export const getAI = (profile?: UserProfile | null, purpose: AIPurpose = 'genera
           if (contentType && contentType.includes("application/json")) {
             const errorData = await response.json();
             let errorMsg = errorData.error || errorData.details || "AI request failed";
+            if (typeof errorMsg === 'object') errorMsg = JSON.stringify(errorMsg);
+            
             if (errorMsg.toLowerCase().includes("quota") || errorMsg.toLowerCase().includes("credit")) {
               errorMsg = "API Provider: Quota exceeded or insufficient credits.";
             } else if (errorMsg.toLowerCase().includes("key") || errorMsg.toLowerCase().includes("unauthorized")) {

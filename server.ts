@@ -10,6 +10,18 @@ dotenv.config();
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+async function fetchGeminiDirectly(url: string, contents: any, systemInstruction: any, responseMimeType: string, res: any) {
+  const response = await axios.post(url, {
+    contents,
+    systemInstruction: systemInstruction ? { parts: [{ text: systemInstruction }] } : undefined,
+    generationConfig: {
+      responseMimeType: responseMimeType || "text/plain"
+    }
+  });
+  const text = response.data.candidates?.[0]?.content?.parts?.[0]?.text;
+  return res.json({ text });
+}
+
 async function startServer() {
   const app = express();
   const PORT = 3000;
@@ -30,6 +42,7 @@ async function startServer() {
     }
 
     try {
+      const trimmedKey = key.trim();
       switch (provider) {
         case 'openai':
         case 'openrouter':
@@ -40,7 +53,6 @@ async function startServer() {
             else if (provider === 'openrouter') finalBaseUrl = "https://openrouter.ai/api/v1/chat/completions";
             else if (provider === 'xai') finalBaseUrl = "https://api.x.ai/v1/chat/completions";
           } else if (!finalBaseUrl.endsWith('/chat/completions')) {
-            // If it's just the base v1 URL, append the completions path
             finalBaseUrl = finalBaseUrl.replace(/\/+$/, '') + '/chat/completions';
           }
 
@@ -48,29 +60,42 @@ async function startServer() {
                                provider === 'xai' ? "grok-beta" :
                                "google/gemini-2.0-flash-001";
           
-          let userContent = contents;
+          let messages = [];
+          if (systemInstruction) {
+            messages.push({ role: "system", content: systemInstruction });
+          }
+
           if (Array.isArray(contents)) {
-            userContent = contents.map(c => {
-              if (typeof c === 'string') return c;
-              return c.parts?.map((p: any) => p.text).join('\n') || c.text || "";
-            }).join('\n');
-          } else if (typeof contents === 'object' && contents.parts) {
-            userContent = contents.parts.map((p: any) => p.text).join('\n');
+            // Handle Gemini-style history conversion
+            contents.forEach(c => {
+              const role = c.role === 'model' ? 'assistant' : 'user';
+              let content = "";
+              if (typeof c === 'string') content = c;
+              else if (Array.isArray(c.parts)) {
+                content = c.parts.map((p: any) => p.text).join('\n');
+              } else if (c.text) {
+                content = c.text;
+              }
+              messages.push({ role, content });
+            });
+          } else {
+            let userContent = contents;
+            if (typeof contents === 'object' && contents.parts) {
+              userContent = contents.parts.map((p: any) => p.text).join('\n');
+            }
+            messages.push({ role: "user", content: userContent });
           }
 
           const response = await axios.post(
             finalBaseUrl,
             {
               model: model || defaultModel,
-              messages: [
-                ...(systemInstruction ? [{ role: "system", content: systemInstruction }] : []),
-                { role: "user", content: userContent }
-              ],
+              messages: messages,
               response_format: responseMimeType === "application/json" ? { type: "json_object" } : undefined
             },
             {
               headers: {
-                "Authorization": `Bearer ${key}`,
+                "Authorization": `Bearer ${trimmedKey}`,
                 "Content-Type": "application/json",
                 ...(provider === 'openrouter' ? {
                   "HTTP-Referer": req.headers.referer || "https://komorebi.app",
@@ -89,11 +114,14 @@ async function startServer() {
               model: model || "claude-3-5-sonnet-20240620",
               max_tokens: 1024,
               system: systemInstruction,
-              messages: [{ role: "user", content: contents }]
+              messages: Array.isArray(contents) ? contents.map(c => ({
+                role: c.role === 'model' ? 'assistant' : 'user',
+                content: typeof c === 'string' ? c : (c.parts?.[0]?.text || c.text || "")
+              })) : [{ role: "user", content: contents }]
             },
             {
               headers: {
-                "x-api-key": key,
+                "x-api-key": trimmedKey,
                 "anthropic-version": "2023-06-01",
                 "Content-Type": "application/json"
               }
@@ -108,7 +136,7 @@ async function startServer() {
             { inputs: contents },
             {
               headers: {
-                "Authorization": `Bearer ${key}`,
+                "Authorization": `Bearer ${trimmedKey}`,
                 "Content-Type": "application/json"
               }
             }
@@ -131,33 +159,43 @@ async function startServer() {
 
         case 'gemini':
         default: {
-          // For Gemini, we can still use the SDK on frontend or proxy it here
-          // If we proxy it here, we use the REST API
-          const url = `https://generativelanguage.googleapis.com/v1beta/models/${model || "gemini-2.0-flash"}:generateContent?key=${key}`;
+          const url = `https://generativelanguage.googleapis.com/v1beta/models/${model || "gemini-2.0-flash"}:generateContent?key=${trimmedKey}`;
           
-          // Handle multimodal contents if needed
-          let parts = [];
+          let contentParts = [];
           if (typeof contents === 'string') {
-            parts = [{ text: contents }];
+            contentParts = [{ text: contents }];
           } else if (Array.isArray(contents)) {
-            parts = contents.map(c => {
+            if (contents.length > 0 && contents[0].parts) {
+              return fetchGeminiDirectly(url, contents, systemInstruction, responseMimeType, res);
+            }
+            contentParts = contents.map(c => {
+              if (typeof c === 'string') return { text: c };
               if (c.text) return { text: c.text };
               if (c.inlineData) return { inlineData: c.inlineData };
               return c;
             });
           } else if (contents.parts) {
-            parts = contents.parts;
+            contentParts = contents.parts;
           }
 
           const response = await axios.post(url, {
-            contents: [{ parts }],
+            contents: [{ role: 'user', parts: contentParts }],
             systemInstruction: systemInstruction ? { parts: [{ text: systemInstruction }] } : undefined,
             generationConfig: {
               responseMimeType: responseMimeType || "text/plain"
             }
           });
 
-          const text = response.data.candidates?.[0]?.content?.parts?.[0]?.text;
+          const candidate = response.data.candidates?.[0];
+          const text = candidate?.content?.parts?.[0]?.text;
+          
+          if (!text) {
+            if (candidate?.finishReason === "SAFETY") {
+              return res.json({ text: "I'm sorry, I cannot generate that response due to safety restrictions. Please try a different query." });
+            }
+            return res.json({ text: "The AI was unable to generate a response. Please try reframing your prompt." });
+          }
+          
           return res.json({ text });
         }
       }
@@ -166,18 +204,33 @@ async function startServer() {
       const errorStatus = error.response?.status || 500;
       const errorMessage = error.message;
 
-      console.error("AI Proxy Error:", errorData || errorMessage);
+      console.error(`AI Proxy Error [${provider}]:`, JSON.stringify(errorData || errorMessage, null, 2));
       
       // Extract the most useful error message from the provider's response
       let providerError = "AI Provider Error";
       if (errorData) {
-        if (typeof errorData.error === 'string') {
+        // Handle common error structures
+        if (typeof errorData === 'string') {
+          providerError = errorData;
+        } else if (typeof errorData.error === 'string') {
           providerError = errorData.error;
         } else if (errorData.error && typeof errorData.error.message === 'string') {
           providerError = errorData.error.message;
-        } else if (typeof errorData.message === 'string') {
+        } else if (errorData.message && typeof errorData.message === 'string') {
           providerError = errorData.message;
+        } else if (errorData.error && typeof errorData.error === 'object') {
+          // Deep nested error messages (OpenRouter sometimes has this)
+          providerError = errorData.error.message || JSON.stringify(errorData.error);
+        } else {
+          providerError = JSON.stringify(errorData);
         }
+      } else if (errorMessage) {
+        providerError = errorMessage;
+      }
+
+      // Cleanup some common ugly strings
+      if (providerError.includes("Check the documentation for more details")) {
+        providerError = providerError.split(".")[0];
       }
 
       res.status(errorStatus).json({ 
