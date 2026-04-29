@@ -8,12 +8,12 @@
   "theme_color": "#1c1917",
   "icons": [
     {
-      "src": "https://ik.imagekit.io/b7hreicuc/IMG_20260322_225800.jpg?updatedAt=1774200605574",
+      "src": "https://picsum.photos/seed/kanji/192/192",
       "sizes": "192x192",
       "type": "image/png"
     },
     {
-      "src": "https://ik.imagekit.io/b7hreicuc/IMG_20260322_225800.jpg?updatedAt=1774200605574",
+      "src": "https://picsum.photos/seed/kanji/512/512",
       "sizes": "512x512",
       "type": "image/png"
     }

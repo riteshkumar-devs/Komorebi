@@ -78,7 +78,7 @@ service cloud.firestore {
     function isAdmin() {
       return isAuthenticated() &&
         (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' ||
-          (request.auth.token.email == "riteshkumar477823@gmail.com" && request.auth.token.email_verified == true));
+         (request.auth.token.email_verified == true && request.auth.token.email == "riteshkumar477823@gmail.com"));
     }
 
     function isValidUser(data) {
@@ -87,6 +87,7 @@ service cloud.firestore {
              data.email is string &&
              (!('preferredTTS' in data) || data.preferredTTS is string) &&
              (!('role' in data) || data.role is string) &&
+             (!('customId' in data) || data.customId is string) &&
              (!('onboardingCompleted' in data) || data.onboardingCompleted is bool);
     }
 
@@ -111,6 +112,12 @@ service cloud.firestore {
     // ===============================================================
     // Rules
     // ===============================================================
+
+    match /payment_requests/{requestId} {
+      allow read, list: if isAdmin() || (isAuthenticated() && resource.data.userId == request.auth.uid);
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+      allow update, delete: if isAdmin();
+    }
 
     match /test/connection {
       allow read: if isAuthenticated();

@@ -35,10 +35,47 @@
   }
 }
 
+@layer utilities {
+  .neon-glow {
+    filter: drop-shadow(0 0 8px currentColor);
+  }
+  .neon-box {
+    box-shadow: 0 0 15px currentColor;
+  }
+  .glass-morphism {
+    background: rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+  }
+  .dark .glass-morphism {
+    background: rgba(0, 0, 0, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+  }
+  .text-glow {
+    text-shadow: 0 0 10px currentColor;
+  }
+  .dynamic-island {
+    transition: all 0.5s cubic-bezier(0.19, 1, 0.22, 1);
+  }
+  .dynamic-island:active {
+    transform: scale(0.96) translateY(2px);
+  }
+  .mobile-touch-target {
+    @apply min-h-[44px] min-w-[44px] flex items-center justify-center;
+  }
+}
+
 @layer base {
   :root {
     color-scheme: light;
-    font-size: 14px;
+    font-size: 13px;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  @media (max-width: 768px) {
+    :root {
+      font-size: 12px;
+    }
   }
   :root.dark {
     color-scheme: dark;
@@ -52,7 +89,7 @@
 }
 
 .prose h1, .prose h2, .prose h3 {
-  @apply font-editorial italic font-light;
+  @apply font-editorial font-light;
 }
 
 .japanese-text {

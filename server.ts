@@ -74,7 +74,7 @@ async function startServer() {
                 "Content-Type": "application/json",
                 ...(provider === 'openrouter' ? {
                   "HTTP-Referer": req.headers.referer || "https://komorebi.app",
-                  "X-Title": "Komorebi Japanese Learning Partner"
+                  "X-Title": "Komorebi Japanese Language Platform"
                 } : {})
               }
             }

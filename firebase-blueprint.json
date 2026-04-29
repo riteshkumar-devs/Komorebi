@@ -105,7 +105,8 @@
         "createdAt": { "type": "string", "format": "date-time" },
         "mastery": { "type": "integer" },
         "parentId": { "type": "string" },
-        "type": { "type": "string", "enum": ["main", "sub"] }
+        "type": { "type": "string", "enum": ["main", "sub"] },
+        "details": { "type": "string" }
       },
       "required": ["uid", "japanese", "meaning"]
     },
@@ -134,6 +135,24 @@
         "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["jp", "ro", "en"]
+    },
+    "PaymentRequest": {
+      "title": "PaymentRequest",
+      "description": "Subscription payment verification requests",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "userEmail": { "type": "string" },
+        "planId": { "type": "string" },
+        "planName": { "type": "string" },
+        "price": { "type": "string" },
+        "transactionId": { "type": "string" },
+        "status": { "type": "string", "enum": ["pending", "approved", "rejected"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" },
+        "notes": { "type": "string" }
+      },
+      "required": ["userId", "planId", "transactionId", "status", "createdAt"]
     }
   },
   "firestore": {
@@ -152,6 +171,10 @@
     "/users/{userId}/discovered_words/{wordId}": {
       "schema": "DiscoveredWord",
       "description": "Words discovered in the dictionary"
+    },
+    "/payment_requests/{requestId}": {
+      "schema": "PaymentRequest",
+      "description": "Global collection for admins to review payments"
     }
   }
 }

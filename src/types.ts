@@ -16,6 +16,7 @@ export interface UserProfile {
   lastActiveDate: Timestamp | null;
   dailyGoalMet: boolean;
   xp: number;
+  coins?: number;
   rank: string; // E5, E4, ..., SSS1
   title?: string; // e.g., "Novice Learner", "Kanji Slayer"
   dailyGoal?: number;
@@ -23,6 +24,7 @@ export interface UserProfile {
   ownedAvatars?: string[];
   preferredTTS?: 'native' | 'gemini';
   notificationsEnabled?: boolean;
+  soundEffectsEnabled?: boolean;
   achievements?: string[]; // IDs of unlocked achievements
   pinnedAchievements?: string[]; // IDs of pinned achievements (max 10)
   apiKeys?: string[]; // Multiple Gemini API keys (legacy)
@@ -51,6 +53,19 @@ export interface UserProfile {
   onboardingCompleted?: boolean;
   dob?: string;
   careerGoal?: string;
+  isPremium?: boolean;
+  subscriptionPlan?: string;
+  premiumExpiry?: Timestamp | null;
+  role?: 'admin' | 'user' | 'client';
+  customId?: string; // 6-9 digit unique ID
+  joinedAt?: Timestamp;
+  lastActive?: Timestamp;
+  usageLimits?: {
+    dictionaryCount?: number;
+    translationCount?: number;
+    chatCount?: number;
+    lastResetDate?: string;
+  };
 }
 
 export interface Note {
@@ -73,6 +88,7 @@ export interface Vocabulary {
   mastery: number;
   parentId?: string;
   type?: 'main' | 'sub';
+  details?: string;
 }
 
 export interface DiscoveredWord {
