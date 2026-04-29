@@ -5,10 +5,6 @@
 **Your Japanese Learning AI Companion**
 
 [![Live Demo](https://img.shields.io/badge/Live%20Demo-komorebi.onrender.com-brightgreen?style=for-the-badge)](https://komoreebi.onrender.com)
-[![Vercel](https://img.shields.io/badge/Also%20On-Vercel-black?style=for-the-badge)](https://komorebi-delta.vercel.app)
-[![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
-[![React](https://img.shields.io/badge/React-61DAFB?style=for-the-badge&logo=react&logoColor=black)](https://react.dev/)
-
 </div>
 
 ---
@@ -129,13 +125,6 @@ Komorebi/
 
 The app is currently deployed on:
 - **Render**: [komoreebi.onrender.com](https://komoreebi.onrender.com)
-- **Vercel**: [komorebi-delta.vercel.app](https://komorebi-delta.vercel.app)
-
-### Deploy to Vercel
-```bash
-npm install -g vercel
-vercel
-```
 
 ### Deploy to Render
 1. Push to GitHub
@@ -171,20 +160,9 @@ See `.env.example` for complete configuration options.
 
 ---
 
-## 🤝 Contributing
-
-We welcome contributions! Please feel free to:
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
-
----
-
 ## 📝 License
 
-This project is open source and available under the MIT License.
+This project is no open source and available under the permission of the Ritesh
 
 ---
 
