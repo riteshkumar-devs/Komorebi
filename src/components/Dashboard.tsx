@@ -27,9 +27,8 @@ import { useQuoteAgent } from '../hooks/useQuoteAgent';
 import { Vocabulary } from '../types';
 import { ACHIEVEMENTS } from '../lib/constants';
 
-export const Dashboard = ({ vocabCount, vocab, logout }: { vocabCount: number, vocab: Vocabulary[], logout?: () => void }) => {
-  const { profile, setActiveTab } = useContext(AuthContext);
-  const { play: playSound } = useSound(profile?.soundEffectsEnabled !== false);
+export const Dashboard = ({ vocabCount, vocab, logout, setActiveTab }: { vocabCount: number, vocab: Vocabulary[], logout?: () => void, setActiveTab: (tab: any) => void }) => {
+  const { profile } = useContext(AuthContext);
   const { quotes } = useQuoteAgent();
   const [activeQuoteIndex, setActiveQuoteIndex] = useState(0);
 
@@ -96,6 +95,7 @@ export const Dashboard = ({ vocabCount, vocab, logout }: { vocabCount: number, v
       {/* Today's Mission Card */}
       <motion.div 
         variants={itemVariants}
+        whileHover={{ scale: 1.01, rotate: [-0.1, 0.1, 0] }}
         className="bg-gradient-to-br from-[#1a4d5e] to-[#2c6e81] p-6 rounded-[2.5rem] shadow-xl text-white relative overflow-hidden"
       >
         <div className="flex justify-between items-start relative z-10">
@@ -183,18 +183,6 @@ export const Dashboard = ({ vocabCount, vocab, logout }: { vocabCount: number, v
         {activeQuote.author && (
           <p className="text-[10px] text-stone-400 uppercase tracking-widest mt-1 opacity-60">— {activeQuote.author}</p>
         )}
-        <div className="flex justify-center">
-          <button 
-            onClick={() => {
-              playSound('success');
-              // Optional: Show a "Saved" toast here if a toast system exists
-            }}
-            className="flex items-center gap-1 text-[10px] font-bold text-stone-400 hover:text-[#f2a93b] dark:hover:text-[#f2a93b] uppercase tracking-widest border border-stone-200 dark:border-stone-800 px-3 py-1 rounded-full transition-colors"
-          >
-            <Bookmark className="w-3 h-3" />
-            Save Quote
-          </button>
-        </div>
       </motion.div>
 
       {/* Grid Section */}
@@ -396,7 +384,7 @@ export const Dashboard = ({ vocabCount, vocab, logout }: { vocabCount: number, v
             {[
               { label: 'Translate', icon: Languages, tab: 'translator', color: 'text-blue-500' },
               { label: 'Revise', icon: Layers, tab: 'flashcards', color: 'text-purple-500' },
-              { label: 'Writing', icon: Pencil, tab: 'kana', color: 'text-teal-500' },
+              { label: 'Writing', icon: Pencil, tab: 'writingPractice', color: 'text-teal-500' },
             ].map(tool => (
               <button 
                 key={tool.label}

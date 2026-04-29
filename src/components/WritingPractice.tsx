@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useContext } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   Eraser, 
@@ -7,12 +7,16 @@ import {
   CheckCircle2, 
   RotateCcw, 
   Volume2, 
-  ArrowRight 
+  ArrowRight,
+  Sparkles,
+  Loader2
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { useTTSContext } from '../context/TTSContext';
 import { hiragana, katakana, PRACTICE_SENTENCES } from '../lib/constants';
 import { useSound } from '../hooks/useSound';
+import { getAI } from '../lib/ai';
+import { AuthContext } from '../context/AuthContext';
 
 const DrawingCanvas = ({ 
   target, 
@@ -179,6 +183,7 @@ const DrawingCanvas = ({
 };
 
 export const WritingPractice = () => {
+  const { profile } = useContext(AuthContext);
   const [type, setType] = useState<'hiragana' | 'katakana' | 'sentences'>('hiragana');
   const [selected, setSelected] = useState<any>(hiragana[0]);
   const [practiceMode, setPracticeMode] = useState(false);
@@ -192,11 +197,49 @@ export const WritingPractice = () => {
   const [currentTestIndex, setCurrentTestIndex] = useState(0);
   const [testOrder, setTestOrder] = useState<number[]>([]);
   
+  const [customSentences, setCustomSentences] = useState<any[]>([]);
+  const [refreshing, setRefreshing] = useState(false);
+  
   const { play, loading: ttsLoading } = useTTSContext();
   const { play: playEffect } = useSound();
 
   const data = type === 'hiragana' ? hiragana : (type === 'katakana' ? katakana : []);
-  const sentenceData = PRACTICE_SENTENCES;
+  const sentenceData = customSentences.length > 0 ? customSentences : PRACTICE_SENTENCES;
+
+  const handleRefreshParagraphs = async () => {
+    setRefreshing(true);
+    try {
+      const ai = getAI(profile, 'general');
+      if (!ai) {
+        alert("Please set up your Gemini API key in Settings to use AI refresh.");
+        return;
+      }
+
+      const prompt = `Generate 5 short sentences or paragraphs in Japanese for writing practice. 
+      Format as a JSON array of objects with keys: "japanese", "romaji", "meaning".
+      The sentences should be useful for learners and range from simple to medium difficulty.
+      Only return the JSON array.`;
+
+      const result = await ai.models.generateContent({
+        contents: [{ role: 'user', parts: [{ text: prompt }] }]
+      });
+
+      const text = result.text;
+      const jsonMatch = text.match(/\[[\s\S]*\]/);
+      if (jsonMatch) {
+          const newSentences = JSON.parse(jsonMatch[0]);
+          setCustomSentences(newSentences);
+          if (newSentences.length > 0) {
+            setSelected(newSentences[0]);
+          }
+      }
+    } catch (error) {
+      console.error("AI Refresh Error:", error);
+      alert("Failed to generate new paragraphs. Please check your API settings.");
+    } finally {
+      setRefreshing(false);
+    }
+  };
 
   const currentSelection = type === 'sentences' ? selected : selected; 
   // Just to make sure we have the right object structure
@@ -427,7 +470,7 @@ export const WritingPractice = () => {
               Katakana
             </button>
             <button 
-              onClick={() => { setType('sentences'); setSelected(PRACTICE_SENTENCES[0]); }}
+              onClick={() => { setType('sentences'); setSelected(sentenceData[0]); }}
               className={cn(
                 "px-5 py-1.5 rounded-full font-bold text-xs transition-all whitespace-nowrap",
                 type === 'sentences' ? "bg-stone-900 dark:bg-stone-100 text-white dark:text-stone-900 shadow-md" : "text-stone-400 dark:text-stone-500 hover:text-stone-600 dark:hover:text-stone-300"
@@ -437,6 +480,25 @@ export const WritingPractice = () => {
             </button>
           </div>
           
+          {type === 'sentences' && (
+            <button 
+              onClick={handleRefreshParagraphs}
+              disabled={refreshing}
+              className="px-5 py-1.5 rounded-full font-bold text-xs bg-[#f2a93b]/10 text-[#f2a93b] border border-[#f2a93b]/20 hover:bg-[#f2a93b]/20 transition-all flex items-center gap-2 disabled:opacity-50"
+            >
+              {refreshing ? (
+                <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1, ease: "linear" }}>
+                  <Loader2 className="w-3 h-3" />
+                </motion.div>
+              ) : (
+                <motion.div whileHover={{ scale: 1.2, rotate: 15 }} whileTap={{ scale: 0.9 }}>
+                  <Sparkles className="w-3 h-3" />
+                </motion.div>
+              )}
+              AI Refresh
+            </button>
+          )}
+
           <div className="flex bg-white dark:bg-stone-900 p-1.5 rounded-full border border-stone-100 dark:border-stone-800 shadow-sm self-start">
             <button 
               onClick={() => setPracticeMode(!practiceMode)}
@@ -550,8 +612,7 @@ export const WritingPractice = () => {
             
             {type === 'sentences' && (
               <div className="mt-4 p-4 bg-stone-50 dark:bg-stone-800 rounded-2xl border border-stone-100 dark:border-stone-700">
-                <p className="text-xs text-stone-900 dark:text-stone-100 font-japanese mb-1">{selected.japanese}</p>
-                <p className="text-[10px] text-stone-500 dark:text-stone-400 font-serif italic">{selected.meaning}</p>
+                <p className="text-xs text-stone-900 dark:text-stone-100 font-japanese">{selected.japanese}</p>
               </div>
             )}
           </div>

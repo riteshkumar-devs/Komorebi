@@ -481,7 +481,7 @@ export const AppShell = ({
               }}
               className="w-full"
             >
-              {activeTab === 'dashboard' && <Dashboard vocabCount={todayVocabCount} vocab={vocab} logout={logout} />}
+              {activeTab === 'dashboard' && <Dashboard vocabCount={todayVocabCount} vocab={vocab} logout={logout} setActiveTab={setActiveTab} />}
               {activeTab === 'stats' && <Stats todayVocabCount={todayVocabCount} />}
               {activeTab === 'weeklyStats' && <WeeklyStats vocab={vocab} profile={profile} onBack={() => setActiveTab('dashboard')} />}
               {activeTab === 'vocab' && <VocabEntry vocab={vocab} />}

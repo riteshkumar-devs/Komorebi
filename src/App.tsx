@@ -44,12 +44,11 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   const [vocab, setVocab] = useState<Vocabulary[]>([]);
   const [isDemo, setIsDemo] = useState(() => safeStorage.getItem('komorebi_demo') === 'true');
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'vocab' | 'vocabList' | 'flashcards' | 'quiz' | 'dictionary' | 'translator' | 'phrasebook' | 'writingPractice' | 'game' | 'stats' | 'chatbot' | 'notebook' | 'achievements' | 'rankTest' | 'subscription' | 'admin' | 'faq' | 'settings'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'vocab' | 'vocabList' | 'flashcards' | 'quiz' | 'dictionary' | 'translator' | 'phrasebook' | 'writingPractice' | 'game' | 'stats' | 'chatbot' | 'notebook' | 'achievements' | 'rankTest' | 'subscription' | 'admin' | 'faq' | 'settings' | 'weeklyStats'>('dashboard');
   const [todayVocabCount, setTodayVocabCount] = useState(0);
   const [streakWarning, setStreakWarning] = useState(false);
   const [usageModal, setUsageModal] = useState<{ isOpen: boolean; type: 'dictionary' | 'translation' | 'chat' }>({ isOpen: false, type: 'dictionary' });
   const [discoveredWords, setDiscoveredWords] = useState<any[]>([]);
-  const { play: playSound } = useSound(profile?.soundEffectsEnabled !== false);
 
   // Apply theme immediately
   useEffect(() => {
@@ -91,6 +90,7 @@ export default function App() {
               streakCount: 0,
               xp: 0,
               rank: 'E5',
+              totalWords: 0,
               achievements: [],
               dailyGoal: 10,
               onboardingCompleted: false,
@@ -218,6 +218,12 @@ export default function App() {
       
       // Goal logic
       const goal = profile.dailyGoal || 10;
+      
+      // Update total words if it changed
+      if (profile.totalWords !== vocab.length) {
+        updates.totalWords = vocab.length;
+      }
+
       if (todayVocabCount >= goal && !profile.dailyGoalMet) {
         updates.dailyGoalMet = true;
         updates.streakCount = (profile.streakCount || 0) + 1;

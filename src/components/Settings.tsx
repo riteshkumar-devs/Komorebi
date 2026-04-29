@@ -49,7 +49,6 @@ export const Settings = ({ vocab }: { vocab: Vocabulary[] }) => {
   const [dailyGoal, setDailyGoal] = useState(profile?.dailyGoal || 5);
   const [avatar, setAvatar] = useState(profile?.avatar || '🦊');
   const [notificationsEnabled, setNotificationsEnabled] = useState(profile?.notificationsEnabled ?? true);
-  const [soundEffectsEnabled, setSoundEffectsEnabled] = useState(profile?.soundEffectsEnabled ?? true);
   const [theme, setTheme] = useState<'light' | 'dark' | 'system'>(profile?.theme || 'system');
   const [saving, setSaving] = useState(false);
   
@@ -238,7 +237,6 @@ export const Settings = ({ vocab }: { vocab: Vocabulary[] }) => {
         dailyGoal: Number(dailyGoal),
         avatar: avatar,
         notificationsEnabled: notificationsEnabled,
-        soundEffectsEnabled: soundEffectsEnabled,
         theme: theme
       };
       if (isDemo) {
@@ -585,33 +583,6 @@ export const Settings = ({ vocab }: { vocab: Vocabulary[] }) => {
                         <div className={cn(
                           "absolute top-1 w-3 h-3 bg-white rounded-full transition-all",
                           notificationsEnabled ? "left-6" : "left-1"
-                        )} />
-                     </div>
-                  </button>
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-[10px] font-bold text-stone-400 uppercase tracking-[0.2em] ml-1">Sound Effects</label>
-                  <button
-                    onClick={() => setSoundEffectsEnabled(!soundEffectsEnabled)}
-                    className={cn(
-                      "w-full h-[58px] rounded-[1.5rem] flex items-center justify-between px-6 transition-all border-2",
-                      soundEffectsEnabled 
-                        ? "bg-blue-50 dark:bg-blue-900/10 border-blue-100 dark:border-blue-900/30 text-blue-500" 
-                        : "bg-stone-50 dark:bg-stone-800/50 border-transparent text-stone-400"
-                    )}
-                  >
-                     <div className="flex items-center gap-3">
-                        <PlayCircle className={cn("w-5 h-5", soundEffectsEnabled ? "text-blue-500" : "")} />
-                        <span className="text-xs font-bold uppercase tracking-widest">{soundEffectsEnabled ? "On" : "Off"}</span>
-                     </div>
-                     <div className={cn(
-                       "w-10 h-5 rounded-full relative transition-colors",
-                       soundEffectsEnabled ? "bg-blue-500" : "bg-stone-300 dark:bg-stone-700"
-                     )}>
-                        <div className={cn(
-                           "absolute top-1 w-3 h-3 bg-white rounded-full transition-all",
-                           soundEffectsEnabled ? "left-6" : "left-1"
                         )} />
                      </div>
                   </button>

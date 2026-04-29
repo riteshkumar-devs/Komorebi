@@ -1,4 +1,4 @@
-import React, { useContext, useState } from 'react';
+import React, { useContext, useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   Flame, 
@@ -13,14 +13,26 @@ import {
   Star,
   RefreshCcw,
   CheckCircle2,
-  AlertCircle
+  AlertCircle,
+  Loader2
 } from 'lucide-react';
 import { AuthContext } from '../context/AuthContext';
 import { cn, safeStorage } from '../lib/utils';
-import { doc, updateDoc } from 'firebase/firestore';
+import { doc, updateDoc, collection, query, orderBy, limit, getDocs, where } from 'firebase/firestore';
 import { db } from '../firebase';
 
-import { useSound } from '../hooks/useSound';
+import { MissingApiKeyWarning } from './ui/MissingApiKeyWarning';
+
+interface LeaderboardItem {
+  id: string;
+  name: string;
+  xp: number;
+  streak: number;
+  words: number;
+  avatar: string;
+  isMe: boolean;
+  rank?: number;
+}
 
 export const Stats = ({ todayVocabCount }: { todayVocabCount: number }) => {
   const { profile, vocab, user, isDemo, setProfile } = useContext(AuthContext);
@@ -29,7 +41,86 @@ export const Stats = ({ todayVocabCount }: { todayVocabCount: number }) => {
   const [showStore, setShowStore] = useState(false);
   const [message, setMessage] = useState<{ text: string, type: 'success' | 'error' } | null>(null);
   const [leaderboardCategory, setLeaderboardCategory] = useState<'xp' | 'streak' | 'words'>('xp');
-  const { play: playSound } = useSound(profile?.soundEffectsEnabled !== false);
+  const [leaderboardData, setLeaderboardData] = useState<LeaderboardItem[]>([]);
+  const [loadingLeaderboard, setLoadingLeaderboard] = useState(false);
+
+  useEffect(() => {
+    const fetchLeaderboard = async () => {
+      setLoadingLeaderboard(true);
+      try {
+        const usersRef = collection(db, 'users');
+        // We fetch top 10 for the selected category
+        const q = query(
+          usersRef, 
+          orderBy(leaderboardCategory === 'words' ? 'totalWords' : leaderboardCategory === 'streak' ? 'streakCount' : 'xp', 'desc'),
+          limit(20)
+        );
+        
+        const querySnapshot = await getDocs(q);
+        const data: LeaderboardItem[] = [];
+        
+        querySnapshot.forEach((doc) => {
+          const userData = doc.data();
+          // FILTER: Skip users with "Unknown UID", guests, or missing displayName
+          const name = userData.displayName || '';
+          const uid = doc.id;
+          const nameLower = name.toLowerCase();
+          
+          if (!name || nameLower === 'unknown uid' || nameLower === 'unknown' || nameLower.includes('guest') || nameLower === uid.toLowerCase()) {
+            return;
+          }
+
+          data.push({
+            id: uid,
+            name: name,
+            xp: userData.xp || 0,
+            streak: userData.streakCount || 0,
+            words: userData.totalWords || 0,
+            avatar: userData.avatar || '🦊',
+            isMe: uid === user?.uid
+          });
+        });
+
+        // Ensure current user is included if not in top 20
+        const myEntry = data.find(item => item.id === user?.uid);
+        if (myEntry) {
+          // Update my own entry with latest local data
+          myEntry.words = vocab?.length || 0;
+          myEntry.xp = profile?.xp || 0;
+          myEntry.streak = profile?.streakCount || 0;
+        } else if (profile && user) {
+           data.push({
+             id: user.uid,
+             name: profile.displayName || 'You',
+             xp: profile.xp || 0,
+             streak: profile.streakCount || 0,
+             words: vocab?.length || 0,
+             avatar: profile.avatar || '🦊',
+             isMe: true
+           });
+        }
+
+        // Sort again since we might have added "me" manually
+        const sorted = data.sort((a, b) => {
+          const valA = leaderboardCategory === 'words' ? a.words : leaderboardCategory === 'streak' ? a.streak : a.xp;
+          const valB = leaderboardCategory === 'words' ? b.words : leaderboardCategory === 'streak' ? b.streak : b.xp;
+          return (valB || 0) - (valA || 0);
+        });
+
+        setLeaderboardData(sorted.slice(0, 10).map((item, i) => ({ ...item, rank: i + 1 })));
+      } catch (err) {
+        console.error("Error fetching leaderboard:", err);
+        // Fallback to minimal data if fetch fails
+        setLeaderboardData([
+          { id: 'me', name: profile?.displayName || "You", xp: profile?.xp || 0, streak: profile?.streakCount || 0, words: vocab?.length || 0, avatar: profile?.avatar || "🦊", isMe: true, rank: 1 }
+        ]);
+      } finally {
+        setLoadingLeaderboard(false);
+      }
+    };
+
+    fetchLeaderboard();
+  }, [leaderboardCategory, user, profile, vocab?.length]);
 
   const streak = profile?.streakCount || 0;
   const xp = profile?.xp || 0;
@@ -61,7 +152,7 @@ export const Stats = ({ todayVocabCount }: { todayVocabCount: number }) => {
         await updateDoc(doc(db, 'users', user.uid), updates);
       }
       setMessage({ text: `Successfully exchanged ${exchangeAmount} XP for ${coinsToAdd} Coins!`, type: 'success' });
-      playSound('success');
+      // playSound('success');
     } catch (e) {
       setMessage({ text: "Failed to exchange.", type: 'error' });
     } finally {
@@ -76,8 +167,6 @@ export const Stats = ({ todayVocabCount }: { todayVocabCount: number }) => {
       setMessage({ text: "Not enough coins!", type: 'error' });
       return;
     }
-    // Logic: If streak was lost (we'd need a lastActiveDate check usually), but here we just "boost" or "fix" it.
-    // For simplicity, let's say it adds 1 to streak if they want to retrieve one lost day.
     const newCoins = coins - PRICE;
     const newStreak = streak + 1;
     const updates = { coins: newCoins, streakCount: newStreak };
@@ -91,30 +180,13 @@ export const Stats = ({ todayVocabCount }: { todayVocabCount: number }) => {
         await updateDoc(doc(db, 'users', user.uid), updates);
       }
       setMessage({ text: "Streak retrieved! 💎", type: 'success' });
-      playSound('success');
+      // playSound('success');
     } catch (e) {
       setMessage({ text: "Failed to purchase.", type: 'error' });
     } finally {
       setTimeout(() => setMessage(null), 3000);
     }
   };
-
-  const getLeaderboardData = () => {
-    const raw = [
-      { name: "JinWoo", xp: 125400, streak: 124, words: 1240, avatar: "🌑", isMe: false },
-      { name: "Gojo", xp: 98200, streak: 89, words: 980, avatar: "♾️", isMe: false },
-      { name: "Luffy", xp: 87500, streak: 45, words: 1560, avatar: "👒", isMe: false },
-      { name: "Naruto", xp: 76400, streak: 56, words: 890, avatar: "🍥", isMe: false },
-      { name: profile?.displayName || "You", xp: xp, streak: streak, words: totalWords, avatar: profile?.avatar || "🦊", isMe: true },
-      { name: "Tanjiro", xp: 45200, streak: 23, words: 430, avatar: "🎴", isMe: false },
-    ];
-
-    return raw
-      .sort((a, b) => (b[leaderboardCategory] as number) - (a[leaderboardCategory] as number))
-      .map((item, i) => ({ ...item, rank: i + 1 }));
-  };
-
-  const leaderboard = getLeaderboardData();
 
   const containerVariants = {
     hidden: { opacity: 0 },
@@ -317,54 +389,72 @@ export const Stats = ({ todayVocabCount }: { todayVocabCount: number }) => {
               </div>
 
               <div className="space-y-2">
-                {leaderboard.map((item, i) => (
-                  <div 
-                    key={item.name}
-                    className={cn(
-                      "p-3 rounded-2xl flex items-center justify-between transition-all font-bold",
-                      item.isMe 
-                        ? "bg-[#f2a93b]/10 border-2 border-[#f2a93b]/30 shadow-md scale-[1.02]" 
-                        : "bg-stone-50 dark:bg-stone-800/40 border border-transparent font-bold"
-                    )}
-                  >
-                    <div className="flex items-center gap-4">
-                      <div className={cn(
-                        "w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-black italic",
-                        i === 0 ? "bg-yellow-100 text-yellow-700 border border-yellow-200" :
-                        i === 1 ? "bg-stone-200 text-stone-700 border border-stone-300" :
-                        i === 2 ? "bg-orange-100 text-orange-700 border border-orange-200" :
-                        "bg-white dark:bg-stone-700 text-stone-400"
-                      )}>
-                        #{item.rank}
-                      </div>
-                      <div className="w-8 h-8 rounded-lg bg-white dark:bg-stone-700 flex items-center justify-center text-lg shadow-sm">{item.avatar}</div>
-                      <div className="flex flex-col">
-                        <div className="flex items-center gap-1.5">
-                          <span className={cn("text-xs font-bold", item.isMe ? "text-stone-900 dark:text-[#f2a93b]" : "text-stone-600 dark:text-stone-300 font-bold")}>
-                            {item.name} {item.isMe && "(You)"}
-                          </span>
-                          <span className={cn(
-                            "px-1.5 py-0.5 rounded text-[7px] font-black italic border",
-                            item.xp > 100000 ? "bg-red-500/10 text-red-500 border-red-500/20" :
-                            item.xp > 75000 ? "bg-orange-500/10 text-orange-500 border-orange-500/20" :
-                            "bg-blue-500/10 text-blue-500 border-blue-500/20"
-                          )}>
-                            {item.xp > 100000 ? 'S' : item.xp > 75000 ? 'A' : 'B'}
-                          </span>
-                        </div>
-                        <span className="text-[8px] font-bold uppercase tracking-widest text-stone-400">Lv. {Math.floor(item.xp / 1000)} Hunter</span>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                       <span className="text-xs font-black text-stone-900 dark:text-stone-100 italic transition-all">
-                         {(item[leaderboardCategory] as number).toLocaleString()}
-                       </span>
-                       <span className="text-[8px] font-bold text-stone-400 block uppercase tracking-widest italic transition-all">
-                         {leaderboardCategory === 'words' ? 'Words' : leaderboardCategory.toUpperCase()}
-                       </span>
-                    </div>
+                {loadingLeaderboard ? (
+                  <div className="flex flex-col items-center justify-center py-12 text-stone-400">
+                    <Loader2 className="w-8 h-8 animate-spin mb-2" />
+                    <span className="text-[10px] font-bold uppercase tracking-widest">Scanning Hunters...</span>
                   </div>
-                ))}
+                ) : leaderboardData.length === 0 ? (
+                  <div className="text-center py-12 text-stone-400">
+                    <Users className="w-8 h-8 mx-auto mb-2 opacity-20" />
+                    <span className="text-[10px] font-bold uppercase tracking-widest">No Hunters Found</span>
+                  </div>
+                ) : (
+                  leaderboardData.map((item, i) => (
+                    <div 
+                      key={item.id}
+                      className={cn(
+                        "p-3 rounded-2xl flex items-center justify-between transition-all font-bold",
+                        item.isMe 
+                          ? "bg-[#f2a93b]/10 border-2 border-[#f2a93b]/30 shadow-md scale-[1.02]" 
+                          : "bg-stone-50 dark:bg-stone-800/40 border border-transparent font-bold"
+                      )}
+                    >
+                      <div className="flex items-center gap-4">
+                        <div className={cn(
+                          "w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-black italic",
+                          i === 0 ? "bg-yellow-100 text-yellow-700 border border-yellow-200" :
+                          i === 1 ? "bg-stone-200 text-stone-700 border border-stone-300" :
+                          i === 2 ? "bg-orange-100 text-orange-700 border border-orange-200" :
+                          "bg-white dark:bg-stone-700 text-stone-400"
+                        )}>
+                          #{item.rank}
+                        </div>
+                        <div className="w-8 h-8 rounded-lg bg-white dark:bg-stone-700 flex items-center justify-center text-lg shadow-sm overflow-hidden">
+                          {item.avatar.startsWith('data:') || item.avatar.startsWith('http') ? (
+                            <img src={item.avatar} alt={item.name} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                          ) : (
+                            item.avatar
+                          )}
+                        </div>
+                        <div className="flex flex-col">
+                          <div className="flex items-center gap-1.5">
+                            <span className={cn("text-xs font-bold", item.isMe ? "text-stone-900 dark:text-[#f2a93b]" : "text-stone-600 dark:text-stone-300 font-bold")}>
+                              {item.name} {item.isMe && "(You)"}
+                            </span>
+                            <span className={cn(
+                              "px-1.5 py-0.5 rounded text-[7px] font-black italic border",
+                              item.xp > 100000 ? "bg-red-500/10 text-red-500 border-red-500/20" :
+                              item.xp > 75000 ? "bg-orange-500/10 text-orange-500 border-orange-500/20" :
+                              "bg-blue-500/10 text-blue-500 border-blue-500/20"
+                            )}>
+                              {item.xp > 100000 ? 'S' : item.xp > 75000 ? 'A' : 'B'}
+                            </span>
+                          </div>
+                          <span className="text-[8px] font-bold uppercase tracking-widest text-stone-400">Lv. {Math.max(1, Math.floor(item.xp / 1000))} Hunter</span>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                         <span className="text-xs font-black text-stone-900 dark:text-stone-100 italic transition-all">
+                           {(item[leaderboardCategory as keyof typeof item] as number).toLocaleString()}
+                         </span>
+                         <span className="text-[8px] font-bold text-stone-400 block uppercase tracking-widest italic transition-all">
+                           {leaderboardCategory === 'words' ? 'Words' : leaderboardCategory.toUpperCase()}
+                         </span>
+                      </div>
+                    </div>
+                  ))
+                )}
               </div>
             </motion.div>
           </div>

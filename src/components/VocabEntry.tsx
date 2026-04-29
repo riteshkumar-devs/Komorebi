@@ -16,7 +16,7 @@ import { collection, addDoc, doc, updateDoc, Timestamp } from 'firebase/firestor
 
 export const VocabEntry = ({ vocab }: { vocab: Vocabulary[] }) => {
   const { user, isDemo, profile } = useContext(AuthContext);
-  const { play: playSound } = useSound(true);
+  // Sound removed
   const [japanese, setJapanese] = useState('');
   const [meaning, setMeaning] = useState('');
   const [romaji, setRomaji] = useState('');
@@ -95,7 +95,7 @@ export const VocabEntry = ({ vocab }: { vocab: Vocabulary[] }) => {
       setMeaning('');
       setRomaji('');
       setSuccess(true);
-      playSound('success');
+      // playSound('success');
       setShowDuplicateModal(false);
       setDuplicateMatch(null);
       setTimeout(() => setSuccess(false), 3000);

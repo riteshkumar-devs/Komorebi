@@ -20,11 +20,11 @@ export interface UserProfile {
   rank: string; // E5, E4, ..., SSS1
   title?: string; // e.g., "Novice Learner", "Kanji Slayer"
   dailyGoal?: number;
+  totalWords?: number;
   avatar?: string;
   ownedAvatars?: string[];
   preferredTTS?: 'native' | 'gemini';
   notificationsEnabled?: boolean;
-  soundEffectsEnabled?: boolean;
   achievements?: string[]; // IDs of unlocked achievements
   pinnedAchievements?: string[]; // IDs of pinned achievements (max 10)
   apiKeys?: string[]; // Multiple Gemini API keys (legacy)

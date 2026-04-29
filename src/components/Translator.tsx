@@ -60,64 +60,6 @@ export const Translator = () => {
     }
   };
 
-  const handleSaveToLibrary = async () => {
-    if (!isDemo && !user) return;
-    if (!result) return;
-
-    // Parse result: "Japanese (Romaji)" or "English"
-    let jp = '';
-    let ro = '';
-    let en = '';
-
-    const jpMatch = result.match(/^([^\(]+)(?:\(([^)]+)\))?/);
-    if (jpMatch) {
-      jp = jpMatch[1].trim();
-      ro = jpMatch[2] ? jpMatch[2].trim() : '';
-      en = text.trim();
-    } else {
-      en = result.trim();
-      jp = text.trim();
-    }
-
-    const isDuplicate = vocab.some(v => v.japanese === jp || v.meaning.toLowerCase() === en.toLowerCase());
-    if (isDuplicate) {
-      setDuplicateFound(jp);
-      setTimeout(() => setDuplicateFound(null), 3000);
-      return;
-    }
-
-    setSavingWord(jp);
-    try {
-      const vocabData = {
-        uid: isDemo ? 'guest' : user!.uid,
-        japanese: jp,
-        meaning: en,
-        romaji: ro,
-        createdAt: Timestamp.now(),
-        mastery: 0,
-        type: 'main' as 'main' | 'sub',
-        details: `Context: ${text}\nTranslation: ${result}`
-      };
-
-      if (isDemo) {
-        const localVocab = JSON.parse(safeStorage.getItem('komorebi_vocab') || '[]');
-        const newVocab = {
-          id: Math.random().toString(36).substr(2, 9),
-          ...vocabData
-        };
-        safeStorage.setItem('komorebi_vocab', JSON.stringify([newVocab, ...localVocab]));
-        window.dispatchEvent(new Event('vocab_update'));
-      } else if (user) {
-        const vocabRef = collection(db, 'users', user.uid, 'vocabularies');
-        await addDoc(vocabRef, vocabData);
-      }
-    } catch (error) {
-      console.error("Save Error:", error);
-    } finally {
-      setSavingWord(null);
-    }
-  };
-
   const handlePlay = (val: string) => {
     const japanesePart = val.split('(')[0].trim();
     play(japanesePart);
@@ -270,37 +212,6 @@ export const Translator = () => {
                           <Volume2 className="w-5 h-5 group-hover:scale-110 transition-transform" />
                         )}
                       </button>
-
-                      <div className="relative">
-                        {duplicateFound && (
-                          <motion.div 
-                            initial={{ opacity: 0, y: 10 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            className="absolute -top-10 left-1/2 -translate-x-1/2 whitespace-nowrap px-3 py-1 bg-white text-stone-900 text-[8px] uppercase tracking-widest font-bold rounded-lg shadow-xl z-20"
-                          >
-                            Already in Library
-                          </motion.div>
-                        )}
-                        <button 
-                          onClick={handleSaveToLibrary}
-                          disabled={savingWord !== null || !!vocab.find(v => v.japanese === result.split('(')[0].trim())}
-                          className={cn(
-                            "p-4 rounded-full transition-all active:scale-90",
-                            vocab.find(v => v.japanese === result.split('(')[0].trim())
-                              ? "bg-emerald-500/20 text-emerald-400 cursor-default" 
-                              : "bg-white/10 dark:bg-stone-900/10 text-white dark:text-stone-900 hover:bg-white/20 dark:hover:bg-stone-900/20"
-                          )}
-                          title="Save to Library"
-                        >
-                          {vocab.find(v => v.japanese === result.split('(')[0].trim()) ? (
-                            <CheckCircle2 className="w-5 h-5" />
-                          ) : savingWord ? (
-                            <RotateCcw className="w-5 h-5 animate-spin" />
-                          ) : (
-                            <Plus className="w-5 h-5" />
-                          )}
-                        </button>
-                      </div>
 
                       <button 
                         onClick={() => {
