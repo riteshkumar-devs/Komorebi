@@ -11,15 +11,25 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 async function fetchGeminiDirectly(url: string, contents: any, systemInstruction: any, responseMimeType: string, res: any) {
-  const response = await axios.post(url, {
-    contents,
-    systemInstruction: systemInstruction ? { parts: [{ text: systemInstruction }] } : undefined,
-    generationConfig: {
-      responseMimeType: responseMimeType || "text/plain"
+  try {
+    const response = await axios.post(url, {
+      contents,
+      systemInstruction: systemInstruction ? { parts: [{ text: systemInstruction }] } : undefined,
+      generationConfig: {
+        responseMimeType: responseMimeType || "text/plain"
+      }
+    });
+    const text = response.data.candidates?.[0]?.content?.parts?.[0]?.text;
+    if (!text) {
+      return res.status(500).json({ error: "Gemini returned an empty response", details: response.data });
     }
-  });
-  const text = response.data.candidates?.[0]?.content?.parts?.[0]?.text;
-  return res.json({ text });
+    return res.json({ text });
+  } catch (error: any) {
+    const status = error.response?.status || 500;
+    const data = error.response?.data || error.message;
+    console.error("Gemini Direct Error:", JSON.stringify(data, null, 2));
+    return res.status(status).json({ error: "Gemini Direct API Error", details: data });
+  }
 }
 
 async function startServer() {
@@ -35,10 +45,11 @@ async function startServer() {
 
   // AI Proxy Endpoint
   app.post("/api/ai/generate", async (req, res) => {
+    console.log(`[AI Request] Provider: ${req.body.provider}, Model: ${req.body.model}`);
     const { provider, key, baseUrl, model, contents, systemInstruction, responseMimeType } = req.body;
 
-    if (!key) {
-      return res.status(400).json({ error: "API key is required" });
+    if (!key || typeof key !== 'string' || key.trim().length === 0) {
+      return res.status(400).json({ error: `API key is required for ${provider || 'AI'}. Please enter your API key in Settings.` });
     }
 
     try {
@@ -56,9 +67,20 @@ async function startServer() {
             finalBaseUrl = finalBaseUrl.replace(/\/+$/, '') + '/chat/completions';
           }
 
+          let targetModel = model?.trim() || "";
+          
+          if (provider === 'openrouter') {
+            if (!targetModel || targetModel === 'google/gemini-2.0-flash-exp:free' || targetModel === 'google/gemini-2.0-pro-exp-02-05:free' || targetModel === 'google/gemini-2.0-flash-001' || targetModel === 'mistralai/mistral-7b-instruct:free') {
+              targetModel = 'openrouter/free';
+            } else if (targetModel === 'meta-llama/llama-3.3-70b-instruct:free') {
+              targetModel = 'openrouter/free';
+            }
+          }
+
           const defaultModel = provider === 'openai' ? "gpt-4o" : 
                                provider === 'xai' ? "grok-beta" :
-                               "google/gemini-2.0-flash-001";
+                               provider === 'openrouter' ? "openrouter/free" :
+                               "gemini-2.0-flash";
           
           let messages = [];
           if (systemInstruction) {
@@ -89,7 +111,7 @@ async function startServer() {
           const response = await axios.post(
             finalBaseUrl,
             {
-              model: model || defaultModel,
+              model: targetModel || defaultModel,
               messages: messages,
               response_format: responseMimeType === "application/json" ? { type: "json_object" } : undefined
             },
@@ -101,10 +123,29 @@ async function startServer() {
                   "HTTP-Referer": req.headers.referer || "https://komorebi.app",
                   "X-Title": "Komorebi Japanese Language Platform"
                 } : {})
-              }
+              },
+              timeout: 90000 // 90 second timeout
             }
           );
-          return res.json({ text: response.data.choices[0].message.content });
+
+          if (response.data.error) {
+            console.error(`AI Proxy Error inside data [${provider}]:`, JSON.stringify(response.data.error, null, 2));
+            throw new Error(`AI provider ${provider} error: ${response.data.error.message || JSON.stringify(response.data.error)}`);
+          }
+
+          if (!response.data || !response.data.choices || !Array.isArray(response.data.choices) || response.data.choices.length === 0) {
+            console.error(`AI Proxy Invalid Response Structure [${provider}]:`, JSON.stringify(response.data, null, 2));
+            throw new Error(`AI provider ${provider} returned an empty choices array or invalid structure.`);
+          }
+
+          const content = response.data.choices[0].message?.content || response.data.choices[0].text || "";
+          
+          if (!content && content !== "") {
+            console.error(`AI Proxy Empty Content [${provider}]:`, JSON.stringify(response.data.choices[0], null, 2));
+            throw new Error(`AI provider ${provider} returned a response with no content.`);
+          }
+
+          return res.json({ text: content });
         }
 
         case 'anthropic': {
@@ -204,23 +245,28 @@ async function startServer() {
       const errorStatus = error.response?.status || 500;
       const errorMessage = error.message;
 
-      console.error(`AI Proxy Error [${provider}]:`, JSON.stringify(errorData || errorMessage, null, 2));
+      console.error(`AI Proxy Error [${provider}] (Status ${errorStatus}):`, JSON.stringify(errorData || errorMessage, null, 2));
       
       // Extract the most useful error message from the provider's response
       let providerError = "AI Provider Error";
+      let isHtml = false;
+
       if (errorData) {
-        // Handle common error structures
         if (typeof errorData === 'string') {
-          providerError = errorData;
-        } else if (typeof errorData.error === 'string') {
-          providerError = errorData.error;
-        } else if (errorData.error && typeof errorData.error.message === 'string') {
-          providerError = errorData.error.message;
+          isHtml = errorData.trim().startsWith('<!doctype') || errorData.trim().startsWith('<html');
+          providerError = isHtml ? "AI Provider returned an HTML error page." : errorData;
+        } else if (errorData.error) {
+          if (typeof errorData.error === 'string') {
+            providerError = errorData.error;
+          } else if (typeof errorData.error.message === 'string') {
+            providerError = errorData.error.message;
+          } else if (errorData.error.metadata && errorData.error.metadata.message) {
+             providerError = errorData.error.metadata.message;
+          } else {
+            providerError = JSON.stringify(errorData.error);
+          }
         } else if (errorData.message && typeof errorData.message === 'string') {
           providerError = errorData.message;
-        } else if (errorData.error && typeof errorData.error === 'object') {
-          // Deep nested error messages (OpenRouter sometimes has this)
-          providerError = errorData.error.message || JSON.stringify(errorData.error);
         } else {
           providerError = JSON.stringify(errorData);
         }
@@ -228,14 +274,28 @@ async function startServer() {
         providerError = errorMessage;
       }
 
-      // Cleanup some common ugly strings
-      if (providerError.includes("Check the documentation for more details")) {
-        providerError = providerError.split(".")[0];
+      // Final fallback if parsing failed or string is empty
+      if (!providerError || providerError === '{}' || providerError === '""') {
+        providerError = `AI Provider Error (Status ${errorStatus})`;
       }
+
+      // Cleanup common provider error formats
+      if (typeof providerError === 'string') {
+        if (providerError.includes("Check the documentation for more details")) {
+          providerError = providerError.split(".")[0];
+        }
+        if (errorStatus === 401 || providerError.toLowerCase().includes("missing authentication header") || providerError.toLowerCase().includes("invalid api key")) {
+          providerError = `Authentication failed for ${provider}. Please verify that your API key is valid.`;
+        } else if (providerError.includes("unavailable for free") || providerError.includes("No endpoints found") || providerError.includes("not a valid model ID")) {
+          providerError = `${providerError} (Tip: Select "Free Models Router (Auto-selects active free model)" in Settings).`;
+        }
+      }
+
+      console.log(`[AI Response Error] ${provider} -> status ${errorStatus}: ${providerError.substring(0, 100)}`);
 
       res.status(errorStatus).json({ 
         error: providerError, 
-        details: errorData || errorMessage,
+        details: isHtml ? "HTML response received from provider" : (errorData || errorMessage),
         provider: provider
       });
     }

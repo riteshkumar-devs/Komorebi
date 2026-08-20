@@ -102,9 +102,16 @@ export default function App() {
               isPremium: false,
               notificationsEnabled: true
             };
-            await setDoc(userRef, newProfile);
+            try {
+              await setDoc(userRef, newProfile);
+            } catch (err) {
+              console.warn("Could not write initial profile immediately:", err);
+            }
             setProfile(newProfile);
           }
+          setLoading(false);
+        }, (err) => {
+          console.warn("Firestore profile snapshot sync (offline/reconnecting):", err.message);
           setLoading(false);
         });
       } else {
@@ -162,12 +169,16 @@ export default function App() {
         const list = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Vocabulary));
         setVocab(list);
         setTodayVocabCount(list.filter(v => isToday(getSafeDate(v.createdAt))).length);
+      }, (err) => {
+        console.warn("Firestore vocabularies sync (offline/reconnecting):", err.message);
       });
 
       const dq = query(collection(db, 'users', user.uid, 'discovered_words'), orderBy('createdAt', 'desc'));
       const dUnsubscribe = onSnapshot(dq, (snapshot) => {
         const list = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as any));
         setDiscoveredWords(list);
+      }, (err) => {
+        console.warn("Firestore discovered words sync (offline/reconnecting):", err.message);
       });
 
       return () => {

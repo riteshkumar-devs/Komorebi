@@ -62,12 +62,14 @@ export const getApiKey = (profile?: UserProfile | null, purpose: AIPurpose = 'ge
 };
 
 export const getSafeModel = (provider?: string, requestedModel?: string) => {
-  if (requestedModel) return requestedModel;
+  if (requestedModel && requestedModel.trim()) return requestedModel.trim();
   if (!provider) return 'gemini-2.0-flash';
   
-  const models = AI_MODELS[provider.toLowerCase()];
+  const prov = provider.toLowerCase();
+  if (prov === 'openrouter') return 'openrouter/free';
+
+  const models = AI_MODELS[prov];
   if (!models || models.length === 0) {
-    if (provider.toLowerCase() === 'openrouter') return 'mistralai/mistral-7b-instruct';
     return 'gemini-2.0-flash';
   }
   
@@ -87,77 +89,130 @@ export const getAI = (profile?: UserProfile | null, purpose: AIPurpose = 'genera
     models: {
       generateContent: async (params: any) => {
         const targetModel = params.model || model;
-        
-        if (keyInfo.provider === 'gemini') {
+        let lastError: any = null;
+        const maxRetries = 2;
+
+        for (let attempt = 0; attempt <= maxRetries; attempt++) {
           try {
-            const ai = new GoogleGenAI({ apiKey: keyInfo.key });
-            const response = await ai.models.generateContent({
-              model: targetModel,
-              contents: typeof params.contents === 'string' 
-                ? params.contents 
-                : params.contents,
-              config: params.config
-            });
-            
-            const text = response.text || "";
-            
-            return { 
-              text: text, 
-              response: { text: () => text },
-              candidates: (response as any).candidates || [{ content: { parts: [{ text: text }] } }]
-            };
+            if (keyInfo.provider === 'gemini') {
+              try {
+                const ai = new GoogleGenAI({ apiKey: keyInfo.key });
+                const response = await ai.models.generateContent({
+                  model: targetModel,
+                  contents: typeof params.contents === 'string' 
+                    ? params.contents 
+                    : params.contents,
+                  config: params.config
+                });
+                
+                const text = response.text || "";
+                
+                return { 
+                  text: text, 
+                  response: { text: () => text },
+                  candidates: (response as any).candidates || [{ content: { parts: [{ text: text }] } }]
+                };
+              } catch (error: any) {
+                let errorMsg = error.message || "Gemini request failed";
+                if (errorMsg.includes("429") || errorMsg.includes("quota")) {
+                  errorMsg = "Quota exceeded. Please try again later or use a different API key.";
+                } else if (errorMsg.includes("API key")) {
+                  errorMsg = "Invalid API key. Please check your settings.";
+                }
+                throw new Error(errorMsg);
+              }
+            }
+
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 95000);
+
+            try {
+              const response = await fetch('/api/ai/generate', {
+                method: 'POST',
+                headers: { 
+                  'Content-Type': 'application/json',
+                  'Accept': 'application/json'
+                },
+                signal: controller.signal,
+                body: JSON.stringify({
+                  provider: keyInfo.provider,
+                  key: keyInfo.key,
+                  baseUrl: (keyInfo as any).baseUrl,
+                  model: targetModel,
+                  contents: params.contents,
+                  systemInstruction: params.config?.systemInstruction,
+                  responseMimeType: params.config?.responseMimeType
+                })
+              });
+
+              clearTimeout(timeoutId);
+
+              if (!response.ok) {
+                const contentType = response.headers.get("content-type");
+                if (contentType && contentType.includes("application/json")) {
+                  try {
+                    const errorData = await response.json();
+                    let errorMsg = errorData.error || errorData.details || "AI request failed";
+                    if (typeof errorMsg === 'object') errorMsg = JSON.stringify(errorMsg);
+                    
+                    if (errorMsg.toLowerCase().includes("quota") || errorMsg.toLowerCase().includes("credit")) {
+                      throw new Error("API Provider: Quota exceeded or insufficient credits.");
+                    } else if (errorMsg.toLowerCase().includes("key") || errorMsg.toLowerCase().includes("unauthorized") || errorMsg.toLowerCase().includes("authentication") || response.status === 401) {
+                      throw new Error("API Provider: Authentication failed or invalid API key. Please check your API key in Settings.");
+                    } else if (errorMsg.toLowerCase().includes("timeout") || errorMsg.toLowerCase().includes("504")) {
+                      if (attempt < maxRetries) {
+                        console.warn(`Attempt ${attempt + 1} failed with timeout. Retrying...`);
+                        continue;
+                      }
+                      throw new Error("AI Provider timed out (504). The service might be busy.");
+                    }
+                    throw new Error(errorMsg);
+                  } catch (e: any) {
+                    if (attempt < maxRetries && (e.message.includes("is not valid JSON") || e.message.includes("Unexpected token"))) {
+                      continue; 
+                    }
+                    if (e.message.includes("Unexpected token") || e.message.includes("is not valid JSON")) {
+                      throw new Error(`AI request failed with status ${response.status} (invalid JSON response)`);
+                    }
+                    throw e;
+                  }
+                }
+                const text = await response.text();
+                if (attempt < maxRetries && response.status >= 500) continue;
+                throw new Error(`AI request failed (Status ${response.status}): ${text.substring(0, 100)}${text.length > 100 ? '...' : ''}`);
+              }
+
+              const contentType = response.headers.get("content-type");
+              if (!contentType || !contentType.includes("application/json")) {
+                const text = await response.text();
+                if (attempt < maxRetries) continue;
+                throw new Error(`Expected JSON response but received ${contentType || 'text/plain'} (Status ${response.status}): ${text.substring(0, 100)}...`);
+              }
+
+              const data = await response.json();
+              const text = data.text || (data.candidates?.[0]?.content?.parts?.[0]?.text) || "";
+              return { 
+                text: text,
+                response: { text: () => text },
+                candidates: data.candidates || [{ content: { parts: [{ text: text }] } }]
+              };
+            } catch (error: any) {
+              clearTimeout(timeoutId);
+              if (error.name === 'AbortError') {
+                if (attempt < maxRetries) continue;
+                throw new Error("AI request timed out after 95 seconds.");
+              }
+              if (attempt < maxRetries) continue;
+              throw error;
+            }
           } catch (error: any) {
-            let errorMsg = error.message || "Gemini request failed";
-            if (errorMsg.includes("429") || errorMsg.includes("quota")) {
-              errorMsg = "Quota exceeded. Please try again later or use a different API key.";
-            } else if (errorMsg.includes("API key")) {
-              errorMsg = "Invalid API key. Please check your settings.";
-            }
-            throw new Error(errorMsg);
+            lastError = error;
+            if (attempt === maxRetries) throw error;
+            // Wait a bit before retry
+            await new Promise(resolve => setTimeout(resolve, 1000 * (attempt + 1)));
           }
         }
-
-        const response = await fetch('/api/ai/generate', {
-          method: 'POST',
-          headers: { 
-            'Content-Type': 'application/json',
-            'Accept': 'application/json'
-          },
-          body: JSON.stringify({
-            provider: keyInfo.provider,
-            key: keyInfo.key,
-            baseUrl: (keyInfo as any).baseUrl,
-            model: targetModel,
-            contents: params.contents,
-            systemInstruction: params.config?.systemInstruction,
-            responseMimeType: params.config?.responseMimeType
-          })
-        });
-
-        if (!response.ok) {
-          const contentType = response.headers.get("content-type");
-          if (contentType && contentType.includes("application/json")) {
-            const errorData = await response.json();
-            let errorMsg = errorData.error || errorData.details || "AI request failed";
-            if (typeof errorMsg === 'object') errorMsg = JSON.stringify(errorMsg);
-            
-            if (errorMsg.toLowerCase().includes("quota") || errorMsg.toLowerCase().includes("credit")) {
-              errorMsg = "API Provider: Quota exceeded or insufficient credits.";
-            } else if (errorMsg.toLowerCase().includes("key") || errorMsg.toLowerCase().includes("unauthorized")) {
-              errorMsg = "API Provider: Invalid API key.";
-            }
-            throw new Error(errorMsg);
-          }
-          throw new Error(`AI request failed with status ${response.status}`);
-        }
-
-        const data = await response.json();
-        const text = data.text || (data.candidates?.[0]?.content?.parts?.[0]?.text) || "";
-        return { 
-          text: text,
-          response: { text: () => text },
-          candidates: data.candidates || [{ content: { parts: [{ text: text }] } }]
-        };
+        throw lastError;
       }
     },
     chats: {

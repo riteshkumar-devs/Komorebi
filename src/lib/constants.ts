@@ -34,23 +34,32 @@ export const ACHIEVEMENTS = [
 
 export const AI_MODELS: Record<string, { id: string; name: string }[]> = {
   gemini: [
-    { id: 'gemini-2.0-flash', name: 'Gemini 2.0 Flash' },
-    { id: 'gemini-2.0-flash-lite', name: 'Gemini 2.0 Flash-Lite' },
+    { id: 'gemini-2.0-flash', name: 'Gemini 2.0 Flash (Recommended)' },
+    { id: 'gemini-2.0-flash-lite', name: 'Gemini 2.0 Flash-Lite (Fast)' },
+    { id: 'gemini-1.5-flash', name: 'Gemini 1.5 Flash' },
+    { id: 'gemini-1.5-pro', name: 'Gemini 1.5 Pro' },
   ],
   openai: [
     { id: 'gpt-4o', name: 'GPT-4o' },
-    { id: 'gpt-4o-mini', name: 'GPT-4o Mini' },
+    { id: 'gpt-4o-mini', name: 'GPT-4o Mini (Fast & Economical)' },
+    { id: 'o3-mini', name: 'o3-mini' },
   ],
   openrouter: [
-    { id: 'google/gemini-2.0-flash-lite-001', name: 'Gemini 2.0 Flash-Lite' },
-    { id: 'google/gemini-2.0-flash-001', name: 'Gemini 2.0 Flash' },
-    { id: 'mistralai/mistral-7b-instruct:free', name: 'Mistral 7B (Free)' },
-    { id: 'meta-llama/llama-3.1-405b', name: 'Llama 3.1 405B' },
+    { id: 'openrouter/free', name: 'Free Models Router (Auto-selects active free model)' },
+    { id: 'openrouter/auto', name: 'OpenRouter Auto Router (Best model)' },
+    { id: 'deepseek/deepseek-r1:free', name: 'DeepSeek R1 (Free)' },
+    { id: 'deepseek/deepseek-chat', name: 'DeepSeek V3' },
+    { id: 'meta-llama/llama-3.3-70b-instruct', name: 'Llama 3.3 70B Instruct' },
+    { id: 'meta-llama/llama-3.2-3b-instruct:free', name: 'Llama 3.2 3B (Free)' },
+    { id: 'google/gemma-2-9b-it:free', name: 'Gemma 2 9B (Free)' },
+    { id: 'qwen/qwen-2.5-72b-instruct:free', name: 'Qwen 2.5 72B (Free)' },
   ],
   anthropic: [
-    { id: 'claude-3-5-sonnet-20240620', name: 'Claude 3.5 Sonnet' },
+    { id: 'claude-3-5-sonnet-20241022', name: 'Claude 3.5 Sonnet' },
+    { id: 'claude-3-5-haiku-20241022', name: 'Claude 3.5 Haiku (Fast)' },
   ],
   xai: [
+    { id: 'grok-2-1212', name: 'Grok 2' },
     { id: 'grok-beta', name: 'Grok Beta' },
   ]
 };

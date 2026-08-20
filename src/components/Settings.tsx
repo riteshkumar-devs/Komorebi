@@ -72,6 +72,22 @@ export const Settings = ({ vocab }: { vocab: Vocabulary[] }) => {
 
   const hasApiKey = !!getApiKey(profile);
 
+  const getKeyPlaceholder = (provider: string) => {
+    switch (provider?.toLowerCase()) {
+      case 'openrouter':
+        return 'sk-or-v1-... (Required: from openrouter.ai)';
+      case 'openai':
+        return 'sk-proj-... (OpenAI API key)';
+      case 'anthropic':
+        return 'sk-ant-... (Anthropic API key)';
+      case 'xai':
+        return 'xai-... (xAI API key)';
+      case 'gemini':
+      default:
+        return 'AIzaSy... (Gemini API key)';
+    }
+  };
+
   const avatars = ['🦊', '🐱', '🐶', '🐼', '🐨', '🦁', '🐯', '🐸', '🐵', '🦉'];
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -375,7 +391,7 @@ export const Settings = ({ vocab }: { vocab: Vocabulary[] }) => {
     }
   };
 
-  const handleTestAI = async (specificKeyInfo?: { key: string, provider: string, baseUrl?: string, customProvider?: string }) => {
+  const handleTestAI = async (specificKeyInfo?: { key: string, provider: string, baseUrl?: string, customProvider?: string, model?: string }) => {
     setTestStatus('testing');
     setTestError(null);
     try {
@@ -389,39 +405,44 @@ export const Settings = ({ vocab }: { vocab: Vocabulary[] }) => {
         if (!keyInfo) keyInfo = getApiKey(profile, 'dictionary');
       }
 
-      if (!keyInfo) {
-        throw new Error("No API keys found. Please add a key in Settings.");
+      if (!keyInfo || !keyInfo.key || keyInfo.key.trim().length === 0) {
+        const provName = keyInfo?.provider ? (keyInfo as any).customProvider || keyInfo.provider.toUpperCase() : 'AI Provider';
+        throw new Error(`Please enter a valid API key for ${provName} before testing.`);
       }
 
       const providerName = (keyInfo as any).customProvider || keyInfo.provider.toUpperCase();
 
       let responseText = '';
 
-      if (keyInfo.provider === 'gemini' || true) { // Use unified interface for all
-        const targetModel = getSafeModel(keyInfo.provider);
-        
-        if (keyInfo.provider === 'gemini') {
-          try {
-            const ai = new GoogleGenAI({ apiKey: keyInfo.key });
-            const response = await ai.models.generateContent({ 
-              model: targetModel, 
-              contents: "Respond with exactly the word 'OK'." 
-            });
-            responseText = response.text || "";
-          } catch (error: any) {
-            throw new Error(error.message || "Gemini Test Failed");
-          }
-        } else {
-          // Fallback or specific proxy
+      const targetModel = keyInfo.model || getSafeModel(keyInfo.provider);
+      
+      if (keyInfo.provider === 'gemini') {
+        try {
+          const ai = new GoogleGenAI({ apiKey: keyInfo.key.trim() });
+          const response = await ai.models.generateContent({ 
+            model: targetModel, 
+            contents: "Respond with exactly the word 'OK'." 
+          });
+          responseText = response.text || "";
+        } catch (error: any) {
+          throw new Error(error.message || "Gemini Test Failed");
+        }
+      } else {
+        // Fallback or specific proxy
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 95000);
+
+        try {
           const response = await fetch('/api/ai/generate', {
             method: 'POST',
             headers: { 
               'Content-Type': 'application/json',
               'Accept': 'application/json'
             },
+            signal: controller.signal,
             body: JSON.stringify({
               provider: keyInfo.provider,
-              key: keyInfo.key,
+              key: keyInfo.key.trim(),
               baseUrl: keyInfo.baseUrl,
               model: targetModel,
               contents: "Respond with exactly the word 'OK'.",
@@ -429,12 +450,36 @@ export const Settings = ({ vocab }: { vocab: Vocabulary[] }) => {
             })
           });
 
+          clearTimeout(timeoutId);
+
           if (!response.ok) {
-            const data = await response.json();
-            throw new Error(data.error || data.details || `Request failed with status ${response.status}`);
+            const contentType = response.headers.get("content-type");
+            if (contentType && contentType.includes("application/json")) {
+              try {
+                const data = await response.json();
+                throw new Error(data.error || data.details || `AI request failed with status ${response.status}`);
+              } catch (e: any) {
+                if (e.message.includes("Unexpected token") || e.message.includes("is not valid JSON")) {
+                  throw new Error(`AI request failed with status ${response.status} (invalid JSON response)`);
+                }
+                throw e;
+              }
+            }
+            const text = await response.text();
+            throw new Error(`AI request failed (Status ${response.status}): ${text.substring(0, 100)}${text.length > 100 ? '...' : ''}`);
+          }
+          
+          const contentType = response.headers.get("content-type");
+          if (!contentType || !contentType.includes("application/json")) {
+            const text = await response.text();
+            throw new Error(`Expected JSON but received ${contentType || 'text/plain'} (Status ${response.status}): ${text.substring(0, 100)}...`);
           }
           const data = await response.json();
           responseText = data.text || "";
+        } catch (error: any) {
+          clearTimeout(timeoutId);
+          if (error.name === 'AbortError') throw new Error("AI request timed out after 95 seconds.");
+          throw error;
         }
       }
 
@@ -832,7 +877,7 @@ export const Settings = ({ vocab }: { vocab: Vocabulary[] }) => {
                 <div className="space-y-4">
                   {(profile?.apiSettings?.structuredKeys?.universal || (profile?.apiSettings?.universalKeys || profile?.apiKeys || ['']).map(k => ({ key: k, provider: 'gemini' }))).map((keyObj: any, idx: number) => (
                     <div key={idx} className="space-y-4 p-4 bg-stone-50 dark:bg-stone-800/50 rounded-2xl border border-stone-100 dark:border-stone-800">
-                      <div className="grid grid-cols-2 gap-3">
+                        <div className="grid grid-cols-2 gap-3">
                         <div className="space-y-1">
                           <label className="text-[9px] font-bold text-stone-400 uppercase tracking-widest px-1">Provider</label>
                           <select 
@@ -862,6 +907,13 @@ export const Settings = ({ vocab }: { vocab: Vocabulary[] }) => {
                           </div>
                         )}
                       </div>
+
+                      {keyObj.provider?.toLowerCase() === 'openrouter' && (
+                        <div className="p-2.5 bg-amber-500/10 rounded-xl border border-amber-500/20 text-[10px] text-amber-700 dark:text-amber-300 space-y-1">
+                          <p className="font-semibold">OpenRouter Configuration</p>
+                          <p className="opacity-90">An OpenRouter API key (starts with <code className="font-mono bg-amber-500/20 px-1 py-0.5 rounded">sk-or-v1-</code>) is required even for free models. Use <code className="font-mono font-bold">Free Models Router</code> for active zero-cost models.</p>
+                        </div>
+                      )}
                       
                       <div className="space-y-1">
                         <label className="text-[9px] font-bold text-stone-400 uppercase tracking-widest px-1">API Key</label>
@@ -871,10 +923,10 @@ export const Settings = ({ vocab }: { vocab: Vocabulary[] }) => {
                             value={keyObj.key}
                             onChange={(e) => handleKeyChange('universal', idx, 'key', e.target.value)}
                             className="flex-1 p-2.5 bg-white dark:bg-stone-900 rounded-xl text-xs font-mono border border-stone-100 dark:border-stone-800 text-stone-900 dark:text-stone-100 outline-none"
-                            placeholder="Enter API Key here..."
+                            placeholder={getKeyPlaceholder(keyObj.provider)}
                           />
                           <button 
-                            onClick={() => handleTestAI({ key: keyObj.key, provider: keyObj.provider, baseUrl: keyObj.baseUrl, customProvider: keyObj.customProvider })}
+                            onClick={() => handleTestAI({ key: keyObj.key, provider: keyObj.provider, baseUrl: keyObj.baseUrl, customProvider: keyObj.customProvider, model: keyObj.model })}
                             className="p-2 bg-white dark:bg-stone-900 rounded-xl border border-stone-100 dark:border-stone-800 text-stone-400 hover:text-stone-600 shrink-0"
                             title="Test this key"
                           >
@@ -949,6 +1001,12 @@ export const Settings = ({ vocab }: { vocab: Vocabulary[] }) => {
                              </div>
                            )}
                          </div>
+
+                        {keyObj.provider?.toLowerCase() === 'openrouter' && (
+                          <div className="p-2.5 bg-amber-500/10 rounded-xl border border-amber-500/20 text-[10px] text-amber-700 dark:text-amber-300">
+                            Use <code className="font-mono font-bold">Free Models Router</code> for free zero-cost models on OpenRouter.
+                          </div>
+                        )}
                         
                         <div className="space-y-1">
                           <label className="text-[9px] font-bold text-stone-400 uppercase tracking-widest px-1">API Key</label>
@@ -958,10 +1016,10 @@ export const Settings = ({ vocab }: { vocab: Vocabulary[] }) => {
                               value={keyObj.key}
                               onChange={(e) => handleKeyChange('translation', idx, 'key', e.target.value)}
                               className="flex-1 p-2.5 bg-white dark:bg-stone-900 rounded-xl text-xs font-mono border border-stone-100 dark:border-stone-800 text-stone-900 dark:text-stone-100 outline-none"
-                              placeholder="Enter API Key here..."
+                              placeholder={getKeyPlaceholder(keyObj.provider)}
                             />
                             <button 
-                              onClick={() => handleTestAI({ key: keyObj.key, provider: keyObj.provider, baseUrl: keyObj.baseUrl, customProvider: keyObj.customProvider })}
+                              onClick={() => handleTestAI({ key: keyObj.key, provider: keyObj.provider, baseUrl: keyObj.baseUrl, customProvider: keyObj.customProvider, model: keyObj.model })}
                               className="p-2 bg-white dark:bg-stone-900 rounded-xl border border-stone-100 dark:border-stone-800 text-stone-400 hover:text-stone-600 shrink-0"
                               title="Test this key"
                             >
@@ -1014,6 +1072,12 @@ export const Settings = ({ vocab }: { vocab: Vocabulary[] }) => {
                              </div>
                            )}
                          </div>
+
+                        {keyObj.provider?.toLowerCase() === 'openrouter' && (
+                          <div className="p-2.5 bg-amber-500/10 rounded-xl border border-amber-500/20 text-[10px] text-amber-700 dark:text-amber-300">
+                            Use <code className="font-mono font-bold">Free Models Router</code> for free zero-cost models on OpenRouter.
+                          </div>
+                        )}
                         
                         <div className="space-y-1">
                           <label className="text-[9px] font-bold text-stone-400 uppercase tracking-widest px-1">API Key</label>
@@ -1023,10 +1087,10 @@ export const Settings = ({ vocab }: { vocab: Vocabulary[] }) => {
                               value={keyObj.key}
                               onChange={(e) => handleKeyChange('sensei', idx, 'key', e.target.value)}
                               className="flex-1 p-2.5 bg-white dark:bg-stone-900 rounded-xl text-xs font-mono border border-stone-100 dark:border-stone-800 text-stone-900 dark:text-stone-100 outline-none"
-                              placeholder="Enter API Key here..."
+                              placeholder={getKeyPlaceholder(keyObj.provider)}
                             />
                             <button 
-                              onClick={() => handleTestAI({ key: keyObj.key, provider: keyObj.provider, baseUrl: keyObj.baseUrl, customProvider: keyObj.customProvider })}
+                              onClick={() => handleTestAI({ key: keyObj.key, provider: keyObj.provider, baseUrl: keyObj.baseUrl, customProvider: keyObj.customProvider, model: keyObj.model })}
                               className="p-2 bg-white dark:bg-stone-900 rounded-xl border border-stone-100 dark:border-stone-800 text-stone-400 hover:text-stone-600 shrink-0"
                               title="Test this key"
                             >
@@ -1079,6 +1143,12 @@ export const Settings = ({ vocab }: { vocab: Vocabulary[] }) => {
                              </div>
                            )}
                          </div>
+
+                        {keyObj.provider?.toLowerCase() === 'openrouter' && (
+                          <div className="p-2.5 bg-amber-500/10 rounded-xl border border-amber-500/20 text-[10px] text-amber-700 dark:text-amber-300">
+                            Use <code className="font-mono font-bold">Free Models Router</code> for free zero-cost models on OpenRouter.
+                          </div>
+                        )}
                         
                         <div className="space-y-1">
                           <label className="text-[9px] font-bold text-stone-400 uppercase tracking-widest px-1">API Key</label>
@@ -1088,10 +1158,10 @@ export const Settings = ({ vocab }: { vocab: Vocabulary[] }) => {
                               value={keyObj.key}
                               onChange={(e) => handleKeyChange('dictionary', idx, 'key', e.target.value)}
                               className="flex-1 p-2.5 bg-white dark:bg-stone-900 rounded-xl text-xs font-mono border border-stone-100 dark:border-stone-800 text-stone-900 dark:text-stone-100 outline-none"
-                              placeholder="Enter API Key here..."
+                              placeholder={getKeyPlaceholder(keyObj.provider)}
                             />
                             <button 
-                              onClick={() => handleTestAI({ key: keyObj.key, provider: keyObj.provider, baseUrl: keyObj.baseUrl, customProvider: keyObj.customProvider })}
+                              onClick={() => handleTestAI({ key: keyObj.key, provider: keyObj.provider, baseUrl: keyObj.baseUrl, customProvider: keyObj.customProvider, model: keyObj.model })}
                               className="p-2 bg-white dark:bg-stone-900 rounded-xl border border-stone-100 dark:border-stone-800 text-stone-400 hover:text-stone-600 shrink-0"
                               title="Test this key"
                             >
