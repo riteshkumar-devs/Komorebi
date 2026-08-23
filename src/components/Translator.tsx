@@ -40,9 +40,14 @@ export const Translator = () => {
 
       const response = await ai.models.generateContent({
         model: getSafeModel(getApiKey(profile, 'translation')?.provider),
-        contents: `Translate the following text. If it is in Japanese, translate it to English. If it is in English, translate it to Japanese.
+        contents: `Translate the following text. 
+        CRITICAL RULES:
+        1. STRICTLY NO KANJI. If translating to Japanese, you MUST write exclusively in Hiragana (ひらがな) or Katakana (カタカナ). Never use Kanji characters under any circumstances.
+        2. If translating to English, provide the natural English translation.
+        3. If translating to Japanese, provide the Kana translation, followed by the Romaji in parentheses. Example: ありがとう (Arigatou)
+        
         Text: "${text}"
-        Provide ONLY the translation. If it's Japanese, also include the Romaji in parentheses.`,
+        Provide ONLY the translation.`,
       });
 
       const translation = response.text?.trim() || "Translation failed";

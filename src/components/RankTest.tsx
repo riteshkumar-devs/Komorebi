@@ -51,11 +51,11 @@ export const RankTest = ({ vocab }: { vocab: Vocabulary[] }) => {
       });
     } else {
       testQuestions = [
-        { q: '木', a: 'Ki', options: ['Ki', 'Mizu', 'Hi', 'Tsuchi'] },
-        { q: '水', a: 'Mizu', options: ['Mizu', 'Ki', 'Hi', 'Yama'] },
-        { q: '火', a: 'Hi', options: ['Hi', 'Ki', 'Mizu', 'Kaze'] },
-        { q: '山', a: 'Yama', options: ['Yama', 'Kawa', 'Umi', 'Mori'] },
-        { q: '人', a: 'Hito', options: ['Hito', 'Inu', 'Neko', 'Tori'] },
+        { q: 'き', a: 'Tree (Ki)', options: ['Tree (Ki)', 'Water (Mizu)', 'Fire (Hi)', 'Earth (Tsuchi)'] },
+        { q: 'みず', a: 'Water (Mizu)', options: ['Water (Mizu)', 'Tree (Ki)', 'Fire (Hi)', 'Mountain (Yama)'] },
+        { q: 'ひ', a: 'Fire (Hi)', options: ['Fire (Hi)', 'Tree (Ki)', 'Water (Mizu)', 'Wind (Kaze)'] },
+        { q: 'やま', a: 'Mountain (Yama)', options: ['Mountain (Yama)', 'River (Kawa)', 'Sea (Umi)', 'Forest (Mori)'] },
+        { q: 'ひと', a: 'Person (Hito)', options: ['Person (Hito)', 'Dog (Inu)', 'Cat (Neko)', 'Bird (Tori)'] },
       ];
     }
     

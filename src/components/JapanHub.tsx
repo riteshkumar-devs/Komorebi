@@ -173,7 +173,7 @@ export const ImageAnalyzer = () => {
           role: 'user',
           parts: [
             { inlineData: { data: base64Data, mimeType } },
-            { text: "Analyze this image. If it contains Japanese text, translate it and explain the meaning. If it's a scene from Japan, identify it. Provide a detailed cultural or linguistic breakdown." }
+            { text: "Analyze this image. If it contains Japanese text, translate it and explain the meaning. CRITICAL RULE: When writing Japanese words, vocabulary, or example phrases in your response, write them ONLY in Hiragana (ひらがな) or Katakana (カタカナ) with Romaji and English translation (STRICTLY NO KANJI in your response). If it's a scene from Japan, identify it. Provide a detailed cultural or linguistic breakdown." }
           ]
         }]
       });

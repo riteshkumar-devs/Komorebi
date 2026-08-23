@@ -148,11 +148,11 @@ export const VocabEntry = ({ vocab }: { vocab: Vocabulary[] }) => {
 
         <form onSubmit={handleSubmit} className="bg-white dark:bg-stone-900 p-6 rounded-[2rem] shadow-sm border border-stone-50 dark:border-stone-800 space-y-5">
           <div className="space-y-2">
-            <label className="text-[9px] font-bold uppercase tracking-[0.3em] text-stone-400 dark:text-stone-300">Japanese (Kanji/Kana)</label>
+            <label className="text-[9px] font-bold uppercase tracking-[0.3em] text-stone-400 dark:text-stone-300">Japanese (Hiragana / Katakana)</label>
             <input 
               value={japanese}
               onChange={(e) => setJapanese(e.target.value)}
-              placeholder="e.g. 木漏れ日"
+              placeholder="e.g. こもれび"
               className="w-full p-4 bg-stone-50 dark:bg-stone-800 border-none rounded-xl focus:ring-2 focus:ring-stone-100 dark:focus:ring-stone-700 transition-all text-xl font-serif text-stone-900 dark:text-stone-100 placeholder:text-stone-300 dark:placeholder:text-stone-500"
               required
             />

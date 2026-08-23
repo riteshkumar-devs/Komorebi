@@ -215,9 +215,10 @@ export const WritingPractice = () => {
         return;
       }
 
-      const prompt = `Generate 5 short sentences or paragraphs in Japanese for writing practice. 
+      const prompt = `Generate 5 short sentences or phrases in Japanese for beginner writing practice. 
+      CRITICAL RULE: The "japanese" field MUST be written purely in Hiragana (ひらがな) or Katakana (カタカナ) ONLY. STRICTLY NO KANJI characters whatsoever!
       Format as a JSON array of objects with keys: "japanese", "romaji", "meaning".
-      The sentences should be useful for learners and range from simple to medium difficulty.
+      Example: [{"japanese": "きょうは いい てんき です", "romaji": "Kyou wa ii tenki desu", "meaning": "Today is good weather"}]
       Only return the JSON array.`;
 
       const result = await ai.models.generateContent({

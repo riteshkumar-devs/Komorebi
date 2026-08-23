@@ -37,7 +37,8 @@ export const useQuoteAgent = () => {
     if (!ai) return;
 
     try {
-      const prompt = `Generate 10 motivational or philosophical quotes about learning, wisdom, and the path to mastery, specifically relevant to a Japanese aesthetic (like Zen or 武士道). 
+      const prompt = `Generate 10 motivational or philosophical quotes about learning, wisdom, and mastery with Japanese philosophy. 
+      CRITICAL RULE: The "text" field MUST be written purely in Hiragana and Katakana (STRICTLY NO KANJI whatsoever).
       Format as a JSON array: [{"text": "...", "translation": "...", "author": "..."}]`;
       
       const result = await ai.models.generateContent({

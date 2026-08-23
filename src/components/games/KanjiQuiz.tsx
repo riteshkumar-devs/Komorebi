@@ -10,10 +10,9 @@ export const KanjiQuiz = ({ vocab, onBack }: { vocab: Vocabulary[]; onBack: () =
   const [message, setMessage] = useState('');
 
   const generateQuestion = useCallback(() => {
-    const kanjiWords = vocab.filter(v => /[\u4e00-\u9faf]/.test(v.japanese));
-    if (kanjiWords.length < 4) return;
+    if (vocab.length < 4) return;
     
-    const word = kanjiWords[Math.floor(Math.random() * kanjiWords.length)];
+    const word = vocab[Math.floor(Math.random() * vocab.length)];
     const options = [word.meaning];
     while (options.length < 4) {
       const randomWord = vocab[Math.floor(Math.random() * vocab.length)].meaning;
@@ -37,11 +36,11 @@ export const KanjiQuiz = ({ vocab, onBack }: { vocab: Vocabulary[]; onBack: () =
     }
   };
 
-  if (vocab.filter(v => /[\u4e00-\u9faf]/.test(v.japanese)).length < 4) {
+  if (vocab.length < 4) {
     return (
       <div className="text-center p-20 bg-white dark:bg-stone-900 rounded-[3rem] border border-stone-100 dark:border-stone-800 shadow-xl">
-        <h3 className="text-2xl font-editorial italic text-stone-900 dark:text-stone-100 mb-4">Not enough Kanji</h3>
-        <p className="text-stone-500 dark:text-stone-400 mb-8 font-serif italic">Add at least 4 words containing Kanji to your vocabulary to play Kanji Quiz.</p>
+        <h3 className="text-2xl font-editorial italic text-stone-900 dark:text-stone-100 mb-4">Not enough Words</h3>
+        <p className="text-stone-500 dark:text-stone-400 mb-8 font-serif italic">Add at least 4 words to your vocabulary to play Kana Vocab Quiz.</p>
         <button onClick={onBack} className="px-8 py-3 bg-stone-900 dark:bg-stone-100 text-white dark:text-stone-900 rounded-full font-bold">Go Back</button>
       </div>
     );
@@ -53,8 +52,8 @@ export const KanjiQuiz = ({ vocab, onBack }: { vocab: Vocabulary[]; onBack: () =
         <div className="flex items-center gap-4">
           <button onClick={onBack} className="w-10 h-10 bg-white dark:bg-stone-900 border border-stone-100 dark:border-stone-800 rounded-full flex items-center justify-center text-stone-400 dark:text-stone-500 hover:text-stone-900 dark:hover:text-stone-100 shadow-sm transition-colors"><ChevronLeft className="w-5 h-5" /></button>
           <div>
-            <h2 className="text-2xl font-editorial italic text-stone-900 dark:text-stone-100">Kanji Quiz</h2>
-            <p className="text-stone-500 dark:text-stone-400 font-serif italic text-xs">Match the Kanji to its meaning.</p>
+            <h2 className="text-2xl font-editorial italic text-stone-900 dark:text-stone-100">Kana Vocab Quiz</h2>
+            <p className="text-stone-500 dark:text-stone-400 font-serif italic text-xs">Match the Kana word to its meaning.</p>
           </div>
         </div>
         <div className="text-right">

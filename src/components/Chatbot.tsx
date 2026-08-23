@@ -60,11 +60,13 @@ export const Chatbot = () => {
       try {
         let ai = getAI(profile, 'sensei');
         if (!ai) throw new Error("AI Key not found.");
-  
+
+        const senseiInstruction = "You are Sensei AI, a professional Japanese language tutor. STRICT RULE: Strictly NEVER use any Kanji characters under any circumstances. All Japanese text, vocabulary, sentences, and examples MUST be written exclusively in Hiragana (ひらがな) or Katakana (カタカナ). Always provide Romaji and English translations alongside any Kana. Keep your responses very short, concise, and direct (max 2-3 sentences). Be encouraging but brief.";
+
         const chat = ai.chats.create({
           model: getSafeModel(getApiKey(profile, 'sensei')?.provider),
           config: {
-            systemInstruction: "You are Sensei AI, a professional Japanese language tutor. Keep your responses very short, concise, and direct (max 2-3 sentences). Always provide examples in Japanese with furigana and English translations. ALWAYS provide Romaji for any Japanese text. Be encouraging but brief.",
+            systemInstruction: senseiInstruction,
           },
         });
   
@@ -84,7 +86,7 @@ export const Chatbot = () => {
                 const newChat = ai.chats.create({
                   model: getSafeModel(getApiKey(profile, 'sensei')?.provider),
                   config: {
-                    systemInstruction: "You are Sensei AI, a professional Japanese language tutor. Keep your responses very short, concise, and direct (max 2-3 sentences). Always provide examples in Japanese with furigana and English translations. ALWAYS provide Romaji for any Japanese text. Be encouraging but brief.",
+                    systemInstruction: senseiInstruction,
                   },
                 });
                 const retryResponse = await newChat.sendMessage({ message: userMsg, history: messages });

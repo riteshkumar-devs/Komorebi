@@ -41,7 +41,7 @@ export const Dashboard = ({ vocabCount, vocab, logout, setActiveTab }: { vocabCo
     }
   }, [quotes]);
 
-  const activeQuote = quotes[activeQuoteIndex] || { text: "継続は力なり", translation: "Continuity is power." };
+  const activeQuote = quotes[activeQuoteIndex] || { text: "けいぞくは ちからなり", translation: "Continuity is power." };
   const streak = profile?.streakCount || 0;
   const { play } = useTTSContext();
 
@@ -61,7 +61,7 @@ export const Dashboard = ({ vocabCount, vocab, logout, setActiveTab }: { vocabCo
   const completedMissions = missions.filter(m => m.completed).length;
 
   const getStableWordOfTheDay = () => {
-    if (vocab.length === 0) return { japanese: "学習", romaji: "Gakushuu", meaning: "Study / Learning" };
+    if (vocab.length === 0) return { japanese: "べんきょう", romaji: "Benkyou", meaning: "Study / Learning" };
     const today = new Date();
     const seed = today.getFullYear() * 10000 + (today.getMonth() + 1) * 100 + today.getDate();
     const index = seed % vocab.length;

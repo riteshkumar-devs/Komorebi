@@ -114,16 +114,17 @@ export const Dictionary = ({ vocab }: { vocab: Vocabulary[] }) => {
         contents: [{
           role: 'user',
           parts: [{ text: `Provide a list of 20 common and useful Japanese words for beginners. 
+          CRITICAL REQUIREMENT: Strictly write all Japanese words in Hiragana (ひらがな) or Katakana (カタカナ) ONLY. Do NOT use any Kanji whatsoever.
           Make sure these words are DIFFERENT from these already discovered ones: ${existingJp.join(', ')}.
           Avoid basic ones like 'Konnichiwa' or 'Arigatou'.
           Focus on interesting nouns, verbs, and adjectives that a traveler or student would find useful.
           For each word, provide:
-          1. Japanese (Kanji/Kana)
+          1. Japanese (Hiragana or Katakana ONLY, strictly NO Kanji)
           2. Romaji
           3. Simple English meaning
           
           Format the response as a JSON array of objects with keys: "jp", "ro", "en". 
-          Example: [{"jp": "こんにちは", "ro": "Konnichiwa", "en": "Hello"}]
+          Example: [{"jp": "おいしい", "ro": "Oishii", "en": "Delicious"}]
           Provide ONLY the JSON.` }]
         }],
         config: {
@@ -162,7 +163,7 @@ export const Dictionary = ({ vocab }: { vocab: Vocabulary[] }) => {
       let cleaned = val.replace(/[#*`_~]/g, '').trim();
       cleaned = cleaned.replace(/^[:\s-]+|[:\s-]+$/g, '').trim();
       
-      const labels = ['kanji', 'romaji', 'meaning', 'definition', 'japanese', 'english', 'pronunciation'];
+      const labels = ['japanese', 'kana', 'kanji', 'romaji', 'meaning', 'definition', 'english', 'pronunciation'];
       for (const label of labels) {
         const regex = new RegExp(`^${label}\\s*[:\\s-]*`, 'i');
         if (regex.test(cleaned)) {
@@ -175,23 +176,23 @@ export const Dictionary = ({ vocab }: { vocab: Vocabulary[] }) => {
 
     const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
     
-    let jpLineRaw = lines.find(l => /\[KANJI\]/.test(l)) || '';
+    let jpLineRaw = lines.find(l => /\[(JAPANESE|KANA|KANJI)\]/i.test(l)) || '';
     if (!jpLineRaw) {
       jpLineRaw = lines.find(l => 
-        /[\u3000-\u303f\u3040-\u309f\u30a0-\u30ff\uff00-\uff9f\u4e00-\u9faf\u3400-\u4dbf]/.test(l) && 
+        /[\u3000-\u303f\u3040-\u309f\u30a0-\u30ff\uff00-\uff9f]/.test(l) && 
         !l.toLowerCase().includes('here is') && 
         !l.toLowerCase().includes('definition') &&
         l.length < 50
       ) || '';
     }
-    const jpNoLabel = cleanValue(jpLineRaw.replace('[KANJI]', ''));
-    const jpMatch = jpNoLabel.match(/[\u3000-\u303f\u3040-\u309f\u30a0-\u30ff\uff00-\uff9f\u4e00-\u9faf\u3400-\u4dbf]+/g);
+    const jpNoLabel = cleanValue(jpLineRaw.replace(/\[(JAPANESE|KANA|KANJI)\]/gi, ''));
+    const jpMatch = jpNoLabel.match(/[\u3000-\u303f\u3040-\u309f\u30a0-\u30ff\uff00-\uff9f]+/g);
     const jp = jpMatch ? jpMatch.join('') : jpNoLabel || query;
 
-    const roLineRaw = lines.find(l => /\[ROMAJI\]/.test(l) || (/romaji/i.test(l) && l.includes(':'))) || '';
-    const ro = cleanValue(roLineRaw.replace('[ROMAJI]', ''));
+    const roLineRaw = lines.find(l => /\[ROMAJI\]/i.test(l) || (/romaji/i.test(l) && l.includes(':'))) || '';
+    const ro = cleanValue(roLineRaw.replace(/\[ROMAJI\]/gi, ''));
 
-    let enLineRaw = lines.find(l => /\[MEANING\]/.test(l)) || '';
+    let enLineRaw = lines.find(l => /\[MEANING\]/i.test(l)) || '';
     if (!enLineRaw) {
       enLineRaw = lines.find(l => 
         (l.toLowerCase().includes('meaning') || l.toLowerCase().includes('definition')) && 
@@ -201,7 +202,7 @@ export const Dictionary = ({ vocab }: { vocab: Vocabulary[] }) => {
         l.split(' ').length < 15
       ) || '';
     }
-    const en = cleanValue(enLineRaw.replace('[MEANING]', '')) || query;
+    const en = cleanValue(enLineRaw.replace(/\[MEANING\]/gi, '')) || query;
 
     return { jp, ro, en };
   };
@@ -234,17 +235,19 @@ export const Dictionary = ({ vocab }: { vocab: Vocabulary[] }) => {
           role: 'user',
           parts: [{ text: `Act as a professional Japanese-English dictionary. Provide a concise, structured definition for "${searchTerm}". 
           
-          CRITICAL: Provide ONLY the requested fields at the top. DO NOT use introduction sentences like "Here is the definition...".
+          CRITICAL RULES:
+          1. STRICTLY NO KANJI. All Japanese words, phrases, and example sentences MUST be written exclusively in Hiragana (ひらがな) or Katakana (カタカナ). Never include Kanji characters.
+          2. Provide ONLY the requested fields at the top. DO NOT use introduction sentences like "Here is the definition...".
           
           Strictly follow this format for the summary at the top:
-          [KANJI]: (The Japanese word ONLY, no other text)
+          [JAPANESE]: (The Japanese word in Hiragana or Katakana ONLY, strictly NO Kanji)
           [ROMAJI]: (The Romaji pronunciation ONLY, no labels)
           [MEANING]: (The primary English definition ONLY, no extra notes or sentences)
 
           Then provide a detailed breakdown with:
           ### Additional Context
           - Grammar points
-          - Example sentences with translations
+          - Example sentences with translations (in Hiragana/Katakana + Romaji + English, NO Kanji)
           - Cultural nuances
           
           Format as clean Markdown.` }]
@@ -464,7 +467,7 @@ export const Dictionary = ({ vocab }: { vocab: Vocabulary[] }) => {
                   <div className="prose prose-stone dark:prose-invert max-w-none prose-headings:font-editorial prose-headings:italic text-sm">
                     <ReactMarkdown>
                       {result.split('\n')
-                        .filter(l => !l.startsWith('[KANJI]') && !l.startsWith('[ROMAJI]') && !l.startsWith('[MEANING]'))
+                        .filter(l => !l.startsWith('[JAPANESE]') && !l.startsWith('[KANA]') && !l.startsWith('[KANJI]') && !l.startsWith('[ROMAJI]') && !l.startsWith('[MEANING]'))
                         .join('\n')
                         .trim()}
                     </ReactMarkdown>

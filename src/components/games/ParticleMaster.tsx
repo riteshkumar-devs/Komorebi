@@ -9,16 +9,16 @@ export const ParticleMaster = ({ onBack }: { onBack: () => void }) => {
   const [currentQuestion, setCurrentQuestion] = useState<{ sentence: string; answer: string; options: string[] } | null>(null);
 
   const questions = [
-    { sentence: "私は学生___です。", answer: "は", options: ["は", "が", "を", "に"] },
-    { sentence: "りんご___食べます。", answer: "を", options: ["を", "は", "が", "も"] },
-    { sentence: "学校___行きます。", answer: "に", options: ["に", "で", "を", "は"] },
-    { sentence: "公園___遊びます。", answer: "で", options: ["で", "に", "を", "へ"] },
-    { sentence: "明日、友達___会います。", answer: "に", options: ["に", "と", "を", "で"] },
-    { sentence: "これは母___本です。", answer: "の", options: ["の", "に", "を", "が"] },
-    { sentence: "コーヒー___お茶が好きです。", answer: "より", options: ["より", "も", "は", "と"] },
-    { sentence: "デパート___買い物をしました。", answer: "で", options: ["で", "に", "を", "へ"] },
-    { sentence: "家___帰ります。", answer: "へ", options: ["へ", "で", "を", "が"] },
-    { sentence: "猫___います。", answer: "が", options: ["が", "は", "を", "に"] },
+    { sentence: "わたしは がくせい___です。", answer: "は", options: ["は", "が", "を", "に"] },
+    { sentence: "りんご___たべます。", answer: "を", options: ["を", "は", "が", "も"] },
+    { sentence: "がっこう___いきます。", answer: "に", options: ["に", "で", "を", "は"] },
+    { sentence: "こうえん___あそびます。", answer: "で", options: ["で", "に", "を", "へ"] },
+    { sentence: "あした、ともだち___あいます。", answer: "に", options: ["に", "と", "を", "で"] },
+    { sentence: "これは はは___ほんです。", answer: "の", options: ["の", "に", "を", "が"] },
+    { sentence: "コーヒー___おちゃが すきです。", answer: "より", options: ["より", "も", "は", "と"] },
+    { sentence: "デパート___かいものを しました。", answer: "で", options: ["で", "に", "を", "へ"] },
+    { sentence: "いえ___かえります。", answer: "へ", options: ["へ", "で", "を", "が"] },
+    { sentence: "ねこ___います。", answer: "が", options: ["が", "は", "を", "に"] },
   ];
 
   const [index, setIndex] = useState(0);

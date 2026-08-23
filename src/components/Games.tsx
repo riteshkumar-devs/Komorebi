@@ -35,7 +35,7 @@ export const Games = ({ vocab, onSelectGame }: { vocab: Vocabulary[]; onSelectGa
     { id: 'speed-quiz', title: 'Speed Quiz', description: '60 seconds of rapid translation challenge.', icon: Timer, color: 'bg-amber-500' },
     { id: 'listening-hero', title: 'Listening Hero', description: 'Listen to the word and pick the correct meaning.', icon: Volume2, color: 'bg-blue-500' },
     { id: 'flashcard-sprint', title: 'Flashcard Sprint', description: 'Review your entire library as fast as possible.', icon: Zap, color: 'bg-[#f2a93b]' },
-    { id: 'kanji-quiz', title: 'Kanji Quiz', description: 'Match complex Kanji to their meanings.', icon: Book, color: 'bg-red-500' },
+    { id: 'kanji-quiz', title: 'Kana Vocab Quiz', description: 'Match Kana words to their meanings.', icon: Book, color: 'bg-red-500' },
     { id: 'particle-master', title: 'Particle Master', description: 'Fill in the blanks with the correct particles.', icon: List, color: 'bg-purple-500' },
     { id: 'sentence-builder', title: 'Sentence Builder', description: 'Construct grammatically correct sentences.', icon: Pencil, color: 'bg-pink-500' },
     { id: 'typing-game', title: 'Typing Game', description: 'Type romaji to pop falling character bubbles.', icon: Gamepad, color: 'bg-stone-800' },

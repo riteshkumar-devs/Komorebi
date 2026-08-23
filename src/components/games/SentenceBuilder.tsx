@@ -11,11 +11,11 @@ export const SentenceBuilder = ({ vocab, onBack }: { vocab: Vocabulary[]; onBack
   const [selectedWords, setSelectedWords] = useState<string[]>([]);
 
   const questions = [
-    { original: "私は学生です。", scrambled: ["私は", "学生", "です。"], answer: "私は学生です。", meaning: "I am a student." },
-    { original: "これはペンです。", scrambled: ["これは", "ペン", "です。"], answer: "これはペンです。", meaning: "This is a pen." },
-    { original: "明日、学校へ行きます。", scrambled: ["明日、", "学校へ", "行きます。"], answer: "明日、学校へ行きます。", meaning: "I will go to school tomorrow." },
-    { original: "日本語を勉強します。", scrambled: ["日本語を", "勉強", "します。"], answer: "日本語を勉強します。", meaning: "I study Japanese." },
-    { original: "テレビを見ます。", scrambled: ["テレビを", "見ます。"], answer: "テレビを見ます。", meaning: "I watch TV." },
+    { original: "わたしは がくせいです。", scrambled: ["わたしは", "がくせい", "です。"], answer: "わたしは がくせいです。", meaning: "I am a student." },
+    { original: "これは ペンです。", scrambled: ["これは", "ペン", "です。"], answer: "これは ペンです。", meaning: "This is a pen." },
+    { original: "あした、がっこうへ いきます。", scrambled: ["あした、", "がっこうへ", "いきます。"], answer: "あした、がっこうへ いきます。", meaning: "I will go to school tomorrow." },
+    { original: "にほんごを べんきょうします。", scrambled: ["にほんごを", "べんきょう", "します。"], answer: "にほんごを べんきょうします。", meaning: "I study Japanese." },
+    { original: "テレビを みます。", scrambled: ["テレビを", "みます。"], answer: "テレビを みます。", meaning: "I watch TV." },
   ];
 
   const [index, setIndex] = useState(0);

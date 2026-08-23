@@ -189,6 +189,6 @@ This project is no open source and available under the permission of the Ritesh
 
 **Made with ❤️ by [@riteshkumar477823-wq](https://github.com/riteshkumar477823-wq)**
 
-*"Komorebi" (木漏れ日) - the beautiful light that filters through the trees* 🌳
+*"Komorebi" (こもれび) - the beautiful light that filters through the trees* 🌳
 
 </div>

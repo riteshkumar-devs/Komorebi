@@ -123,15 +123,17 @@ export const VocabList = ({ vocab }: { vocab: Vocabulary[] }) => {
           role: 'user',
           parts: [{ text: `Act as a professional Japanese-English dictionary. Provide a concise, structured definition for "${v.japanese}" (${v.meaning}). 
           
-          Strictly follow this format for the summary at the top (NO extra text):
-          [KANJI]: ${v.japanese}
+          CRITICAL RULES:
+          1. STRICTLY NO KANJI. All Japanese words, phrases, and example sentences MUST be written exclusively in Hiragana (ひらがな) or Katakana (カタカナ).
+          2. Strictly follow this format for the summary at the top (NO extra text):
+          [JAPANESE]: ${v.japanese}
           [ROMAJI]: ${v.romaji || '...'}
           [MEANING]: ${v.meaning}
 
           Then provide a detailed breakdown with:
           ### Additional Context
           - Grammar points
-          - Example sentences with translations
+          - Example sentences with translations (in Hiragana/Katakana + Romaji + English, NO Kanji)
           - Cultural nuances
           
           Format as clean Markdown.` }]
@@ -442,7 +444,7 @@ export const VocabList = ({ vocab }: { vocab: Vocabulary[] }) => {
               <div className="prose prose-stone dark:prose-invert max-w-none prose-p:font-serif prose-p:italic prose-headings:font-editorial prose-headings:italic">
                 <ReactMarkdown>
                   {aiDetails.content.split('\n')
-                    .filter(l => !l.startsWith('[KANJI]') && !l.startsWith('[ROMAJI]') && !l.startsWith('[MEANING]'))
+                    .filter(l => !l.startsWith('[JAPANESE]') && !l.startsWith('[KANA]') && !l.startsWith('[KANJI]') && !l.startsWith('[ROMAJI]') && !l.startsWith('[MEANING]'))
                     .join('\n')
                     .trim()}
                 </ReactMarkdown>
