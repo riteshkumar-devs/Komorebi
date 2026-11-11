@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#f5f2ed">
+  <meta name="description" content="Meet Komorebi, a Japanese learning platform for writing practice, vocabulary, revision, dictionary tools and AI-assisted learning. Build your Japanese step by step.">
+  <meta name="keywords" content="Komorebi, Japanese learning, learn Japanese, Hiragana, Katakana, Japanese vocabulary, Japanese writing practice, AI Japanese learning">
+  <meta property="og:title" content="Komorebi — Make Japanese part of your everyday">
+  <meta property="og:description" content="A thoughtful space to practise Japanese writing, grow your vocabulary and keep your learning journey moving.">
+  <meta property="og:type" content="website">
+  <title>Komorebi — Your Japanese Learning Companion</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=Playfair+Display:ital,wght@0,400;0,500;0,600;1,400;1,500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --paper:#f5f2ed; --white:#fff; --ink:#201d1b; --muted:#9b938c;
+      --orange:#f6a52d; --orange-pale:#fff4e4; --line:#e9e3dc;
+      --green:#285f68; --green-dark:#194b54; --shadow:0 14px 40px rgba(39,31,24,.07);
+      --serif:"Playfair Display", Georgia, serif; --sans:"DM Sans", Arial, sans-serif;
+    }
+    *{box-sizing:border-box}
+    html{scroll-behavior:smooth}
+    body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--sans);line-height:1.65}
+    a{color:inherit;text-decoration:none}
+    img{display:block;max-width:100%}
+    .container{width:min(1160px,calc(100% - 48px));margin:auto}
+    .nav{height:82px;display:flex;align-items:center;justify-content:space-between;gap:24px}
+    .brand{display:flex;align-items:center;gap:12px}
+    .brand-mark{width:43px;height:43px;background:var(--ink);color:white;border-radius:13px;display:grid;place-items:center;font-size:25px;box-shadow:0 7px 16px #201d1b20}
+    .brand-name{font:500 23px var(--serif);line-height:1.1}
+    .brand-sub{font-size:9px;letter-spacing:1.2px;color:#e28d1b;font-weight:800;text-transform:uppercase}
+    .nav-links{display:flex;align-items:center;gap:30px;color:#766e67;font-size:13px;font-weight:700}
+    .nav-links a:hover{color:var(--ink)}
+    .btn{display:inline-flex;align-items:center;justify-content:center;gap:9px;border:0;border-radius:999px;padding:14px 22px;font:700 13px var(--sans);cursor:pointer;transition:.2s}
+    .btn:hover{transform:translateY(-2px);box-shadow:0 9px 20px #201d1b18}
+    .btn-dark{background:var(--ink);color:#fff}
+    .btn-orange{background:var(--orange);color:#201d1b}
+    .btn-light{background:#fff;border:1px solid var(--line)}
+    .menu-btn{display:none;background:white;border:1px solid var(--line);border-radius:12px;padding:9px 12px;font-size:20px}
+    .hero{padding:74px 0 72px;display:grid;grid-template-columns:1fr 1.04fr;gap:55px;align-items:center}
+    .eyebrow{font-size:10px;font-weight:800;letter-spacing:3px;color:#d58b26;text-transform:uppercase;display:flex;align-items:center;gap:10px}
+    .eyebrow:before{content:"";width:24px;height:1px;background:currentColor}
+    h1,h2,h3,p{margin-top:0}
+    h1{font:500 clamp(42px,5.2vw,68px)/1.12 var(--serif);letter-spacing:-1.6px;margin:22px 0}
+    h1 em{color:#d9902b;font-weight:400}
+    .hero-copy{max-width:510px;color:#77706a;font-size:16px;line-height:1.85}
+    .hero-actions{display:flex;gap:12px;flex-wrap:wrap;margin:29px 0 24px}
+    .micro-note{font-size:11px;color:#a29a92}
+    .hero-art{position:relative;min-height:440px;display:flex;align-items:center;justify-content:center}
+    .hero-art:before{content:"";position:absolute;width:390px;height:390px;border-radius:50%;background:#fbe7c8;filter:blur(1px)}
+    .hero-panel{position:relative;width:100%;max-width:540px;background:#fff;border:1px solid #eee8e1;border-radius:27px;padding:18px;box-shadow:var(--shadow);transform:rotate(1deg)}
+    .hero-panel img{width:100%;border-radius:16px}
+    .floating-note{position:absolute;right:-15px;bottom:28px;background:#fff;border:1px solid var(--line);border-radius:17px;padding:15px 18px;box-shadow:var(--shadow);font-size:12px}
+    .floating-note strong{display:block;font:italic 18px var(--serif);margin-bottom:2px}
+    .floating-note span{color:var(--muted)}
+    .meaning{padding:13px 0 60px;text-align:center}
+    .meaning .jp{font:500 25px var(--serif);margin-bottom:3px}
+    .meaning p{font:italic 13px var(--serif);letter-spacing:1.4px;color:#a69e96;margin:0}
+    .section{padding:76px 0}
+    .section-head{max-width:660px;margin:0 auto 38px;text-align:center}
+    .section-head .eyebrow{justify-content:center}
+    h2{font:500 clamp(32px,4vw,46px)/1.2 var(--serif);letter-spacing:-.7px;margin:14px 0}
+    .section-head p{color:#827a73;margin:0;font-size:14px}
+    .feature-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:17px}
+    .feature{background:#fff;border:1px solid var(--line);border-radius:22px;padding:25px;min-height:215px;box-shadow:0 5px 20px #201d1b06}
+    .feature-icon{width:42px;height:42px;border-radius:14px;background:var(--orange-pale);display:grid;place-items:center;font-size:19px;margin-bottom:18px}
+    .feature h3{font:500 21px var(--serif);margin-bottom:8px}
+    .feature p{font-size:13px;color:#847c75;margin:0;line-height:1.75}
+    .showcase{background:#fff;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+    .showcase-row{display:grid;grid-template-columns:.8fr 1.2fr;gap:54px;align-items:center;margin:58px 0}
+    .showcase-row.reverse{grid-template-columns:1.2fr .8fr}
+    .showcase-row.reverse .showcase-text{order:2}
+    .showcase-row.reverse .shot{order:1}
+    .showcase-text h3{font:500 31px var(--serif);margin:13px 0}
+    .showcase-text p{color:#817971;font-size:14px;line-height:1.85}
+    .kicker{color:#d58b26;font-size:10px;letter-spacing:2px;font-weight:800;text-transform:uppercase}
+    .shot{padding:10px;background:#f8f6f2;border:1px solid var(--line);border-radius:23px;box-shadow:var(--shadow)}
+    .shot img{width:100%;border-radius:15px}
+    .shot-caption{font-size:11px;color:#a09890;margin:10px 5px 2px}
+    .why-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+    .why-card{background:#fff;border:1px solid var(--line);border-radius:22px;padding:27px}
+    .why-card h3{font:500 22px var(--serif);margin-bottom:8px}
+    .why-card p{font-size:13px;color:#817971;margin:0}
+    .journey{background:var(--green);color:white;border-radius:28px;padding:48px;display:grid;grid-template-columns:1fr auto;align-items:center;gap:28px;box-shadow:0 18px 40px #194b5420}
+    .journey .eyebrow{color:#f9bd62}
+    .journey h2{margin:13px 0 10px}
+    .journey p{color:#d4e2df;max-width:570px;margin:0;font-size:14px}
+    .journey .btn{white-space:nowrap}
+    .stack{display:flex;flex-wrap:wrap;justify-content:center;gap:10px;margin-top:28px}
+    .stack span{background:#fff;border:1px solid var(--line);border-radius:999px;padding:9px 15px;font-size:11px;font-weight:700;color:#706861}
+    .faq{max-width:790px;margin:auto}
+    details{background:#fff;border:1px solid var(--line);border-radius:15px;padding:17px 20px;margin:10px 0}
+    summary{cursor:pointer;font-weight:700;font-size:13px}
+    details p{margin:12px 0 0;color:#827a73;font-size:13px}
+    footer{border-top:1px solid var(--line);padding:28px 0;margin-top:80px}
+    .footer-inner{display:flex;justify-content:space-between;align-items:center;gap:20px;color:#928981;font-size:11px}
+    .footer-inner strong{font:500 19px var(--serif);color:var(--ink)}
+    .footer-links{display:flex;gap:20px}
+    .reveal{opacity:0;transform:translateY(18px);transition:opacity .65s ease,transform .65s ease}
+    .reveal.visible{opacity:1;transform:none}
+    @media(max-width:850px){
+      .hero{grid-template-columns:1fr;gap:25px;padding-top:48px}
+      .hero-art{min-height:340px}
+      .hero-art:before{width:300px;height:300px}
+      .feature-grid{grid-template-columns:repeat(2,1fr)}
+      .showcase-row,.showcase-row.reverse{grid-template-columns:1fr;gap:25px}
+      .showcase-row.reverse .showcase-text,.showcase-row.reverse .shot{order:initial}
+      .journey{grid-template-columns:1fr;padding:34px}
+    }
+    @media(max-width:620px){
+      .container{width:min(100% - 30px,1160px)}
+      .nav{height:70px}
+      .menu-btn{display:block}
+      .nav-links{display:none;position:absolute;z-index:5;top:65px;left:15px;right:15px;background:#fff;padding:18px;border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);flex-direction:column;align-items:stretch;gap:16px}
+      .nav-links.open{display:flex}
+      .nav-cta{display:none}
+      .hero{padding:38px 0 38px}
+      h1{font-size:43px}
+      .hero-copy{font-size:14px}
+      .hero-art{min-height:260px}
+      .hero-panel{padding:9px;border-radius:18px}
+      .floating-note{right:-4px;bottom:5px;padding:10px 12px}
+      .meaning{padding-bottom:35px}
+      .section{padding:55px 0}
+      .feature-grid,.why-grid{grid-template-columns:1fr}
+      .feature{min-height:auto}
+      .showcase-row{margin:38px 0}
+      .journey{padding:27px}
+      .footer-inner{align-items:flex-start;flex-direction:column}
+    }
+    @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}.reveal{opacity:1;transform:none;transition:none}}
+  </style>
+</head>
+<body>
+  <header class="container">
+    <nav class="nav" aria-label="Main navigation">
+      <a class="brand" href="#top" aria-label="Komorebi home">
+        <span class="brand-mark">木</span>
+        <span><span class="brand-name">Komorebi</span><br><span class="brand-sub">Japanese Language Platform</span></span>
+      </a>
+      <button class="menu-btn" id="menuBtn" aria-label="Open menu" aria-expanded="false">☰</button>
+      <div class="nav-links" id="navLinks">
+        <a href="#features">Features</a>
+        <a href="#experience">Explore</a>
+        <a href="#why">Why Komorebi</a>
+        <a href="#faq">FAQ</a>
+      </div>
+      <a class="btn btn-dark nav-cta" href="https://komoreebi.onrender.com/" target="_blank" rel="noopener">Open Komorebi ↗</a>
+    </nav>
+  </header>
+
+  <main id="top">
+    <section class="container hero">
+      <div class="reveal">
+        <div class="eyebrow">A calmer way to learn Japanese</div>
+        <h1>Make Japanese part of your <em>everyday.</em></h1>
+        <p class="hero-copy">From your first hiragana character to a growing personal vocabulary, Komorebi brings your Japanese learning tools together in one thoughtful space.</p>
+        <div class="hero-actions">
+          <a class="btn btn-orange" href="https://komoreebi.onrender.com/" target="_blank" rel="noopener">Start learning <span>↗</span></a>
+          <a class="btn btn-light" href="#experience">Explore the platform</a>
+        </div>
+        <div class="micro-note">Practise · Learn · Review · Keep growing</div>
+      </div>
+      <div class="hero-art reveal">
+        <div class="hero-panel"><img src="../Assets/dashboard.png" alt="Komorebi learning dashboard showing daily mission, word of the day, library and Sensei Chat"></div>
+        <div class="floating-note"><strong>木漏れ日</strong><span>Sunlight filtering through leaves</span></div>
+      </div>
+    </section>
+
+    <section class="container meaning reveal">
+      <div class="jp">木漏れ日 — Komorebi</div>
+      <p>THE LIGHT THAT FILTERS THROUGH THE TREES</p>
+    </section>
+
+    <section class="section container" id="features">
+      <div class="section-head reveal">
+        <div class="eyebrow">One learning space</div>
+        <h2>Everything you need to keep learning.</h2>
+        <p>Komorebi brings together practical ways to study, practise and revisit Japanese—so your learning doesn't have to live across disconnected tools.</p>
+      </div>
+      <div class="feature-grid">
+        <article class="feature reveal"><div class="feature-icon">あ</div><h3>Writing Practice</h3><p>Work through Hiragana, Katakana and paragraphs with dedicated practice, test and persistent modes.</p></article>
+        <article class="feature reveal"><div class="feature-icon">文</div><h3>Your Vocabulary Library</h3><p>Add Japanese words with their readings and meanings, then build a personal collection you can revisit.</p></article>
+        <article class="feature reveal"><div class="feature-icon">✦</div><h3>Sensei Chat & AI Tools</h3><p>Use AI-assisted tools for learning support, dictionary lookups and language tasks with your configured provider.</p></article>
+        <article class="feature reveal"><div class="feature-icon">⌕</div><h3>Dictionary & Translation</h3><p>Explore words and meanings, and use the language tools available inside your learning workspace.</p></article>
+        <article class="feature reveal"><div class="feature-icon">↻</div><h3>Review, Tests & Games</h3><p>Return to what you've learned through review activities, rank tests and games that make practice more varied.</p></article>
+        <article class="feature reveal"><div class="feature-icon">日</div><h3>Progress & Motivation</h3><p>Keep an eye on your learning activity with daily missions, achievements, streaks and a knowledge rank.</p></article>
+      </div>
+    </section>
+
+    <section class="showcase section" id="experience">
+      <div class="container">
+        <div class="section-head reveal">
+          <div class="eyebrow">A look inside</div>
+          <h2>Learn in a way that feels organised.</h2>
+          <p>Take a closer look at the tools that make up the Komorebi experience.</p>
+        </div>
+
+        <div class="showcase-row">
+          <div class="showcase-text reveal">
+            <div class="kicker">01 / Your learning home</div>
+            <h3>A small mission for each day.</h3>
+            <p>Your dashboard brings your learning activity into view. See your daily mission, word of the day, personal library, Sensei Chat and knowledge level from one home screen.</p>
+          </div>
+          <div class="shot reveal"><img src="../Assets/dashboard.png" alt="Komorebi dashboard and daily mission"><div class="shot-caption">The Komorebi home dashboard</div></div>
+        </div>
+
+        <div class="showcase-row reverse">
+          <div class="showcase-text reveal">
+            <div class="kicker">02 / Writing practice</div>
+            <h3>Get familiar with every character.</h3>
+            <p>Practise Hiragana and Katakana with a character grid and writing canvas. Switch between practice, test and persistent modes as you work on your writing.</p>
+          </div>
+          <div class="shot reveal"><img src="../Assets/writing-practice.png" alt="Komorebi writing practice with hiragana grid and writing canvas"><div class="shot-caption">Hiragana writing practice</div></div>
+        </div>
+
+        <div class="showcase-row">
+          <div class="showcase-text reveal">
+            <div class="kicker">03 / Build your word bank</div>
+            <h3>Make vocabulary your own.</h3>
+            <p>Add a word with its Japanese form, reading and meaning. Your recent words and personal vocabulary library help keep the words you collect in one place.</p>
+          </div>
+          <div class="shot reveal"><img src="../Assets/add-vocabulary.png" alt="Komorebi add word form and recent vocabulary"><div class="shot-caption">Add words and grow your personal dictionary</div></div>
+        </div>
+
+        <div class="showcase-row reverse">
+          <div class="showcase-text reveal">
+            <div class="kicker">04 / Your personal library</div>
+            <h3>Come back to what you've learned.</h3>
+            <p>Browse saved vocabulary, search your collection, listen to word pronunciation where available, and manage the words in your personal archive.</p>
+          </div>
+          <div class="shot reveal"><img src="../Assets/vocabulary-library.png" alt="Komorebi personal vocabulary library cards"><div class="shot-caption">A personal archive of Japanese vocabulary</div></div>
+        </div>
+
+        <div class="showcase-row">
+          <div class="showcase-text reveal">
+            <div class="kicker">05 / AI configuration</div>
+            <h3>Choose how your AI tools connect.</h3>
+            <p>Komorebi includes AI and API settings for configuring supported providers and models. AI-powered features depend on a valid provider configuration and API key.</p>
+          </div>
+          <div class="shot reveal"><img src="../Assets/ai-settings.png" alt="Komorebi AI and API settings screen"><div class="shot-caption">AI provider and API settings</div></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section container" id="why">
+      <div class="section-head reveal">
+        <div class="eyebrow">Why Komorebi?</div>
+        <h2>Made for steady progress, not pressure.</h2>
+        <p>Learning a language is a collection of small efforts. Komorebi is designed to give those efforts a place to happen.</p>
+      </div>
+      <div class="why-grid">
+        <article class="why-card reveal"><h3>Keep your tools together.</h3><p>Writing practice, vocabulary, dictionary, review and learning activities are accessible from one platform.</p></article>
+        <article class="why-card reveal"><h3>Build a learning routine.</h3><p>Daily missions, streaks, achievements and knowledge ranks give you ways to notice and celebrate your progress.</p></article>
+        <article class="why-card reveal"><h3>Learn actively.</h3><p>Move beyond reading: practise characters, add words, test yourself and revisit your personal collection.</p></article>
+        <article class="why-card reveal"><h3>Use AI when you need it.</h3><p>AI-assisted learning tools add another way to explore Japanese, with provider configuration managed in settings.</p></article>
+      </div>
+    </section>
+
+    <section class="container reveal">
+      <div class="journey">
+        <div>
+          <div class="eyebrow">Your next step starts here</div>
+          <h2>Ready to begin your Japanese journey?</h2>
+          <p>Open Komorebi, explore the learning workspace and take your next small step—one character, one word, one practice session at a time.</p>
+        </div>
+        <a class="btn btn-orange" href="https://komoreebi.onrender.com/" target="_blank" rel="noopener">Explore Komorebi ↗</a>
+      </div>
+    </section>
+
+    <section class="section container" id="faq">
+      <div class="section-head reveal">
+        <div class="eyebrow">A few details</div>
+        <h2>Frequently asked questions</h2>
+      </div>
+      <div class="faq">
+        <details class="reveal"><summary>What is Komorebi?</summary><p>Komorebi is a Japanese language learning platform that brings together writing practice, vocabulary, dictionary and translation tools, review activities, progress features and AI-assisted learning.</p></details>
+        <details class="reveal"><summary>Who is Komorebi for?</summary><p>It is designed for people who want a dedicated place to practise Japanese, build vocabulary and organise their learning activities.</p></details>
+        <details class="reveal"><summary>Does Komorebi include AI features?</summary><p>Yes. Komorebi includes AI-assisted tools such as Sensei Chat. These features require a supported AI provider configuration and a valid API key.</p></details>
+        <details class="reveal"><summary>Where can I start?</summary><p>Open the live Komorebi application using the Start Learning or Explore Komorebi buttons on this page.</p></details>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="container footer-inner">
+      <div><strong>Komorebi 木</strong><br>Japanese learning, one small step at a time.</div>
+      <div class="footer-links">
+        <a href="https://komoreebi.onrender.com/" target="_blank" rel="noopener">Live Platform ↗</a>
+        <a href="https://riteshkumar-devs.github.io/The-Ritesh-Showcase/" target="_blank" rel="noopener">Ritesh Showcase</a>
+      </div>
+      <div>Made with care by Ritesh Kumar</div>
+    </div>
+  </footer>
+
+  <script>
+    const menuBtn = document.getElementById('menuBtn');
+    const navLinks = document.getElementById('navLinks');
+    menuBtn.addEventListener('click', () => {
+      const open = navLinks.classList.toggle('open');
+      menuBtn.setAttribute('aria-expanded', String(open));
+      menuBtn.textContent = open ? '×' : '☰';
+    });
+    navLinks.querySelectorAll('a').forEach(link => link.addEventListener('click', () => {
+      navLinks.classList.remove('open');
+      menuBtn.setAttribute('aria-expanded', 'false');
+      menuBtn.textContent = '☰';
+    }));
+    const observer = new IntersectionObserver(entries => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('visible');
+          observer.unobserve(entry.target);
+        }
+      });
+    }, { threshold: 0.12 });
+    document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+  </script>
+</body>
+</html>
