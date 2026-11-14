@@ -680,7 +680,7 @@ export const Settings = ({ vocab }: { vocab: Vocabulary[] }) => {
                   { icon: Youtube, label: 'YouTube', url: '#', color: 'text-red-500' },
                   { icon: Github, label: 'GitHub', url: 'https://github.com/riteshkumar-devsgit', color: 'text-stone-900 dark:text-white' },
                   { icon: Linkedin, label: 'LinkedIn', url: 'https://www.linkedin.com/in/ritesh-kumar-135bb237b?utm_source=share_via&utm_content=profile&utm_medium=member_android', color: 'text-blue-600' },
-                  { icon: ExternalLink, label: 'Web', url: '/pages/page.html', color: 'text-stone-400' }
+                  { icon: ExternalLink, label: 'Web', url: 'https://komorebii.pages.dev/', color: 'text-stone-400' }
                 ].map((social, i) => (
                   <a 
                     key={i} 
